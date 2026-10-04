@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 1 — Poydevor · jarayonda (5/14)
-- **Oxirgi bajarilgan:** P1.05 — shared ops/ws/template/brand (2026-10-05)
-- **Keyingi todo:** P1.06 — server skeleti (Fastify, env, /health)
+- **Faza:** 1 — Poydevor · jarayonda (6/14)
+- **Oxirgi bajarilgan:** P1.06 — server skeleti (Fastify, env, /health) (2026-10-05)
+- **Keyingi todo:** P1.07 — DB sxema (17 jadval) + migratsiyalar
 - **Blokerlar:** git remote yo'q (push uchun repo URL kerak) · P1.08 Railway uchun tasdiq kerak
 - **Ochiq qarorlar:** Q1–Q5, Q7–Q10 (phases §9). Yopilgan: Q6 (zod v4)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -47,6 +47,8 @@
 | 2026-10-05 | P1.05 | Op parametrlari past darajali: koordinata/o'lcham piksel ([x,y]); havolalar (comp/item/layer/parent/child) — elementni yaratgan opning op_id si | Oplar deterministik va sodda bo'ladi; preset/nisbiy hisob compiler'da; resume/patch op_id izi orqali |
 | 2026-10-05 | P1.05 | WS'ga qo'shildi: job.update, job.event (server→panel, Live ekrani), request.failed (panel→server) | §10.2 ro'yxatida Live log va so'rov xatosi uchun xabar yo'q edi |
 | 2026-10-05 | P1.05 | `ping` — tizim opi (Spec'dan chiqmaydi), 18 ta yopiq op to'plamiga qo'shilmaydi | Diagnostika (AE versiyasi, loyiha yo'li) uchun |
+| 2026-10-05 | P1.06 | Server deploy: Railpack + `apps/server/railway.json` (config-as-code, preDeploy migratsiya); bundle esbuild, npm bog'liqliklar tashqi | Monorepo workspace paketlari (TS manba) bundle ichiga olinadi; Dockerfile'siz eng sodda yo'l |
+| 2026-10-05 | P1.06 | Server javoblari (404/500 ham) §8 Result formatida | Claude/panel/web uchun yagona xato shakli |
 
 ---
 
@@ -117,3 +119,10 @@
 - **Tekshiruv:** 90/90 test ✅. Testlar asl rejani o'qib solishtiradi: §10.1 op ro'yxati = `OP_NAMES`; §10.2 xabarlari sxemada bor; §3 zanjiri = `JOB_FLOW`; §9 va §11.2 namunalari valid. typecheck (2 config) · lint · prettier ✅.
 - **Qarorlar:** op darajasida koordinatalar piksel (`[x,y]`), compiler preset/nisbiy qiymatlarni pikselga aylantiradi; havolalar (`comp`, `item`, `layer`) yaratgan opning op_id si; WS'ga 3 ta qo'shimcha xabar.
 - **Keyingi:** P1.06
+
+### 2026-10-05 · P1.06 — Server skeleti · ✅
+- **Qilindi:** `apps/server`: Fastify 5.12 (pino logger, `authorization`/`cookie` redact, trustProxy, requestTimeout 30 s); `env.ts` (zod, o'zbekcha xabarlar, xatoda maxfiy qiymatlar chiqmaydi, production'da `PUBLIC_URL` majburiy, `MASTER_KEY` 32 bayt tekshiruvi); `/health` (DB `select 1` + Redis `PING`, har biriga 2 s timeout, 200/503, `Result` formatida); 404/500 handlerlari `Result` formatida (ichki tafsilot oshkor qilinmaydi); graceful shutdown (SIGTERM/SIGINT, 10 s dan keyin majburiy); `withTimeout`; esbuild bundle (`@aes/*` ichiga olinadi, npm paketlar tashqarida) → `dist/index.js` 42 KB; `railway.json` (Railpack, preDeploy migratsiya, healthcheck); `.env.example`; ioredis `family: 0` (Railway private tarmog'i IPv6).
+- **Fayllar:** `apps/server/{package.json,tsconfig.json,vitest.config.ts,build.mjs,railway.json,.env.example}`, `src/{index,app,env,health,redis,version}.ts`, `src/db/client.ts`, `src/lib/timeout.ts`, `test/{env,health}.test.ts`; `pnpm-workspace.yaml` → `allowBuilds: esbuild` (pnpm 12 talabi).
+- **Tekshiruv:** 13/13 test ✅ (PGlite bilan haqiqiy DB ping). Smoke: `node dist/index.js` (DB/Redis yo'q) → `/health` 503 `{db:error, redis:error}`, `/nope` 404 `SYS_NOT_FOUND`, env yo'q → tushunarli `EnvError`. typecheck · lint · prettier ✅.
+- **Muammolar / qarz:** PGlite birinchi ishga tushishda ~12 s oladi, shuning uchun server testlari uchun timeout 30/60 s. Haqiqiy Postgres/Redis bilan tekshiruv P1.08 (Railway) da.
+- **Keyingi:** P1.07

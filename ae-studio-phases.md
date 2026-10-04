@@ -71,7 +71,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: §9 namunasi valid; 10+ noto'g'ri holat aniq zod path bilan rad etiladi.
 - [x] **P1.05 — `shared/ops.ts`, `ws.ts`, `template.ts`, `brand.ts`.** 18 op (discriminated union, har biriga params sxemasi), op konverti `{ op_id, seq, op, params, scene_id, timeout_ms }`, op natijasi; §10.2 dagi barcha WS xabarlari (+ `protocol_version`); shablon manifesti (§11.2) va `brand.json` (§11.3) sxemalari.
   - Tayyor: har op va xabar uchun valid + invalid test.
-- [ ] **P1.06 — Server skeleti.** `apps/server`: Fastify + pino, env validatsiyasi (zod, §13 env ro'yxati), `/health` (DB + Redis ping), graceful shutdown, Railway build konfiguratsiyasi.
+- [x] **P1.06 — Server skeleti.** `apps/server`: Fastify + pino, env validatsiyasi (zod, §13 env ro'yxati), `/health` (DB + Redis ping), graceful shutdown, Railway build konfiguratsiyasi.
   - Tayyor: lokal `pnpm dev` da `/health` 200 qaytaradi.
 - [ ] **P1.07 — DB sxema va migratsiyalar.** Drizzle: §5 dagi **barcha 17 jadval** (indekslar, FK, `jobs.state` enum), `pnpm db:migrate`; testlarda PGlite (Docker shart emas).
   - Tayyor: migratsiya bo'sh DB'da va PGlite'da o'tadi; asosiy CRUD testlari bor.
