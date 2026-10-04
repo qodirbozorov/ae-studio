@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 1 — Poydevor · jarayonda (6/14)
-- **Oxirgi bajarilgan:** P1.06 — server skeleti (Fastify, env, /health) (2026-10-05)
-- **Keyingi todo:** P1.07 — DB sxema (17 jadval) + migratsiyalar
+- **Faza:** 1 — Poydevor · jarayonda (7/14)
+- **Oxirgi bajarilgan:** P1.07 — DB sxema (17 jadval) + migratsiyalar (2026-10-05)
+- **Keyingi todo:** P1.08 — Railway deploy (👤 tasdiq kutilmoqda) → shungacha P1.09 panel skeleti
 - **Blokerlar:** git remote yo'q (push uchun repo URL kerak) · P1.08 Railway uchun tasdiq kerak
 - **Ochiq qarorlar:** Q1–Q5, Q7–Q10 (phases §9). Yopilgan: Q6 (zod v4)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -49,6 +49,8 @@
 | 2026-10-05 | P1.05 | `ping` — tizim opi (Spec'dan chiqmaydi), 18 ta yopiq op to'plamiga qo'shilmaydi | Diagnostika (AE versiyasi, loyiha yo'li) uchun |
 | 2026-10-05 | P1.06 | Server deploy: Railpack + `apps/server/railway.json` (config-as-code, preDeploy migratsiya); bundle esbuild, npm bog'liqliklar tashqi | Monorepo workspace paketlari (TS manba) bundle ichiga olinadi; Dockerfile'siz eng sodda yo'l |
 | 2026-10-05 | P1.06 | Server javoblari (404/500 ham) §8 Result formatida | Claude/panel/web uchun yagona xato shakli |
+| 2026-10-05 | P1.07 | Lokal dev/test DB: PGlite (WASM Postgres 18); dev server uchun pglite-socket (Docker'siz) | Bu kompyuterda Docker/Postgres yo'q; haqiqiy drayver (postgres.js) ham sinaladi |
+| 2026-10-05 | P1.07 | §5 ga qo'shimcha ustunlar: oauth_clients.client_name, oauth_tokens.{device_id,scope,data}, assets.{status,timestamps}, jobs.outcome, ops.result, timestamps | DCR rozilik ekrani, device flow holati, INGEST buzuq fayllari, job yakuni, op natijasi (comp id) uchun kerak |
 
 ---
 
@@ -126,3 +128,10 @@
 - **Tekshiruv:** 13/13 test ✅ (PGlite bilan haqiqiy DB ping). Smoke: `node dist/index.js` (DB/Redis yo'q) → `/health` 503 `{db:error, redis:error}`, `/nope` 404 `SYS_NOT_FOUND`, env yo'q → tushunarli `EnvError`. typecheck · lint · prettier ✅.
 - **Muammolar / qarz:** PGlite birinchi ishga tushishda ~12 s oladi, shuning uchun server testlari uchun timeout 30/60 s. Haqiqiy Postgres/Redis bilan tekshiruv P1.08 (Railway) da.
 - **Keyingi:** P1.07
+
+### 2026-10-05 · P1.07 — DB sxema va migratsiyalar · ✅
+- **Qilindi:** Drizzle sxemasi: §5 dagi 17 jadval. Enum'lar (`job_state`, `log_level`, `job_outcome`) `@aes/shared` dan olinadi; qolgan holat enum'lari ham bor. Cheklovlar: `plans(project_id, version)` unique + `version >= 1`, `ops(job_id, op_id)` unique (idempotentlik), `assets(project_id, key)` unique, `templates` `NULLS NOT DISTINCT` (global shablonlar), `brands(user_id, slug)`, `secrets` PK `(user_id, provider)`; FK cascade (user → hammasi), `projects.device_id` SET NULL; `updated_at` avtomatik. Migratsiya `drizzle/0000_init.sql`. `findMigrationsDir` (tsx'da ham, bundle'da ham topadi). `migrate-cli.ts` → `dist/migrate.js` (Railway preDeploy). `scripts/dev-db.ts` (`pnpm --filter @aes/server dev:db`): PGlite'ni Postgres wire-protocol orqali ochadi, Docker kerak emas.
+- **Fayllar:** `apps/server/{drizzle.config.ts, drizzle/, scripts/dev-db.ts}`, `src/db/{schema,migrate,migrate-cli,client}.ts`, `test/db.test.ts`, `test/helpers/db.ts`
+- **Tekshiruv:** server 23/23 (3 marta barqaror), repo 113/113 ✅. Jadval nomlari asl reja §5 dan o'qib solishtiriladi. Cheklovlar Postgres xato kodlari bilan sinalgan (23505/23503/23514). Haqiqiy postgres.js drayveri TCP orqali (pglite-socket): `dist/migrate.js` → 17 jadval; qayta qo'llash xavfsiz; server bundle `/health` → `db=ok`.
+- **Muammolar / qarz:** parallel ishlagan 2 ta PGlite Windows'da vitest worker'ini qulatdi (0x80000003), shuning uchun server testlari `fileParallelism: false` bilan ishlaydi.
+- **Keyingi:** P1.08 (👤 Railway tasdiqi kerak), parallel ravishda P1.09

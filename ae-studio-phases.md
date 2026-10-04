@@ -73,7 +73,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: har op va xabar uchun valid + invalid test.
 - [x] **P1.06 — Server skeleti.** `apps/server`: Fastify + pino, env validatsiyasi (zod, §13 env ro'yxati), `/health` (DB + Redis ping), graceful shutdown, Railway build konfiguratsiyasi.
   - Tayyor: lokal `pnpm dev` da `/health` 200 qaytaradi.
-- [ ] **P1.07 — DB sxema va migratsiyalar.** Drizzle: §5 dagi **barcha 17 jadval** (indekslar, FK, `jobs.state` enum), `pnpm db:migrate`; testlarda PGlite (Docker shart emas).
+- [x] **P1.07 — DB sxema va migratsiyalar.** Drizzle: §5 dagi **barcha 17 jadval** (indekslar, FK, `jobs.state` enum), `pnpm db:migrate`; testlarda PGlite (Docker shart emas).
   - Tayyor: migratsiya bo'sh DB'da va PGlite'da o'tadi; asosiy CRUD testlari bor.
 - [ ] **P1.08 — Railway deploy.** 👤 tasdiq bilan, CLI orqali: loyiha, `server` + Postgres + Redis servislari, env o'zgaruvchilar, deploy paytida migratsiya.
   - Tayyor: `https://<app>.up.railway.app/health` → `{ db: ok, redis: ok }`.

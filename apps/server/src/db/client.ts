@@ -1,9 +1,12 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import postgres from "postgres";
+import * as schema from "./schema";
+
+export type Schema = typeof schema;
 
 /** postgres-js (production) va PGlite (testlar) uchun umumiy tip. */
-export type Db = PgDatabase<PgQueryResultHKT, Record<string, never>>;
+export type Db = PgDatabase<PgQueryResultHKT, Schema>;
 
 export interface DbHandle {
   db: Db;
@@ -18,7 +21,7 @@ export function createDb(url: string): DbHandle {
     onnotice: () => {},
   });
   return {
-    db: drizzle(client) as unknown as Db,
+    db: drizzle(client, { schema }) as unknown as Db,
     close: () => client.end({ timeout: 5 }),
   };
 }
