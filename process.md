@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 1 — Poydevor · jarayonda (2/14)
-- **Oxirgi bajarilgan:** P1.02 — monorepo skeleti (2026-10-05)
-- **Keyingi todo:** P1.03 — `shared/errors.ts` va javob formati
+- **Faza:** 1 — Poydevor · jarayonda (3/14)
+- **Oxirgi bajarilgan:** P1.03 — shared/errors.ts va Result (2026-10-05)
+- **Keyingi todo:** P1.04 — shared/spec.ts (Video Spec)
 - **Blokerlar:** git remote yo'q (push uchun repo URL kerak) · P1.08 Railway uchun tasdiq kerak
 - **Ochiq qarorlar:** Q1–Q5, Q7–Q10 (phases §9). Yopilgan: Q6 (zod v4)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -39,6 +39,7 @@
 | 2026-10-05 | P1.02 | **Q6 yopildi: zod v4** | MCP SDK 1.32 peer: `zod ^3.25 \|\| ^4.0` |
 | 2026-10-05 | P1.02 | Ichki paketlar TS manbasi sifatida eksport qilinadi (build'siz), importlar kengaytmasiz (`moduleResolution: Bundler`); server prod uchun esbuild bundle | Oddiy, jsx rollup ham resolve qiladi |
 | 2026-10-05 | P1.02 | ExtendScript (jsx) `shared` dan faqat zod'siz, ES3-xavfsiz fayllarni import qiladi (`errors`, `result`, `ae`) | jsx typecheck `noLib` + types-for-adobe (ES3); zod jsx bundle'ga tushmasligi kerak |
+| 2026-10-05 | P1.03 | §12 ga qo'shimcha kodlar: AUTH_INVALID, ASSET_OUTSIDE_ROOT, AE_UNKNOWN_OP, AE_BAD_PARAMS, AE_NOT_FOUND, SYS_INTERNAL/BAD_REQUEST/NOT_FOUND/RATE_LIMIT | §12 da faqat misollar bor; Faza 1 oplari va server uchun kerak |
 
 ---
 
@@ -88,3 +89,10 @@
 - **Tekshiruv:** `pnpm install && pnpm lint && pnpm typecheck && pnpm test && pnpm format:check` → hammasi toza.
 - **Qarorlar:** TS 6 (7 emas); Q6 → zod v4; importlar kengaytmasiz; jsx uchun ES3-xavfsiz shared qismi (qarorlar jurnalida).
 - **Keyingi:** P1.03
+
+### 2026-10-05 · P1.03 — `shared/errors.ts` va javob formati · ✅
+- **Qilindi:** `errors.ts`: §12 dagi 24 ta kod + qo'shimchalar (`AUTH_INVALID`, `ASSET_OUTSIDE_ROOT`, `AE_UNKNOWN_OP`, `AE_BAD_PARAMS`, `AE_NOT_FOUND`, `SYS_*`), har birida `retryable` va o'zbekcha `hint`; `makeError` (noma'lum kod runtime'da `SYS_INTERNAL` bo'ladi), `isErrorCode`, `errorPrefix`. `result.ts`: `Result<T> = Ok | Fail`, `ok`/`fail`/`failWith`. Ikkala fayl ES3-xavfsiz (jsx bundle'iga kiradi). Subpath eksportlar: `@aes/shared/errors`, `@aes/shared/result`.
+- **Fayllar:** `packages/shared/src/{errors,result,index}.ts`, `packages/shared/test/errors.test.ts`
+- **Tekshiruv:** `vitest --project @aes/shared` → 7/7 ✅ (tip darajasida: noma'lum kod `@ts-expect-error`) · typecheck · lint · prettier ✅
+- **Qarorlar:** ASSET_ "qisman" → faqat `ASSET_CORRUPT` retryable. ES3 xavfsizligi P1.10 dagi jsx typecheck dasturida yakuniy tekshiriladi.
+- **Keyingi:** P1.04

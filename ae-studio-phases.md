@@ -65,7 +65,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: `node -v`, `pnpm -v`, `ffprobe -version` ishlaydi; AE va CSXS versiyalari process.md ga yozilgan.
 - [x] **P1.02 — Monorepo skeleti.** pnpm workspace, `tsconfig.base.json` (strict), ESLint (flat) + Prettier, Vitest workspace, `.gitignore`, `engines.node`, §13 papkalari: `packages/{shared,compiler}`, `apps/{server,worker,web,panel}`, `templates/`, `brands/`, `docs/`.
   - Tayyor: `pnpm install && pnpm lint && pnpm typecheck && pnpm test` toza o'tadi.
-- [ ] **P1.03 — `shared/errors.ts` va javob formati.** §12 dagi barcha kodlar (prefiks, `retryable`, standart `hint`), `Result<T> = { ok: true, data } | { ok: false, error }` (§8), `err()` helper.
+- [x] **P1.03 — `shared/errors.ts` va javob formati.** §12 dagi barcha kodlar (prefiks, `retryable`, standart `hint`), `Result<T> = { ok: true, data } | { ok: false, error }` (§8), `err()` helper.
   - Tayyor: har kod uchun test bor; noma'lum kod tip xatosi beradi.
 - [ ] **P1.04 — `shared/spec.ts` (Video Spec, §9).** `format`, `variants`, `brand`, `audio.*`, `scenes` (`dur`: soniya yoki `vo:a-b`, `template` + `slots`, `layers`: media/text/shape/audio, `anim`, `pos`, `transition_out`), `output`; `asset:<key>` havola parseri; MCP `inputSchema` uchun JSON Schema eksporti. ❓ zod v3 yoki v4 (MCP SDK bilan moslik, Q6).
   - Tayyor: §9 namunasi valid; 10+ noto'g'ri holat aniq zod path bilan rad etiladi.

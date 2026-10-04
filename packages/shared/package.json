@@ -5,7 +5,9 @@
   "type": "module",
   "description": "Yagona kontrakt: Video Spec, oplar, WS xabarlari, xato kodlari, shablon/brand sxemalari (zod)",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./errors": "./src/errors.ts",
+    "./result": "./src/result.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"
