@@ -7,10 +7,11 @@
   "exports": {
     ".": "./src/index.ts",
     "./errors": "./src/errors.ts",
-    "./result": "./src/result.ts"
+    "./result": "./src/result.ts",
+    "./ae": "./src/ae.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json"
   },
   "dependencies": {
     "zod": "^4.6.5"

@@ -1,0 +1,26 @@
+{
+  "slug": "hook_title",
+  "comp": "HOOK",
+  "duration": {
+    "min": 2,
+    "max": 6,
+    "stretch": "time_remap"
+  },
+  "formats": ["9:16", "1:1", "16:9"],
+  "slots": {
+    "title": {
+      "type": "text",
+      "layer": "TITLE",
+      "max_chars": 40
+    },
+    "bg": {
+      "type": "media",
+      "layer": "BG_PLACEHOLDER",
+      "fit": "cover"
+    },
+    "accent": {
+      "type": "color",
+      "egp": "Accent Color"
+    }
+  }
+}

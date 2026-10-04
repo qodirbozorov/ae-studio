@@ -69,7 +69,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: har kod uchun test bor; noma'lum kod tip xatosi beradi.
 - [x] **P1.04 — `shared/spec.ts` (Video Spec, §9).** `format`, `variants`, `brand`, `audio.*`, `scenes` (`dur`: soniya yoki `vo:a-b`, `template` + `slots`, `layers`: media/text/shape/audio, `anim`, `pos`, `transition_out`), `output`; `asset:<key>` havola parseri; MCP `inputSchema` uchun JSON Schema eksporti. ❓ zod v3 yoki v4 (MCP SDK bilan moslik, Q6).
   - Tayyor: §9 namunasi valid; 10+ noto'g'ri holat aniq zod path bilan rad etiladi.
-- [ ] **P1.05 — `shared/ops.ts`, `ws.ts`, `template.ts`, `brand.ts`.** 18 op (discriminated union, har biriga params sxemasi), op konverti `{ op_id, seq, op, params, scene_id, timeout_ms }`, op natijasi; §10.2 dagi barcha WS xabarlari (+ `protocol_version`); shablon manifesti (§11.2) va `brand.json` (§11.3) sxemalari.
+- [x] **P1.05 — `shared/ops.ts`, `ws.ts`, `template.ts`, `brand.ts`.** 18 op (discriminated union, har biriga params sxemasi), op konverti `{ op_id, seq, op, params, scene_id, timeout_ms }`, op natijasi; §10.2 dagi barcha WS xabarlari (+ `protocol_version`); shablon manifesti (§11.2) va `brand.json` (§11.3) sxemalari.
   - Tayyor: har op va xabar uchun valid + invalid test.
 - [ ] **P1.06 — Server skeleti.** `apps/server`: Fastify + pino, env validatsiyasi (zod, §13 env ro'yxati), `/health` (DB + Redis ping), graceful shutdown, Railway build konfiguratsiyasi.
   - Tayyor: lokal `pnpm dev` da `/health` 200 qaytaradi.

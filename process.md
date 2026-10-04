@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 1 — Poydevor · jarayonda (4/14)
-- **Oxirgi bajarilgan:** P1.04 — shared/spec.ts Video Spec (2026-10-05)
-- **Keyingi todo:** P1.05 — shared/ops.ts, ws.ts, template.ts, brand.ts
+- **Faza:** 1 — Poydevor · jarayonda (5/14)
+- **Oxirgi bajarilgan:** P1.05 — shared ops/ws/template/brand (2026-10-05)
+- **Keyingi todo:** P1.06 — server skeleti (Fastify, env, /health)
 - **Blokerlar:** git remote yo'q (push uchun repo URL kerak) · P1.08 Railway uchun tasdiq kerak
 - **Ochiq qarorlar:** Q1–Q5, Q7–Q10 (phases §9). Yopilgan: Q6 (zod v4)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -44,6 +44,9 @@
 | 2026-10-05 | P1.04 | anim/pos/transition/output preset — yopiq enumlar; pos qo'shimcha nisbiy {x,y} (0–1) | Claude to'qib chiqargan nom PLAN'da aniq xato bilan to'xtaydi; variantlar uchun nisbiy koordinata |
 | 2026-10-05 | P1.04 | §9 kengaytmalari: voiceover kind tts/dialogue/asset, music kind music/asset, sfx prompt yoki asset, layer turlari media/text/shape/audio (+ id/start/dur) | §7 imkoniyatlari (dialogue, tayyor audio) va §10 oplari (shape/audio) Spec'dan ifodalanishi uchun |
 | 2026-10-05 | P1.04 | Zod xabarlari o'zbekcha (`z.locales.uz`, faqat parse vaqtida, global config emas); details path'lari JSON Pointer | Foydalanuvchi o'zbek; Claude path'ni to'g'ridan-to'g'ri plan_patch'da ishlatadi |
+| 2026-10-05 | P1.05 | Op parametrlari past darajali: koordinata/o'lcham piksel ([x,y]); havolalar (comp/item/layer/parent/child) — elementni yaratgan opning op_id si | Oplar deterministik va sodda bo'ladi; preset/nisbiy hisob compiler'da; resume/patch op_id izi orqali |
+| 2026-10-05 | P1.05 | WS'ga qo'shildi: job.update, job.event (server→panel, Live ekrani), request.failed (panel→server) | §10.2 ro'yxatida Live log va so'rov xatosi uchun xabar yo'q edi |
+| 2026-10-05 | P1.05 | `ping` — tizim opi (Spec'dan chiqmaydi), 18 ta yopiq op to'plamiga qo'shilmaydi | Diagnostika (AE versiyasi, loyiha yo'li) uchun |
 
 ---
 
@@ -107,3 +110,10 @@
 - **Tekshiruv:** 35/35 test ✅ (§9 namunasi valid; 20+ noto'g'ri holat aniq path bilan) · typecheck · lint · prettier ✅
 - **Qarorlar:** qarorlar jurnalida (vo: semantikasi, yopiq enumlar, strict, o'zbek lokali). Root'ga `tsx` qo'shildi.
 - **Keyingi:** P1.05
+
+### 2026-10-05 · P1.05 — `shared/ops.ts`, `ws.ts`, `template.ts`, `brand.ts` · ✅
+- **Qilindi:** `ae.ts`: op tilining sof TS tiplari (18 op + `ping` tizim opi, `OpEnvelope`, `OpResultData`, `AeRequest/AeResponse` ko'prigi). Fayl ES3-xavfsiz, jsx shu tiplardan foydalanadi. `ops.ts`: har op uchun zod params sxemasi, `opEnvelopeSchema` (discriminated union), `opResultDataSchema`, `makeOp`, `parseOpEnvelope` (AE_BAD_PARAMS), timeout'lar (`OP_TIMEOUT_MS`), `OP_PATH_PARAMS`, op_id formati (`[aes:<op_id>]` izi uchun xavfsiz). Compile vaqtidagi `Mutual` tekshiruvi zod ↔ `ae.ts` mosligini kafolatlaydi (ataylab buzib sinaldi, tutildi). `ws.ts`: §10.2 ning barcha 19 xabari + `job.update`, `job.event`, `request.failed`; heartbeat konstantalari; `parseServerMessage/parsePanelMessage`. `jobs.ts`: holatlar (§3), outcome'lar, `MAX_PATCHES=3`. `template.ts` (§11.2), `brand.ts` (§11.3).
+- **Fayllar:** `packages/shared/src/{ae,ops,ws,jobs,template,brand,index}.ts`, `test/contracts.test.ts`, `test/fixtures/template-plan-example.json`; `tsconfig.test.json` (src muhitdan mustaqil, testlar Node tiplari bilan).
+- **Tekshiruv:** 90/90 test ✅. Testlar asl rejani o'qib solishtiradi: §10.1 op ro'yxati = `OP_NAMES`; §10.2 xabarlari sxemada bor; §3 zanjiri = `JOB_FLOW`; §9 va §11.2 namunalari valid. typecheck (2 config) · lint · prettier ✅.
+- **Qarorlar:** op darajasida koordinatalar piksel (`[x,y]`), compiler preset/nisbiy qiymatlarni pikselga aylantiradi; havolalar (`comp`, `item`, `layer`) yaratgan opning op_id si; WS'ga 3 ta qo'shimcha xabar.
+- **Keyingi:** P1.06
