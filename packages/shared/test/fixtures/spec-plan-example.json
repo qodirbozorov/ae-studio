@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "format": {
+    "w": 1080,
+    "h": 1920,
+    "fps": 30,
+    "duration": "auto"
+  },
+  "variants": ["9:16", "1:1"],
+  "brand": "default",
+  "audio": {
+    "voiceover": {
+      "kind": "tts",
+      "voice_id": "…",
+      "model_id": "…",
+      "text": "…",
+      "pronunciation": ["brand-uz"]
+    },
+    "music": {
+      "kind": "music",
+      "prompt": "upbeat corporate",
+      "length": "match_video",
+      "instrumental": true,
+      "duck_under": "voiceover"
+    },
+    "sfx": [
+      {
+        "id": "whoosh1",
+        "prompt": "fast whoosh",
+        "duration_s": 0.8,
+        "at": "s1.end"
+      }
+    ],
+    "captions": {
+      "from": "voiceover",
+      "method": "tts_timestamps",
+      "style": "karaoke_bold"
+    },
+    "source_audio": {
+      "asset": "asset:interview_01",
+      "isolate": true,
+      "transcribe": true
+    }
+  },
+  "scenes": [
+    {
+      "id": "s1",
+      "dur": "vo:0-1",
+      "template": "hook_title",
+      "slots": {
+        "title": "3 ta xato",
+        "bg": "asset:clip_01"
+      },
+      "transition_out": "whip_left"
+    },
+    {
+      "id": "s2",
+      "dur": "vo:1-3",
+      "layers": [
+        {
+          "type": "media",
+          "src": "asset:photo_02",
+          "anim": "ken_burns_in"
+        },
+        {
+          "type": "text",
+          "text": "…",
+          "anim": "typewriter",
+          "pos": "lower_third"
+        }
+      ]
+    }
+  ],
+  "output": {
+    "preset": "h264_social",
+    "name": "reel_v1"
+  }
+}
