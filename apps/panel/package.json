@@ -1,0 +1,38 @@
+{
+  "name": "@aes/panel",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AE Studio CEP paneli (Bolt CEP): React UI + Node agent + ExtendScript oplar",
+  "scripts": {
+    "dev": "vite",
+    "build": "cross-env NODE_ENV=production vite build --watch false",
+    "zxp": "cross-env NODE_ENV=production ZXP_PACKAGE=true vite build --watch false",
+    "symlink": "cross-env BOLT_ACTION=symlink vite",
+    "delsymlink": "cross-env BOLT_ACTION=delsymlink vite",
+    "typecheck": "tsc -p tsconfig.json && tsc -p src/jsx/tsconfig.json"
+  },
+  "dependencies": {
+    "@aes/shared": "workspace:*",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
+    "@babel/preset-typescript": "^7.29.7",
+    "@rollup/plugin-babel": "^6.1.0",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@types/node": "^16.18.126",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "acorn": "^8.18.0",
+    "cross-env": "^10.1.0",
+    "rollup": "^4.64.0",
+    "types-for-adobe": "^7.2.6",
+    "vite": "~6.4.3",
+    "vite-cep-plugin": "2.2.3"
+  }
+}

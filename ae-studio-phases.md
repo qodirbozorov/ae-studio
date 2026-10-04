@@ -77,7 +77,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: migratsiya bo'sh DB'da va PGlite'da o'tadi; asosiy CRUD testlari bor.
 - [ ] **P1.08 — Railway deploy.** 👤 tasdiq bilan, CLI orqali: loyiha, `server` + Postgres + Redis servislari, env o'zgaruvchilar, deploy paytida migratsiya.
   - Tayyor: `https://<app>.up.railway.app/health` → `{ db: ok, redis: ok }`.
-- [ ] **P1.09 — Panel skeleti (Bolt CEP).** `apps/panel`: React + Vite + TS, `cep.config.ts` (id, AE host diapazoni, `--enable-nodejs`, `--mixed-context`), build target CEP ichidagi Chromium/Node'ga mos, pnpm workspace'ga ulangan, `extensions` papkasiga dev symlink.
+- [x] **P1.09 — Panel skeleti (Bolt CEP).** `apps/panel`: React + Vite + TS, `cep.config.ts` (id, AE host diapazoni, `--enable-nodejs`, `--mixed-context`), build target CEP ichidagi Chromium/Node'ga mos, pnpm workspace'ga ulangan, `extensions` papkasiga dev symlink.
   - Tayyor: 👤 AE → Window → Extensions → AE Studio ochiladi, hot reload ishlaydi.
 - [ ] **P1.10 — ExtendScript runtime (§10.3).** `src/jsx`: TS → ES3 build, `json2` polyfill, `runOp(json)` dispatcher (`beginUndoGroup(op_id)`, `beginSuppressDialogs`, `try/catch`, natija doim JSON string), AE versiya tekshiruvi (`AE_VERSION`), `ping` op, `op_id` izi (layer/item comment) va `findByOpId`.
   - Tayyor: `runOp('ping')` AE versiyasi va loyiha yo'lini qaytaradi; xatoda `AE_SCRIPT_ERROR` JSON keladi.

@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 1 — Poydevor · jarayonda (7/14)
-- **Oxirgi bajarilgan:** P1.07 — DB sxema (17 jadval) + migratsiyalar (2026-10-05)
-- **Keyingi todo:** P1.08 — Railway deploy (👤 tasdiq kutilmoqda) → shungacha P1.09 panel skeleti
+- **Faza:** 1 — Poydevor · jarayonda (8/14, P1.08 kutmoqda)
+- **Oxirgi bajarilgan:** P1.09 — panel skeleti Bolt CEP (2026-10-05)
+- **Keyingi todo:** P1.10 — ExtendScript runtime (runOp, ping, op_id izi)
 - **Blokerlar:** git remote yo'q (push uchun repo URL kerak) · P1.08 Railway uchun tasdiq kerak
 - **Ochiq qarorlar:** Q1–Q5, Q7–Q10 (phases §9). Yopilgan: Q6 (zod v4)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -51,6 +51,9 @@
 | 2026-10-05 | P1.06 | Server javoblari (404/500 ham) §8 Result formatida | Claude/panel/web uchun yagona xato shakli |
 | 2026-10-05 | P1.07 | Lokal dev/test DB: PGlite (WASM Postgres 18); dev server uchun pglite-socket (Docker'siz) | Bu kompyuterda Docker/Postgres yo'q; haqiqiy drayver (postgres.js) ham sinaladi |
 | 2026-10-05 | P1.07 | §5 ga qo'shimcha ustunlar: oauth_clients.client_name, oauth_tokens.{device_id,scope,data}, assets.{status,timestamps}, jobs.outcome, ops.result, timestamps | DCR rozilik ekrani, device flow holati, INGEST buzuq fayllari, job yakuni, op natijasi (comp id) uchun kerak |
+| 2026-10-05 | P1.09 | Panel toolchain Bolt CEP 2.2.3 da sinalgan versiyalarda: Vite 6, plugin-react 4, Babel 7 (monorepo qolgan qismi Vite 8/TS 6) | vite-cep-plugin Vite ≤7 ni qo'llaydi; ES3 pipeline Babel 7 bilan sinalgan |
+| 2026-10-05 | P1.09 | Agent (Node) alohida esbuild bundle (dist/cep/agent/agent.cjs), UI uni CEP Node require bilan yuklaydi; CSInterface vendor qilinmaydi | `ws` va Node API brauzer bundle'iga aralashmaydi; agent Node'da test qilinadi |
+| 2026-10-05 | P1.09 | vitest maxWorkers: 1 | Dev kompyuterda xotira kam, parallel worker'lar crash beradi |
 
 ---
 
@@ -135,3 +138,9 @@
 - **Tekshiruv:** server 23/23 (3 marta barqaror), repo 113/113 ✅. Jadval nomlari asl reja §5 dan o'qib solishtiriladi. Cheklovlar Postgres xato kodlari bilan sinalgan (23505/23503/23514). Haqiqiy postgres.js drayveri TCP orqali (pglite-socket): `dist/migrate.js` → 17 jadval; qayta qo'llash xavfsiz; server bundle `/health` → `db=ok`.
 - **Muammolar / qarz:** parallel ishlagan 2 ta PGlite Windows'da vitest worker'ini qulatdi (0x80000003), shuning uchun server testlari `fileParallelism: false` bilan ishlaydi.
 - **Keyingi:** P1.08 (👤 Railway tasdiqi kerak), parallel ravishda P1.09
+
+### 2026-10-05 · P1.09 — Panel skeleti (Bolt CEP) · ✅ (AE'da ko'rish 👤)
+- **Qilindi:** `apps/panel` Bolt CEP 2.2.3 toolchain'i bilan: vite-cep-plugin 2.2.3 + Vite 6.4 + plugin-react 4.7 + React 19; `cep.config.ts` (id `com.aestudio.panel`, AEFT `[22.0,99.9]`, CSXS 11, `--enable-nodejs --mixed-context`, ikonkalar); `vite.config.ts` (ExtendScript bundle `buildStart` da, ZXP imzolashdan oldin tayyor bo'ladi; production build AppData'dagi junction'ni o'chiradi, `AES_SYMLINK=1` bo'lsa qoladi); `vite.es.config.ts` (rollup + Babel 7 preset-env (targetsiz) + Bolt `jsxInclude`/`jsxPonyfill`, `generateJsx()` testlar uchun); jsx tsconfig `noLib` + types-for-adobe AE 22.0 (ES3 tiplar); `json2.js` vendor; o'z `cep.ts` wrapper'i (CSInterface o'rniga `__adobe_cep__`); UI skeleti (holat indikatorlari); 23×23 ikonkalar; `docs/panel-install.md`. ESLint: ES3 kodiga sintaksis cheklovlari.
+- **Tekshiruv:** `pnpm --filter @aes/panel build` → `dist/cep` (manifest.xml, .debug, UI cjs 225 KB, jsx 3.7 KB, ikonkalar). Panel testlari 7/7: jsx bundle acorn `ecmaVersion: 3` dan o'tadi; JSON'siz vm'da json2 o'rnatiladi va `$[NS].version` mavjud; bundle'da ES5 API yo'q; cep.config tekshiruvi. Repo 120/120 (2 marta) · typecheck (UI + jsx) · lint · prettier ✅.
+- **Muammolar / qarz:** Dev kompyuterda xotira juda kam (RAM 7.9 GB, bo'sh 0.3 GB; commit'ning bo'shi 2.1 GB). Parallel vitest worker'lar native crash berdi, shuning uchun root'da `maxWorkers: 1`. Vite 6 `@types/node>=18` peer ogohlantirishi bor, panelda ataylab `@types/node@16` (CEP Node 15–17 API'si). AE'da ochib ko'rish 👤 boshqa kompyuterda.
+- **Keyingi:** P1.10

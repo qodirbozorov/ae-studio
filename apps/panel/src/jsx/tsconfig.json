@@ -1,0 +1,20 @@
+{
+  // ExtendScript (ES3) typecheck: noLib + types-for-adobe ES3 ta'riflari.
+  // ES5+ API (Array#forEach, Object.keys, JSON...) ishlatilsa tip xatosi chiqadi. Emit — Babel.
+  "compilerOptions": {
+    "target": "ES2015",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noLib": true,
+    "types": [],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "files": ["../../node_modules/types-for-adobe/AfterEffects/22.0/index.d.ts"],
+  "include": ["./**/*.ts", "../shared/**/*.ts"]
+}
