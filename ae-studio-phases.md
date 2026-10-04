@@ -63,7 +63,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P1.01 — Muhit.** Node 24 LTS + pnpm (corepack) + ffmpeg/ffprobe: ruxsatingiz bilan men o'rnataman (user papkasiga, admin'siz). 👤 **After Effects** (Creative Cloud). `PlayerDebugMode = "1"` (`HKCU\Software\Adobe\CSXS.<11|12>`), `git init`, 👤 git `user.email`.
   - Holat (2026-10-05): Node v24.21.0 ✅ · pnpm 12.9.1 ✅ · ffmpeg n8.1.3 ✅ · git ✅ (`main`, repo-local email) · After Effects + PlayerDebugMode → 👤 boshqa kompyuterda.
   - Tayyor: `node -v`, `pnpm -v`, `ffprobe -version` ishlaydi; AE va CSXS versiyalari process.md ga yozilgan.
-- [ ] **P1.02 — Monorepo skeleti.** pnpm workspace, `tsconfig.base.json` (strict), ESLint (flat) + Prettier, Vitest workspace, `.gitignore`, `engines.node`, §13 papkalari: `packages/{shared,compiler}`, `apps/{server,worker,web,panel}`, `templates/`, `brands/`, `docs/`.
+- [x] **P1.02 — Monorepo skeleti.** pnpm workspace, `tsconfig.base.json` (strict), ESLint (flat) + Prettier, Vitest workspace, `.gitignore`, `engines.node`, §13 papkalari: `packages/{shared,compiler}`, `apps/{server,worker,web,panel}`, `templates/`, `brands/`, `docs/`.
   - Tayyor: `pnpm install && pnpm lint && pnpm typecheck && pnpm test` toza o'tadi.
 - [ ] **P1.03 — `shared/errors.ts` va javob formati.** §12 dagi barcha kodlar (prefiks, `retryable`, standart `hint`), `Result<T> = { ok: true, data } | { ok: false, error }` (§8), `err()` helper.
   - Tayyor: har kod uchun test bor; noma'lum kod tip xatosi beradi.

@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+*.log
+*.tsbuildinfo
+.vite/
+.DS_Store
+Thumbs.db
+
+# Maxfiy sozlamalar
+.env
+.env.*
+!.env.example
+
+# Panel build artefaktlari (esbuild agent bundle Vite publicDir ichiga yoziladi)
+apps/panel/src/js/public/agent/
+
+# Ish papkasidagi lokal ma'lumotlar (credentials, plan/report nusxalari)
+.aestudio/

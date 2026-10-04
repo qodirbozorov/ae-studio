@@ -1,0 +1,16 @@
+{
+  "name": "@aes/compiler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Video Spec → oplist kompilyatori (sof funksiya)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@aes/shared": "workspace:*"
+  }
+}

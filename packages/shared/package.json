@@ -1,0 +1,13 @@
+{
+  "name": "@aes/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Yagona kontrakt: Video Spec, oplar, WS xabarlari, xato kodlari, shablon/brand sxemalari (zod)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

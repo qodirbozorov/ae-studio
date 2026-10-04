@@ -10,11 +10,11 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 1 — Poydevor · jarayonda (1/14)
-- **Oxirgi bajarilgan:** P1.01 — muhit (Node, pnpm, ffmpeg, git) (2026-10-05)
-- **Keyingi todo:** P1.02 — monorepo skeleti
+- **Faza:** 1 — Poydevor · jarayonda (2/14)
+- **Oxirgi bajarilgan:** P1.02 — monorepo skeleti (2026-10-05)
+- **Keyingi todo:** P1.03 — `shared/errors.ts` va javob formati
 - **Blokerlar:** git remote yo'q (push uchun repo URL kerak) · P1.08 Railway uchun tasdiq kerak
-- **Ochiq qarorlar:** Q1–Q10 (phases §9); hali birortasi yopilmagan
+- **Ochiq qarorlar:** Q1–Q5, Q7–Q10 (phases §9). Yopilgan: Q6 (zod v4)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
 - **Bash tool eslatmasi:** shu sessiyada PATH yangilanmagan, har buyruq oldidan: `export PATH="/c/Users/991106847/AppData/Local/Programs/nodejs:/c/Users/991106847/AppData/Local/Programs/ffmpeg/bin:$PATH"`
 - **Muhim yo'llar / URL'lar:** Node `%LOCALAPPDATA%\Programs\nodejs` · ffmpeg `%LOCALAPPDATA%\Programs\ffmpeg\bin` · Railway URL hali yo'q
@@ -35,6 +35,10 @@
 | 2026-10-05 | P1.01 | After Effects bu kompyuterga o'rnatilmaydi; plagin boshqa kompyuterda sinaladi. Bu yerda kod darajasidagi tekshiruv yetarli: typecheck, testlar, ES3 build validatsiyasi, mock-AE testlari | Foydalanuvchi qarori |
 | 2026-10-05 | P1.01 | Har todo'dan keyin git commit va push | Foydalanuvchi ruxsati |
 | 2026-10-05 | P1.01 | ffmpeg uchun BtbN LGPL build | Q9 bilan mos (tarqatishda ham LGPL) |
+| 2026-10-05 | P1.02 | TypeScript 6.0.3 (7.x emas) | typescript-eslint 8.71 faqat `<6.1.0` ni qo'llaydi |
+| 2026-10-05 | P1.02 | **Q6 yopildi: zod v4** | MCP SDK 1.32 peer: `zod ^3.25 \|\| ^4.0` |
+| 2026-10-05 | P1.02 | Ichki paketlar TS manbasi sifatida eksport qilinadi (build'siz), importlar kengaytmasiz (`moduleResolution: Bundler`); server prod uchun esbuild bundle | Oddiy, jsx rollup ham resolve qiladi |
+| 2026-10-05 | P1.02 | ExtendScript (jsx) `shared` dan faqat zod'siz, ES3-xavfsiz fayllarni import qiladi (`errors`, `result`, `ae`) | jsx typecheck `noLib` + types-for-adobe (ES3); zod jsx bundle'ga tushmasligi kerak |
 
 ---
 
@@ -77,3 +81,10 @@
 - **Qarorlar:** After Effects va PlayerDebugMode boshqa kompyuterda (foydalanuvchi). Bu yerda kod darajasida tekshiriladi. Har todo'dan keyin commit + push.
 - **Muammolar / qarz:** Bash tool sessiya snapshot'idan foydalanadi, PATH qo'lda qo'shiladi ("Joriy holat"ga qarang). Git remote yo'q.
 - **Keyingi:** P1.02
+
+### 2026-10-05 · P1.02 — Monorepo skeleti · ✅
+- **Qilindi:** pnpm workspace (`packages/*`, `apps/*`); root `package.json` (build/typecheck/lint/test/format/check skriptlari); `tsconfig.base.json` (strict, Bundler, verbatimModuleSyntax, noUncheckedIndexedAccess); ESLint 10 flat + typescript-eslint; Prettier; Vitest 5 `projects`; `.gitignore`, `.gitattributes`, `.editorconfig`, `.nvmrc`; `@aes/shared` va `@aes/compiler` skeletlari; `apps/*` papkalari (o'z todo'larida to'ldiriladi).
+- **Versiyalar:** typescript 6.0.3 · eslint 10.12 · typescript-eslint 8.71 · vitest 5.0.3 · prettier 3.9.9 · @types/node 24.
+- **Tekshiruv:** `pnpm install && pnpm lint && pnpm typecheck && pnpm test && pnpm format:check` → hammasi toza.
+- **Qarorlar:** TS 6 (7 emas); Q6 → zod v4; importlar kengaytmasiz; jsx uchun ES3-xavfsiz shared qismi (qarorlar jurnalida).
+- **Keyingi:** P1.03
