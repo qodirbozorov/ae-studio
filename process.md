@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 1 — Poydevor · jarayonda (8/14, P1.08 kutmoqda)
-- **Oxirgi bajarilgan:** P1.09 — panel skeleti Bolt CEP (2026-10-05)
-- **Keyingi todo:** P1.10 — ExtendScript runtime (runOp, ping, op_id izi)
+- **Faza:** 1 — Poydevor · jarayonda (9/14, P1.08 kutmoqda)
+- **Oxirgi bajarilgan:** P1.10 — ExtendScript runtime (2026-10-05)
+- **Keyingi todo:** P1.11 — panel op runner + live log (agent)
 - **Blokerlar:** git remote yo'q (push uchun repo URL kerak) · P1.08 Railway uchun tasdiq kerak
 - **Ochiq qarorlar:** Q1–Q5, Q7–Q10 (phases §9). Yopilgan: Q6 (zod v4)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -144,3 +144,9 @@
 - **Tekshiruv:** `pnpm --filter @aes/panel build` → `dist/cep` (manifest.xml, .debug, UI cjs 225 KB, jsx 3.7 KB, ikonkalar). Panel testlari 7/7: jsx bundle acorn `ecmaVersion: 3` dan o'tadi; JSON'siz vm'da json2 o'rnatiladi va `$[NS].version` mavjud; bundle'da ES5 API yo'q; cep.config tekshiruvi. Repo 120/120 (2 marta) · typecheck (UI + jsx) · lint · prettier ✅.
 - **Muammolar / qarz:** Dev kompyuterda xotira juda kam (RAM 7.9 GB, bo'sh 0.3 GB; commit'ning bo'shi 2.1 GB). Parallel vitest worker'lar native crash berdi, shuning uchun root'da `maxWorkers: 1`. Vite 6 `@types/node>=18` peer ogohlantirishi bor, panelda ataylab `@types/node@16` (CEP Node 15–17 API'si). AE'da ochib ko'rish 👤 boshqa kompyuterda.
 - **Keyingi:** P1.10
+
+### 2026-10-05 · P1.10 — ExtendScript runtime · ✅
+- **Qilindi:** `src/jsx/dispatcher.ts`: `runOp(json)` (har doim JSON qaytaradi; `beginSuppressDialogs` + `beginUndoGroup("aes:<op_id>")`, `finally` da yopiladi; read-only `ping` uchun undo group ochilmaydi; AE < 22 → `AE_VERSION`; noma'lum op → `AE_UNKNOWN_OP`; yomon JSON → `AE_BAD_PARAMS`; handler'dagi `raise()` tasniflangan xatoga, boshqa istisno `AE_SCRIPT_ERROR` ga (qator raqami bilan) aylanadi). `registerOp`, `ops/ping.ts`, `lib/trace.ts` (`[aes:<op_id>]` izi, `findItemByOpId`, `findLayerByOpId`, `requireComp`/`requireItem`), `lib/paths.ts` (`resolveInRoot`: absolyut yo'l va `..` → `ASSET_OUTSIDE_ROOT`), `lib/util.ts` (ES3 `isArray`, `hexToRgb`, `raise`). `$[NS] = { version, runOp }`. `@aes/shared/errors` jsx bundle ichida runtime'da ishlatiladi (ES3-xavfsiz ekani tasdiqlandi).
+- **Test infratuzilmasi:** `test/ae-mock.ts`: AE object model mock'i (project/items/CompItem/layers/TextDocument/ImportOptions/File, undo/dialog hisoblagichlari). `test/jsx-harness.ts`: bundle JSON'siz vm'da yuklanadi.
+- **Tekshiruv:** panel 11/11 ✅ (ping, yomon JSON, noma'lum op, eski AE). Test topdi: Babel `_typeof` helper'i `Symbol.iterator` ni bundle'ga qo'shgan edi, shuning uchun `transform-typeof-symbol` o'chirildi. jsx typecheck (ES3) · lint · prettier ✅.
+- **Keyingi:** P1.11

@@ -34,7 +34,8 @@ export function createJsxRollupOptions(input: string = JSX_ENTRY): RollupOptions
         cwd: panelDir,
         babelHelpers: "inline",
         // targets berilmagan: preset-env eng eski muhitni nazarda tutadi (ES3 member/property literal'lari ham).
-        presets: [presetEnv, presetTypescript],
+        // Symbol ExtendScript'da yo'q: har `typeof` uchun _typeof helper qo'shilmasin.
+        presets: [[presetEnv, { exclude: ["transform-typeof-symbol"] }], presetTypescript],
       }),
       jsxPonyfill(),
       jsxInclude({ iife: true, globalThis: "thisObj" }),
