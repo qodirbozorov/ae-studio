@@ -23,7 +23,7 @@ interface StoredFile {
 }
 
 export function machineSecret(): string {
-  let user = "";
+  let user: string;
   try {
     user = os.userInfo().username;
   } catch {
