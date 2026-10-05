@@ -4,7 +4,7 @@ import type { ErrorCode } from "../src/errors";
 import { fail, failWith, ok } from "../src/result";
 import type { Result } from "../src/result";
 
-const PREFIXES = ["ENV", "AUTH", "SPEC", "ASSET", "EL", "AE", "RENDER", "LOOP", "SYS"];
+const PREFIXES = ["ENV", "AUTH", "SPEC", "ASSET", "EL", "AE", "RENDER", "LOOP", "JOB", "SYS"];
 const codes = Object.keys(ERROR_DEFS) as ErrorCode[];
 
 describe("ERROR_DEFS", () => {

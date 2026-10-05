@@ -45,6 +45,7 @@ export interface WsClient {
   reportAeState(state: {
     ae_version: string | null;
     project_path: string | null;
+    project_root?: string | null;
     busy: boolean;
   }): void;
   status(): ConnectionStatus;

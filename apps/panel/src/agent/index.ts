@@ -117,7 +117,12 @@ export function createAgent(options: AgentOptions): Agent {
     const info = res.ok ? (res.data.info ?? {}) : {};
     aeVersion = typeof info.ae_version === "string" ? info.ae_version : null;
     const projectPath = typeof info.project_path === "string" ? info.project_path : null;
-    target.reportAeState({ ae_version: aeVersion, project_path: projectPath, busy: false });
+    target.reportAeState({
+      ae_version: aeVersion,
+      project_path: projectPath,
+      project_root: root || null,
+      busy: false,
+    });
   }
 
   async function uploadThumb(file: string, hash: string): Promise<string | null> {
@@ -278,6 +283,7 @@ export function createAgent(options: AgentOptions): Agent {
       project = res.body.data;
       root = prepared;
       log.add({ level: "info", message: `📁 Ish papkasi: ${prepared}` });
+      if (client !== null && client.status() === "connected") void reportAeState(client);
       return project;
     },
     async recentProjects() {

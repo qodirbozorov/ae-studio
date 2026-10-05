@@ -30,3 +30,21 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 
 /** VERIFY ↔ BUILD patch sikli chegarasi (§2.7). */
 export const MAX_PATCHES = 3;
+
+/** Faol bo'lmagan (yakunlangan) holat. */
+export const JOB_TERMINAL_STATES = ["DONE"] as const;
+
+/**
+ * Job ustidagi amallar (§3): BLOCKED dan chiqish (retry | patch | ask_user | cancel),
+ * VERIFY'da qo'lda tasdiq (approve; Faza 3 gacha), Live ekranidan pause/resume.
+ */
+export const JOB_ACTIONS = [
+  "retry",
+  "patch",
+  "ask_user",
+  "cancel",
+  "approve",
+  "pause",
+  "resume",
+] as const;
+export type JobAction = (typeof JOB_ACTIONS)[number];

@@ -41,6 +41,25 @@ interface Connection {
   identity: DeviceIdentity;
   lastSeen: number;
   pending: Map<string, Pending>;
+  state: AgentState;
+}
+
+/** Panel o'zi haqida xabar qilgan oxirgi holat (`hello`, `ae.state`). */
+export interface AgentState {
+  aeVersion: string | null;
+  /** Panelda ochiq ish papkasi. */
+  projectRoot: string | null;
+  /** AE'da ochiq `.aep`. */
+  projectPath: string | null;
+}
+
+/** `request_id` li panel javoblari (`asset.scanned`, `file.*`, `request.failed`). */
+type RequestReply = Extract<PanelMessage, { request_id?: string }>;
+
+interface PendingRequest {
+  deviceId: string;
+  resolve(result: Result<RequestReply>): void;
+  timer: NodeJS.Timeout;
 }
 
 export type PresenceListener = (deviceId: string, online: boolean) => void;
@@ -50,6 +69,7 @@ export class AgentHub {
   private readonly connections = new Map<string, Connection>();
   private readonly presence = new Set<PresenceListener>();
   private readonly messages = new Set<MessageListener>();
+  private readonly requests = new Map<string, PendingRequest>();
   private heartbeat: NodeJS.Timeout | null = null;
 
   constructor(
@@ -60,6 +80,11 @@ export class AgentHub {
 
   isOnline(deviceId: string): boolean {
     return this.connections.has(deviceId);
+  }
+
+  /** Ulangan panelning oxirgi holati (offline bo'lsa `null`). */
+  state(deviceId: string): AgentState | null {
+    return this.connections.get(deviceId)?.state ?? null;
   }
 
   onPresence(listener: PresenceListener): () => void {
@@ -83,6 +108,7 @@ export class AgentHub {
       identity,
       lastSeen: this.now().getTime(),
       pending: new Map(),
+      state: { aeVersion: null, projectRoot: null, projectPath: null },
     };
     this.connections.set(identity.deviceId, connection);
     socket.on("message", (data) => void this.onRaw(connection, data.toString()));
@@ -126,6 +152,28 @@ export class AgentHub {
     });
   }
 
+  /**
+   * `request_id` li xabarni yuboradi va panelning shu `request_id` dagi javobini kutadi
+   * (`request.failed` → xato). Kutilgan javob umumiy `onMessage` tinglovchilariga berilmaydi.
+   */
+  request(
+    deviceId: string,
+    message: Extract<ServerMessage, { request_id: string }>,
+    timeoutMs: number,
+  ): Promise<Result<RequestReply>> {
+    if (!this.connections.has(deviceId)) {
+      return Promise.resolve(fail("ENV_AGENT_OFFLINE", "Panel ulanmagan"));
+    }
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.requests.delete(message.request_id);
+        resolve(fail("AE_TIMEOUT", `${message.type} javobi kelmadi`));
+      }, timeoutMs);
+      this.requests.set(message.request_id, { deviceId, resolve, timer });
+      this.send(deviceId, message);
+    });
+  }
+
   close(): void {
     if (this.heartbeat !== null) clearInterval(this.heartbeat);
     this.heartbeat = null;
@@ -147,11 +195,24 @@ export class AgentHub {
     pending.resolve(result);
   }
 
+  private reply(requestId: string, result: Result<RequestReply>): boolean {
+    const request = this.requests.get(requestId);
+    if (request === undefined) return false;
+    clearTimeout(request.timer);
+    this.requests.delete(requestId);
+    request.resolve(result);
+    return true;
+  }
+
   private detach(connection: Connection): void {
     if (this.connections.get(connection.identity.deviceId) !== connection) return;
     this.connections.delete(connection.identity.deviceId);
     for (const opId of [...connection.pending.keys()]) {
       this.settle(connection, opId, fail("ENV_AGENT_OFFLINE", "Panel uzildi"));
+    }
+    for (const [requestId, request] of [...this.requests]) {
+      if (request.deviceId !== connection.identity.deviceId) continue;
+      this.reply(requestId, fail("ENV_AGENT_OFFLINE", "Panel uzildi"));
     }
     void this.touch(connection.identity.deviceId, {});
     this.emitPresence(connection.identity.deviceId, false);
@@ -179,6 +240,11 @@ export class AgentHub {
     const message = parsed.data;
     switch (message.type) {
       case "hello":
+        connection.state = {
+          aeVersion: message.ae_version,
+          projectRoot: message.project_root,
+          projectPath: connection.state.projectPath,
+        };
         await this.touch(connection.identity.deviceId, { aeVersion: message.ae_version });
         connection.socket.send(
           encodeMessage({
@@ -191,6 +257,14 @@ export class AgentHub {
         );
         break;
       case "ae.state":
+        connection.state = {
+          aeVersion: message.ae_version,
+          projectRoot:
+            message.project_root === undefined
+              ? connection.state.projectRoot
+              : message.project_root,
+          projectPath: message.project_path,
+        };
         await this.touch(connection.identity.deviceId, { aeVersion: message.ae_version });
         break;
       case "op.done":
@@ -201,6 +275,18 @@ export class AgentHub {
         break;
       default:
         break;
+    }
+    if ("request_id" in message && message.request_id !== undefined) {
+      const pending = this.requests.get(message.request_id);
+      if (pending !== undefined && pending.deviceId === connection.identity.deviceId) {
+        this.reply(
+          message.request_id,
+          message.type === "request.failed"
+            ? failWith(message.error as AesError)
+            : ok(message as RequestReply),
+        );
+        return;
+      }
     }
     for (const listener of this.messages) listener(connection.identity, message);
   }

@@ -14,6 +14,8 @@ import { registerDeviceRoutes } from "./devices/routes";
 import type { Env } from "./env";
 import { registerProjectRoutes } from "./projects/routes";
 import { registerHealth } from "./health";
+import { JobEngine } from "./jobs/engine";
+import { registerJobRoutes } from "./jobs/routes";
 import type { RedisLike } from "./redis";
 import { LocalStorage, createStorage } from "./storage";
 import type { Storage } from "./storage";
@@ -26,6 +28,7 @@ declare module "fastify" {
     /** Ulangan panellar markazi (testlar va keyingi modullar uchun). */
     hub: AgentHub;
     storage: Storage;
+    jobs: JobEngine;
   }
 }
 
@@ -104,7 +107,25 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerAgentSocket(app, ctx, hub);
   registerProjectRoutes(app, ctx);
   registerAssetRoutes(app, ctx);
-  app.addHook("onClose", async () => hub.close());
+
+  const engine = new JobEngine(ctx, app.log);
+  app.decorate("jobs", engine);
+  engine.attach();
+  registerJobRoutes(app, ctx, engine);
+  app.addHook("onReady", async () => {
+    // DB hali tayyor bo'lmasa server baribir ko'tariladi (health 503 ko'rsatadi).
+    try {
+      const resumed = await engine.recover();
+      if (resumed > 0) app.log.info({ resumed }, "yakunlanmagan joblar davom ettirildi");
+    } catch (error) {
+      app.log.warn({ err: error }, "joblarni tiklab bo'lmadi");
+    }
+  });
+  app.addHook("onClose", async () => {
+    engine.stop();
+    hub.close();
+    await engine.idle();
+  });
 
   return app;
 }

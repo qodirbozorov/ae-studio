@@ -269,6 +269,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@aes/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
       '@aes/shared':
         specifier: workspace:*
         version: link:../../packages/shared

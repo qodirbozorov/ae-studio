@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · jarayonda (10/14); Faza 1 kod qismi to'liq
-- **Oxirgi bajarilgan:** P1.08 — Railway deploy (2026-10-05)
-- **Keyingi todo:** P2.11 — job state machine
+- **Faza:** 2 — Yadro · jarayonda (11/14)
+- **Oxirgi bajarilgan:** P2.11 — job state machine (2026-10-05)
+- **Keyingi todo:** P2.12 — Live log va Live ekrani
 - **Blokerlar:** 👤 AE kompyuterida ZXP sinovi · 👤 RESEND_API_KEY (magic link xati hozir server logida) · git remote URL yo'q (push qilinmagan)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -67,6 +67,10 @@
 | 2026-10-05 | P2.10 | Matn layerlari hozircha nuqtali matn (`max_width` qutisi keyinroq) | AE box text o'lchami va joylashuvi vizual tekshiruvsiz xavfli; VERIFY (Faza 3) bilan sozlanadi |
 | 2026-10-05 | P1.08 | Migratsiya Railway preDeploy o'rniga root `start` skriptida (migrate && index); railway.json repo ildizida | Railpack railway.json deploy buyruqlarini qo'llamadi; migratsiya idempotent |
 | 2026-10-05 | P1.08 | S3 berilguncha storage Railway volume'da (/data/storage) | Qayta deployda fayllar o'chmasligi uchun |
+| 2026-10-05 | P2.11 | BUILD resume: uzilish/retry'dan keyin oxirgi bajarilgan project.save dan keyingi oplardan + loyihani ochish opi qayta (oxirgi done opdan emas) | AE yopilgan bo'lsa saqlanmagan oplar yo'qolgan; oplar idempotent — dublikat yo'q |
+| 2026-10-05 | P2.11 | Har job o'tishi compare-and-set (WHERE state=eski); pause jobs.paused ustunida | Amallar ishlab turgan handler bilan poygasiz; server restartda pauza saqlanadi |
+| 2026-10-05 | P2.11 | WAITING_AGENT dan qaytish panel hello xabarida (presence emas) | hello kelganda panel ish papkasi ma'lum bo'ladi (CHECK uchun) |
+| 2026-10-05 | P2.11 | Yangi xato kodlari JOB_ACTIVE, JOB_BAD_ACTION (JOB_ prefiksi) | Bitta qurilmada bitta aktiv job va holatga mos bo'lmagan amal uchun |
 
 ---
 
@@ -346,3 +350,48 @@
 - **Tekshiruv:** `GET /health` → `{"status":"ok","db":"ok","redis":"ok"}`. `GET /` → 200 (kabinet). `POST /api/auth/magic-link` → `sent: true`, ya'ni DB'ga yozish ishlaydi. Xatlar hozircha server logiga chiqadi, chunki `RESEND_API_KEY` yo'q.
 - **Qoldi (👤):** `RESEND_API_KEY` va `MAIL_FROM` (haqiqiy xat uchun); R2 yoki Railway bucket kalitlari (ixtiyoriy, hozir volume).
 - **Keyingi:** P2.11
+
+### 2026-10-05 · P2.11 — Job state machine · ✅
+- **Qilindi (`apps/server/src/jobs/`):**
+  - **`machine.ts`:** sof qism — zanjir (`nextState`), side-holatlar, amal ruxsatlari:
+    - BLOCKED → retry, patch, ask_user, cancel;
+    - VERIFY → approve, patch;
+    - pause/resume.
+  - **`engine.ts` (`JobEngine`):**
+    - Har o'tish compare-and-set (`WHERE state = <eski>`), shuning uchun cancel yoki pause ishlab turgan handler bilan to'qnashmaydi.
+    - Bir job uchun bitta driver; ishlab turganda yangi drive chaqirilsa, qayta aylanish belgilanadi.
+    - Handlerlar:
+      - CHECK: panel online, panelda ochiq papka loyiha papkasiga teng, AE `ping`. Javob yo'q bo'lsa `ENV_AE_CLOSED`. Natija `check.env` hodisasi (env_report).
+      - PLAN: plan versiyasi va zod tekshiruvi.
+      - INGEST: `assets.scan`, panel javobi `request_id` bo'yicha kutiladi, keyin `applyScan`.
+      - AUDIO: skipped (Faza 4 gacha).
+      - PREFLIGHT: compile (havolalar, assetlar, holat), `.aep` vNNN ajratiladi, oplist `ops` jadvaliga yoziladi. Barmoq izi o'zgarmagan bo'lsa `done` holatlari saqlanadi.
+      - BUILD: oplar ketma-ket `hub.run` orqali; progress va pause/cancel oplar orasida tekshiriladi.
+      - VERIFY: qo'lda approve kutiladi (Faza 3 gacha).
+      - RENDER: skipped (Faza 3 gacha).
+      - REPORT: `reports` jadvaliga yoziladi, keyin DONE (`outcome`).
+    - **Resume:** uzilish yoki retry'dan keyin BUILD oxirgi bajarilgan `project.save` dan keyingi oplardan davom etadi va loyihani ochish opi avval qayta yuboriladi. Sabab: AE yopilgan bo'lsa saqlanmagan qism yo'qolgan bo'ladi; oplar idempotent, shuning uchun dublikat bo'lmaydi.
+    - **Panel holati:** panel yo'q bo'lsa `WAITING_AGENT` (`prev_state`). Panel `hello` yuborganda job oldingi holatiga qaytadi va davom etadi. Server qayta ishga tushsa `recover()` ishlaydi.
+    - **Patch:** yangi plan versiyasi, `patch_count` oshadi, ko'pi bilan 3 ta (`LOOP_PATCH_LIMIT`). Biror op qurilgan bo'lsa yangi vNNN ajratiladi, ya'ni qurilgan fayl ustiga yozilmaydi.
+    - **Bitta qurilmada bitta aktiv job:** DB'da partial unique index (`state <> 'DONE'`) va `JOB_ACTIVE` xatosi.
+  - **`report.ts`:** `report.md` generatori (qurilganlar jadvali, yo'llar, tahrir qo'llanmasi, ogohlantirishlar).
+  - **`routes.ts`:** plans (POST, GET ro'yxat va bitta), project jobs (POST, GET), job, events (`?after=`), report va actions. Panel uchun `/api/agent/jobs/active` va `/api/agent/jobs/:id/actions` (pause/resume/cancel).
+- **Boshqa o'zgarishlar:**
+  - **DB:** migratsiya `0001_jobs_engine` — `jobs` ga `device_id`, `aep_version` (loyiha bo'yicha unique), `oplist_hash`, `paused` qo'shildi.
+  - **Shared:** `JOB_ACTIVE` va `JOB_BAD_ACTION` xato kodlari, `JOB_ACTIONS`; `ae.state` ga `project_root`.
+  - **Hub:** `request()` (`request_id` bo'yicha javob kutish; uzilishda `ENV_AGENT_OFFLINE`); panelning oxirgi holati `state()`.
+  - **Agent:** `ae.state` da ish papkasi yuboriladi, papka ochilganda qayta yuboriladi.
+- **Tekshiruv:** `jobs.test.ts` 17 ta, soxta agent (`test/helpers/fake-agent.ts`) bilan. Qamrab olingan yo'llar:
+  - to'liq oqim → VERIFY → approve → DONE, hisobot va ikkinchi job → v002;
+  - bitta aktiv job; plan yo'q yoki noto'g'ri;
+  - panel yo'q → WAITING_AGENT → ulanadi;
+  - BUILD o'rtasida uzilish → oxirgi saqlashdan dublikatsiz davom;
+  - server restart → `recover`;
+  - boshqa papka → BLOCKED → retry; AE jim → `ENV_AE_CLOSED`; INGEST xatosi;
+  - PREFLIGHT noma'lum asset → patch; BUILD op xatosi → retry oxirgi saqlashdan;
+  - VERIFY'dan patch → yangi `.aep` versiyasi; patch chegarasi;
+  - noto'g'ri amal; cancel (panelga `job.cancel`); pause/resume.
+
+  Repo 257/257 · typecheck · lint · prettier · server build ✅.
+- **Qarz:** CHECK'da shriftlar va ElevenLabs tekshiruvi (Faza 4/5).
+- **Keyingi:** P2.12 (Live log va Live ekrani)

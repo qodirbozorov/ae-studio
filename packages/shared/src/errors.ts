@@ -138,6 +138,16 @@ export const ERROR_DEFS = {
     hint: "Patch chegarasi (3) tugadi. Foydalanuvchidan yo'l-yo'riq so'rang (ask_user).",
   },
 
+  // JOB_ — job boshqaruvi
+  JOB_ACTIVE: {
+    retryable: false,
+    hint: "Bu qurilmada boshqa job ishlayapti. U tugashini kuting yoki uni bekor qiling (cancel).",
+  },
+  JOB_BAD_ACTION: {
+    retryable: false,
+    hint: "Bu amal job'ning hozirgi holatida mumkin emas. job holatini qayta o'qing.",
+  },
+
   // SYS_ — umumiy server xatolari
   SYS_INTERNAL: {
     retryable: true,

@@ -6,6 +6,7 @@ import { JOB_OUTCOMES, JOB_STATES, LOG_LEVELS } from "@aes/shared";
 import { sql } from "drizzle-orm";
 import {
   bigserial,
+  boolean,
   check,
   index,
   integer,
@@ -16,6 +17,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -203,11 +205,19 @@ export const jobs = pgTable(
     projectId: uuid("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    /** Job qaysi qurilmada bajariladi (loyihadan olinadi): bitta qurilmada bitta aktiv job. */
+    deviceId: uuid("device_id").references(() => devices.id, { onDelete: "set null" }),
     planVersion: integer("plan_version").notNull(),
     state: jobStateEnum("state").notNull().default("CHECK"),
     prevState: jobStateEnum("prev_state"),
     outcome: jobOutcomeEnum("outcome"),
     patchCount: integer("patch_count").notNull().default(0),
+    /** Qurilayotgan `.aep` versiyasi (vNNN, P2.13); PREFLIGHT'da ajratiladi. */
+    aepVersion: integer("aep_version"),
+    /** Oplist barmoq izi: o'zgarmagan bo'lsa BUILD `done` oplarni saqlab davom etadi. */
+    oplistHash: text("oplist_hash"),
+    /** Live ekranidagi Pause (P2.12): BUILD oplar orasida to'xtaydi. */
+    paused: boolean("paused").notNull().default(false),
     error: jsonb("error"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -216,6 +226,10 @@ export const jobs = pgTable(
     index("jobs_project_idx").on(t.projectId),
     index("jobs_state_idx").on(t.state),
     check("jobs_patch_count_nonneg", sql`${t.patchCount} >= 0`),
+    uniqueIndex("jobs_device_active_uq")
+      .on(t.deviceId)
+      .where(sql`${t.state} <> 'DONE'`),
+    unique("jobs_project_aep_version_uq").on(t.projectId, t.aepVersion),
   ],
 );
 

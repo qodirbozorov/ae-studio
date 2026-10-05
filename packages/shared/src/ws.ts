@@ -196,6 +196,8 @@ export const panelMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("ae.state"),
     ae_version: z.string().nullable(),
     project_path: z.string().max(1024).nullable(),
+    /** Panelda ochiq ish papkasi (job CHECK uni loyiha papkasi bilan solishtiradi). */
+    project_root: z.string().max(1024).nullable().optional(),
     busy: z.boolean(),
   }),
   z.strictObject({ type: z.literal("pong"), ts: z.number() }),
