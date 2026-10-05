@@ -5,6 +5,7 @@
 import { JOB_OUTCOMES, JOB_STATES, LOG_LEVELS } from "@aes/shared";
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   bigserial,
   boolean,
   check,
@@ -358,10 +359,17 @@ export const renders = pgTable(
       .notNull()
       .references(() => jobs.id, { onDelete: "cascade" }),
     preset: text("preset").notNull(),
+    /** Ish papkasiga nisbiy (`out/<nom>_vNNN.mp4`); render tugaguncha — rejalashtirilgan asos. */
     localPath: text("local_path").notNull(),
     durationMs: integer("duration_ms"),
+    sizeBytes: bigint("size_bytes", { mode: "number" }),
+    /** `aerender` | `render_queue` (Q5). */
+    method: text("method"),
+    encoder: text("encoder"),
     status: renderStatusEnum("status").notNull().default("queued"),
+    error: jsonb("error"),
     createdAt: createdAt(),
+    updatedAt: updatedAt(),
   },
   (t) => [index("renders_job_idx").on(t.jobId)],
 );

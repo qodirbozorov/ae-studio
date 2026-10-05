@@ -8,6 +8,7 @@ import { ERROR_DEFS } from "./errors";
 import type { ErrorCode } from "./errors";
 import { parseWith, slugSchema } from "./common";
 import { JOB_OUTCOMES, JOB_STATES, LOG_LEVELS } from "./jobs";
+import { OUTPUT_PRESETS } from "./spec";
 import { opEnvelopeSchema, opIdSchema, opResultDataSchema } from "./ops";
 import { fail } from "./result";
 import type { Result } from "./result";
@@ -99,6 +100,21 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("project.open"),
     request_id: idSchema,
     root_path: z.string().min(2).max(1024),
+  }),
+  z.strictObject({
+    /**
+     * RENDER (P3.07): panel `.aep` dan `comp_name` ni aerender (yoki Render Queue) bilan render qiladi,
+     * ffmpeg bilan preset bo'yicha mp4 ga o'giradi. `out_base` + `.mp4`; mavjud bo'lsa `_2`, `_3` … (ustiga yozilmaydi).
+     */
+    type: z.literal("render.request"),
+    request_id: idSchema,
+    job_id: idSchema,
+    project_path: relPathSchema,
+    comp: z.strictObject({ op_id: opIdSchema, name: z.string().min(1).max(255) }),
+    out_base: relPathSchema,
+    preset: z.enum(OUTPUT_PRESETS),
+    fps: z.number().positive().max(240),
+    duration: z.number().positive().max(36_000),
   }),
   z.strictObject({ type: z.literal("job.pause"), job_id: idSchema }),
   z.strictObject({ type: z.literal("job.cancel"), job_id: idSchema }),
@@ -231,6 +247,15 @@ export const panelMessageSchema = z.discriminatedUnion("type", [
       )
       .min(1)
       .max(50),
+  }),
+  z.strictObject({
+    type: z.literal("render.done"),
+    request_id: idSchema,
+    out: relPathSchema,
+    duration: z.number().min(0),
+    size: z.number().int().min(0),
+    method: z.enum(["aerender", "render_queue"]),
+    encoder: z.string().max(64),
   }),
   z.strictObject({
     type: z.literal("project.opened"),

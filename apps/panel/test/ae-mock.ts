@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 /**
  * After Effects object model'ining test uchun soddalashtirilgan nusxasi (faqat panel oplari ishlatadigan qismi).
@@ -413,6 +413,17 @@ export class MockFile {
   get exists(): boolean {
     return this.fs.has(this.fsName);
   }
+  get parent(): { exists: boolean; create(): boolean } {
+    const dir = dirname(this.fsName);
+    const real = this.realDisk;
+    return {
+      exists: real ? existsSync(dir) : true,
+      create() {
+        if (real) mkdirSync(dir, { recursive: true });
+        return true;
+      },
+    };
+  }
   get length(): number {
     return this.fs.has(this.fsName) ? PNG_1X1.length : -1;
   }
@@ -474,6 +485,28 @@ export interface MockProject {
   };
   importFile(options: { file: MockFile; importAs?: number }): FootageItem;
   save(file?: MockFile): boolean;
+  renderQueue: MockRenderQueue;
+}
+
+export const RQItemStatus = { QUEUED: 2, RENDERING: 3, DONE: 4, ERR_STOPPED: 5 };
+
+export interface MockRenderItem {
+  comp: CompItem;
+  render: boolean;
+  status: number;
+  file: MockFile | null;
+  outputModule(index: number): { file: MockFile | null };
+  remove(): void;
+}
+
+export interface MockRenderQueue {
+  itemsList: MockRenderItem[];
+  readonly numItems: number;
+  item(index: number): MockRenderItem;
+  items: { add(comp: CompItem): MockRenderItem };
+  render(): void;
+  /** Testlar: render qilingan (comp nomi, chiqish yo'li). */
+  rendered: { comp: string; path: string }[];
 }
 
 /** Yangi mock AE: `files` — mavjud fayllar (yo'l → media metadata). */
@@ -485,9 +518,67 @@ export function createMockAE(
     fonts?: string[];
     /** Kadrlar haqiqiy diskka ham yozilsin (e2e). */
     realDisk?: boolean;
+    /** Render Queue render'i: chiqish faylini yozadi va haqiqiy yo'lni qaytaradi (berilmasa — shu yo'l). */
+    onRender?: (path: string, comp: CompItem) => string;
   } = {},
 ): MockAE {
   const files = new Map(Object.entries(options.files ?? {}));
+
+  function createRenderQueue(): MockRenderQueue {
+    const itemsList: MockRenderItem[] = [];
+    const queue: MockRenderQueue = {
+      itemsList,
+      rendered: [],
+      get numItems() {
+        return itemsList.length;
+      },
+      item(index) {
+        const found = itemsList[index - 1];
+        if (found === undefined) throw new Error("RQ item yo'q: " + index);
+        return found;
+      },
+      items: {
+        add(comp) {
+          const entry: MockRenderItem = {
+            comp,
+            render: true,
+            status: RQItemStatus.QUEUED,
+            file: null,
+            outputModule: () => ({
+              get file() {
+                return entry.file;
+              },
+              set file(value: MockFile | null) {
+                entry.file = value;
+              },
+            }),
+            remove() {
+              const index = itemsList.indexOf(entry);
+              if (index >= 0) itemsList.splice(index, 1);
+            },
+          };
+          itemsList.push(entry);
+          return entry;
+        },
+      },
+      render() {
+        for (const entry of itemsList) {
+          if (!entry.render || entry.status !== RQItemStatus.QUEUED || entry.file === null)
+            continue;
+          try {
+            const actual = options.onRender?.(entry.file.fsName, entry.comp) ?? entry.file.fsName;
+            files.set(actual, {});
+            entry.file = new MockFile(actual, files, options.realDisk === true);
+            entry.status = RQItemStatus.DONE;
+            queue.rendered.push({ comp: entry.comp.name, path: actual });
+          } catch {
+            entry.status = RQItemStatus.ERR_STOPPED;
+          }
+        }
+      },
+    };
+    return queue;
+  }
 
   function createProject(file: MockFile | null): MockProject {
     const itemsList: Item[] = [];
@@ -500,6 +591,7 @@ export function createMockAE(
       file,
       dirty: false,
       itemsList,
+      renderQueue: createRenderQueue(),
       get numItems() {
         return itemsList.length;
       },
@@ -525,6 +617,10 @@ export function createMockAE(
         const into = target ?? project.file;
         if (into === null) throw new Error("Saqlash uchun fayl yo'q");
         files.set(into.fsName, {});
+        if (options.realDisk === true) {
+          mkdirSync(dirname(into.fsName), { recursive: true });
+          writeFileSync(into.fsName, "mock aep");
+        }
         project.file = into;
         project.dirty = false;
         return true;
@@ -613,6 +709,7 @@ export function createMockAE(
       $: { os: "Windows/10 (mock)", sleep: () => undefined },
       File: FileCtor,
       Folder: FolderCtor,
+      RQItemStatus,
       ImportOptions,
       ImportAsType,
       ParagraphJustification,

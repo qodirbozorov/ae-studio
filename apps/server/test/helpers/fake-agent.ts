@@ -51,6 +51,13 @@ export class FakeAgent {
   /** `asset.preview.request`: JPEG'ni to'g'ridan-to'g'ri storage'ga yozadi (berilsa). */
   storage: { putBytes(key: string, data: Buffer, contentType?: string): Promise<void> } | null =
     null;
+  /**
+   * `render.request`: default — so'ralgan davomiylikdagi muvaffaqiyatli render.
+   * `{ duration }` — boshqa davomiylik; AesError — xato; "drop" — javobsiz.
+   */
+  onRender: (
+    message: Extract<ServerMessage, { type: "render.request" }>,
+  ) => "ok" | "drop" | AesError | { duration: number } = () => "ok";
   /** Preview so'ralgan yo'llar. */
   readonly previews: string[] = [];
   /** `project.open` (MCP project_create): loyihani ro'yxatdan o'tkazadi. */
@@ -141,6 +148,28 @@ export class FakeAgent {
           socket,
         );
       }
+    } else if (message.type === "render.request") {
+      const reaction = this.onRender(message);
+      if (reaction === "drop") return;
+      if (reaction !== "ok" && "code" in reaction) {
+        this.deliver(
+          { type: "request.failed", request_id: message.request_id, error: reaction },
+          socket,
+        );
+        return;
+      }
+      this.deliver(
+        {
+          type: "render.done",
+          request_id: message.request_id,
+          out: `${message.out_base}.mp4`,
+          duration: reaction === "ok" ? message.duration : reaction.duration,
+          size: 2_000_000,
+          method: "aerender",
+          encoder: "libx264",
+        },
+        socket,
+      );
     } else if (message.type === "asset.preview.request") {
       this.previews.push(message.local_path);
       if (this.storage === null) {

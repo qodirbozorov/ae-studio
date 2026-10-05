@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 3 — Claude loop'i · jarayonda (6/12)
-- **Oxirgi bajarilgan:** P3.06 — VERIFY kadrlar va patch sikli (2026-10-05)
-- **Keyingi todo:** P3.07 — RENDER (aerender, presetlar, renders jadvali)
+- **Faza:** 3 — Claude loop'i · jarayonda (7/12)
+- **Oxirgi bajarilgan:** P3.07 — RENDER (2026-10-05)
+- **Keyingi todo:** P3.08 — report_get, panel Tarix ekrani, Claude indikatori
 - **Blokerlar:** 👤 AE kompyuterida: ZXP, kabinet kodi bilan ulanish, Live/Undo, AE'ni o'rtada yopib-ochish · 👤 RESEND_API_KEY (magic link hozir server logida)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -81,6 +81,7 @@
 | 2026-10-05 | P3.03 | Q10 yopildi: ae_info shriftlarni app.fonts (AE 24+) dan oladi, yo'q bo'lsa fonts=null + izoh | Eski AE'da API yo'q, xato emas |
 | 2026-10-05 | P3.03 | project_create faqat mavjud papkani ochadi (subpapkalarni yaratadi), ildiz papkani yaratmaydi | Claude xato yo'l bilan foydalanuvchi diskida keraksiz papka yaratmasligi uchun |
 | 2026-10-05 | P3.06 | Q4 yopildi: patch — yangi plan versiyasi + yangi .aep vNNN da to'liq qayta qurish (joyida tahrir emas) | Yopiq op to'plamida o'chirish yo'q; eski fayl saqlanadi; nest dublikati xavfi yo'q |
+| 2026-10-05 | P3.07 | Q5 yopildi: aerender asosiy, Render Queue zaxira; AE oraliq fayl → panel ffmpeg (preset) → out/<nom>_vNNN.mp4, ustiga yozmaslik (_2…) | Output module shablonlari AE versiyalari orasida farq qiladi; ffmpeg preset'ni bir xil qiladi; LGPL build'da libx264 yo'q → encoder avtomatik tanlanadi |
 
 ---
 
@@ -676,3 +677,49 @@
   Repo ✅.
 - **👤 AE'da:** `saveFrameToPng` haqiqiy AE'da PNG yozishi va kutish mantig'i tekshirilsin.
 - **Keyingi:** P3.07 (RENDER)
+
+### 2026-10-05 · P3.07 — RENDER · ✅ (haqiqiy aerender 👤)
+- **Q5 yopildi:** asosiy usul `aerender` (AE UI bloklanmaydi), zaxira — AE Render Queue (jsx `render.queue`).
+- **Oqim:** AE oraliq faylni render qiladi, panel uni ffmpeg bilan preset bo'yicha MP4 ga o'giradi. Natija `out/<output.name>_vNNN.mp4`; mavjud bo'lsa `_2`, `_3`…, ffmpeg `-n` bilan — hech narsa ustiga yozilmaydi.
+- **Shared:**
+  - `render.ts`: `RENDER_PRESETS` (`h264_social` ~8 Mbit/s, `h264_hq` ~20 Mbit/s, AAC, yuv420p, faststart) va `durationMatches` (±1 kadr + 10 ms).
+  - WS: `render.request` (server → panel), `render.done` (panel → server); `OutputPreset` tipi.
+- **jsx:**
+  - `render.queue` (zaxira): faqat shu element render qilinadi; boshqa navbat elementlari vaqtincha o'chirilib, keyin tiklanadi; qo'shilgan element olib tashlanadi; loyiha o'z fayliga saqlanadi. Natija `RQItemStatus.DONE` emas bo'lsa → `RENDER_FAILED`.
+  - `ping` endi `app_path` (`Folder.appPackage`) qaytaradi.
+- **Agent (`agent/render.ts`):**
+  - aerender qidirish tartibi: sozlama, keyin AE papkasi (Windows `<app>/aerender.exe`, macOS `.app` yonida).
+  - `.js`/`.mjs` o'rab oluvchi skriptlar Node bilan ishga tushadi (test va maxsus holatlar uchun). `PROGRESS` qatorlari 10% qadam bilan log'ga yoziladi.
+  - Oraliq papka `out/.render-<id>` (keyin o'chiriladi); unda eng katta fayl olinadi, chunki AE kengaytmani o'zi qo'yishi mumkin.
+  - **Encoder tanlovi:** libx264 → h264_mf → libopenh264 → h264_videotoolbox → h264_nvenc → mpeg4. Bu kompyuterdagi LGPL build'da `h264_mf` tanlandi va ishladi.
+  - Natija ffprobe bilan tekshiriladi. Bir vaqtda bitta render.
+  - Yangi sozlamalar: `aerender_path`, `render_om_template`.
+- **Server:**
+  - **Engine `RENDER` holati:** `renders` qatori yaratiladi (running) → panelga `render.request` (timeout davomiylikka qarab).
+    - **Gate:** davomiylik PREFLIGHT natijasidagi qiymatga ±1 kadr. Mos kelmasa `RENDER_DURATION_MISMATCH`, panel xatosida `RENDER_FAILED` → BLOCKED (`job_resume` qayta render qiladi).
+    - Panel uzilsa `WAITING_AGENT`, qaytganda qayta render.
+  - **`renderAgain`:** DONE job'ni fonda qayta render qiladi (`idle()` uni ham kutadi).
+  - **DB:** migratsiya `0003_renders` — `size_bytes`, `method`, `encoder`, `error`, `updated_at`.
+  - **Hisobot:** `Video: out/…mp4 (s, MB, preset)` qatorlari qo'shildi.
+- **MCP:**
+  - `render_presets`;
+  - `render_start` (faqat DONE job, fonda, boshqa preset bilan ham);
+  - `job_status` endi `renders[]` qaytaradi.
+- **Tekshiruv:**
+  - `render.test.ts` 6 ta (soxta panel):
+    - `durationMatches`;
+    - approve → to'g'ri `render.request` → done → hisobot;
+    - mos kelmagan davomiylik → BLOCKED → `job_resume` → DONE;
+    - panel xatosi → `RENDER_FAILED`;
+    - render paytida uzilish → WAITING → qayta render;
+    - `render_presets`/`render_start` (DONE emas → xato, offline → xato).
+  - `render.e2e.test.ts` 4 ta (haqiqiy agent va ffmpeg):
+    - soxta aerender → `out/promo_v001.mp4`, ffprobe davomiyligi ±1 kadr, oraliq papka o'chirilgan; qayta render → `promo_v001_2.mp4`;
+    - davomiylik farqi → BLOCKED;
+    - aerender yo'q → Render Queue zaxirasi.
+  - `job.e2e` va `prod.smoke` endi render bilan yakunlanadi.
+  - `jsx-ops-core`: `render.queue` (navbatni tiklash, olib tashlash, `RENDER_FAILED`).
+
+  Repo 335 ✅, panel build ✅.
+- **👤 AE'da:** haqiqiy `aerender` (AE 2022+) va output module default'i (AE 23+ da H.264) bilan oraliq fayl; kerak bo'lsa `render_om_template` sozlamasi.
+- **Keyingi:** P3.08 (report_get, Tarix ekrani, Claude indikatori)

@@ -12,6 +12,7 @@ import type { Credentials } from "./credentials";
 import { FfmpegError, checkBinaries, resolveBinaries } from "./ffmpeg";
 import { TransferError } from "./files";
 import { makePreviews } from "./preview";
+import { RenderError, renderJob } from "./render";
 import { uploadFile } from "./files";
 import { getJson, postJson } from "./http";
 import { scanSource } from "./ingest";
@@ -122,6 +123,9 @@ export function createAgent(options: AgentOptions): Agent {
   }
 
   let aeVersion: string | null = null;
+  /** AE o'rnatilgan papka (ping'dan): aerender shu yerda. */
+  let appPath: string | null = null;
+  let rendering = false;
 
   /** Ulangach AE versiyasi va loyiha yo'lini `ping` bilan aniqlab serverga yuboradi. */
   async function reportAeState(target: WsClient): Promise<void> {
@@ -130,6 +134,7 @@ export function createAgent(options: AgentOptions): Agent {
     });
     const info = res.ok ? (res.data.info ?? {}) : {};
     aeVersion = typeof info.ae_version === "string" ? info.ae_version : null;
+    appPath = typeof info.app_path === "string" ? info.app_path : appPath;
     const projectPath = typeof info.project_path === "string" ? info.project_path : null;
     const ffmpeg = await checkBinaries(resolveBinaries(settings.ffmpeg_dir));
     target.reportAeState({
@@ -237,6 +242,47 @@ export function createAgent(options: AgentOptions): Agent {
     });
     client = next;
     next.onMessage(onJobMessage);
+    next.onMessage((message) => {
+      if (message.type !== "render.request") return;
+      if (rendering || root === "") {
+        next.send({
+          type: "request.failed",
+          request_id: message.request_id,
+          error:
+            root === ""
+              ? makeError("ENV_NO_FOLDER", "Ish papkasi tanlanmagan")
+              : makeError("RENDER_FAILED", "Boshqa render ketmoqda"),
+        });
+        return;
+      }
+      rendering = true;
+      renderJob(
+        {
+          root,
+          bins: resolveBinaries(settings.ffmpeg_dir),
+          bridge,
+          log,
+          aerenderPath: settings.aerender_path,
+          appPath,
+          omTemplate: settings.render_om_template,
+        },
+        message,
+      )
+        .then((result) =>
+          next.send({ type: "render.done", request_id: message.request_id, ...result }),
+        )
+        .catch((error: unknown) => {
+          const aes =
+            error instanceof RenderError || error instanceof FfmpegError
+              ? error.error
+              : makeError("RENDER_FAILED", error instanceof Error ? error.message : String(error));
+          log.add({ level: "error", message: `❌ Render: ${aes.code} ${aes.message ?? ""}` });
+          next.send({ type: "request.failed", request_id: message.request_id, error: aes });
+        })
+        .finally(() => {
+          rendering = false;
+        });
+    });
     next.onMessage((message) => {
       if (message.type !== "asset.preview.request") return;
       if (root === "") {

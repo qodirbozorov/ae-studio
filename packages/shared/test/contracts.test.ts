@@ -244,6 +244,17 @@ const SERVER_MESSAGES: Record<string, unknown> = {
   },
   "assets.scan": { type: "assets.scan", request_id: "r9", project_root: "D:/Projects/reel" },
   "project.open": { type: "project.open", request_id: "r10", root_path: "D:/Projects/reel" },
+  "render.request": {
+    type: "render.request",
+    request_id: "r12",
+    job_id: "job-1",
+    project_path: "reel_v001.aep",
+    comp: { op_id: "aes.main", name: "reel_v1" },
+    out_base: "out/reel_v1_v001",
+    preset: "h264_social",
+    fps: 30,
+    duration: 9.5,
+  },
   "job.pause": { type: "job.pause", job_id: "job-1" },
   "job.cancel": { type: "job.cancel", job_id: "job-1" },
   "job.update": {
@@ -323,6 +334,15 @@ const PANEL_MESSAGES: Record<string, unknown> = {
     size: 10,
   },
   "ae.state": { type: "ae.state", ae_version: "25.2", project_path: null, busy: false },
+  "render.done": {
+    type: "render.done",
+    request_id: "r12",
+    out: "out/reel_v1_v001.mp4",
+    duration: 9.5,
+    size: 123456,
+    method: "aerender",
+    encoder: "libx264",
+  },
   "asset.preview.ready": {
     type: "asset.preview.ready",
     request_id: "r11",

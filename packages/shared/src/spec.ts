@@ -58,6 +58,7 @@ export const TRANSITIONS = [
 ] as const;
 export const FITS = ["cover", "contain", "stretch"] as const;
 export const OUTPUT_PRESETS = ["h264_social", "h264_hq"] as const;
+export type OutputPreset = (typeof OUTPUT_PRESETS)[number];
 export const CAPTION_METHODS = ["tts_timestamps", "stt", "align"] as const;
 
 // ---------------------------------------------------------------- davomiylik va langarlar

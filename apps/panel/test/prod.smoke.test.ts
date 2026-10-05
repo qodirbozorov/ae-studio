@@ -80,7 +80,7 @@ describe.skipIf(!BASE || !COOKIE || !FFMPEG_AVAILABLE)("production smoke", () =>
   it("panel ulanadi, 3 sahnali video quriladi, uzilishdan dublikatsiz davom etadi", async () => {
     const root = mkdtempSync(join(tmpdir(), "aes-smoke-")).replace(/\\/g, "/");
     makeSourceFolder(root);
-    const ae = createMockAE();
+    const ae = createMockAE({ realDisk: true });
     const h = await loadJsx(ae);
     const agent: Agent = createAgent({
       evalScript: h.evalScript,
@@ -100,7 +100,16 @@ describe.skipIf(!BASE || !COOKIE || !FFMPEG_AVAILABLE)("production smoke", () =>
       await pairing.done;
       await waitFor(agent, "connected", 20_000);
 
-      agent.updateSettings({ ffmpeg_dir: findFfmpegDir() ?? null });
+      const ffmpegDir = findFfmpegDir() ?? null;
+      agent.updateSettings({
+        ffmpeg_dir: ffmpegDir,
+        aerender_path: join(__dirname, "fixtures", "fake-aerender.mjs"),
+      });
+      process.env.AES_FAKE_RENDER_S = "5.5";
+      process.env.AES_FAKE_FFMPEG =
+        ffmpegDir === null
+          ? "ffmpeg"
+          : join(ffmpegDir, process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
       const project = await agent.openProject(root);
       const base = project.root_path;
       ae.files.set(`${base}/source/Clip 01.mp4`, {
@@ -164,6 +173,8 @@ describe.skipIf(!BASE || !COOKIE || !FFMPEG_AVAILABLE)("production smoke", () =>
       expect(done.data.outcome).toBe("success");
       const report = await call("GET", `/api/jobs/${jobId}/report`);
       expect(report.data.markdown).toContain("_v001.aep");
+      expect(report.data.markdown).toContain("Video: `out/smoke_v001.mp4`");
+      expect(existsSync(join(root, "out", "smoke_v001.mp4"))).toBe(true);
       await eventually(
         async () => existsSync(join(root, ".aestudio", "report.v001.md")),
         (exists) => exists,

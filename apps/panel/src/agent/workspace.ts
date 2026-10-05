@@ -33,9 +33,22 @@ export interface PanelSettings {
   log_level: LogLevelSetting;
   /** ffmpeg/ffprobe papkasi; null — PATH (P5.10 da ZXP ichidagi binarlar). */
   ffmpeg_dir: string | null;
+  /** aerender yo'li; null — AE o'rnatilgan papkadan avtomatik (Q5). */
+  aerender_path: string | null;
+  /** aerender output module shabloni (masalan "Lossless"); null — AE default'i. */
+  render_om_template: string | null;
 }
 
-const DEFAULT_SETTINGS: PanelSettings = { device_name: null, log_level: "info", ffmpeg_dir: null };
+const DEFAULT_SETTINGS: PanelSettings = {
+  device_name: null,
+  log_level: "info",
+  ffmpeg_dir: null,
+  aerender_path: null,
+  render_om_template: null,
+};
+
+const optionalString = (value: unknown): string | null =>
+  typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 
 function settingsPath(dataDir: string): string {
   return path.join(dataDir, ".aestudio", "settings.json");
@@ -56,6 +69,8 @@ export function loadSettings(dataDir: string): PanelSettings {
         : "info",
       ffmpeg_dir:
         typeof raw.ffmpeg_dir === "string" && raw.ffmpeg_dir !== "" ? raw.ffmpeg_dir : null,
+      aerender_path: optionalString(raw.aerender_path),
+      render_om_template: optionalString(raw.render_om_template),
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

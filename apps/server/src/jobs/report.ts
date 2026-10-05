@@ -15,6 +15,8 @@ export interface ReportInput {
   mainComp: string | null;
   spec: VideoSpec | null;
   ops: { total: number; done: number; failed: number };
+  /** Muvaffaqiyatli renderlar (ish papkasiga nisbiy yo'l). */
+  renders: { path: string; duration_s: number; size_bytes: number; preset: string }[];
   patchCount: number;
   warnings: string[];
   error: AesError | null;
@@ -35,6 +37,11 @@ export function buildReport(input: ReportInput): string {
   lines.push(`- Plan: v${input.planVersion} (\`.aestudio/plan.v${pad3(input.planVersion)}.json\`)`);
   lines.push(`- Ish papkasi: \`${input.rootPath}\``);
   if (input.aepPath !== null) lines.push(`- AE loyiha: \`${input.aepPath}\``);
+  for (const render of input.renders) {
+    lines.push(
+      `- Video: \`${render.path}\` (${render.duration_s.toFixed(2)} s, ${(render.size_bytes / 1048576).toFixed(1)} MB, ${render.preset})`,
+    );
+  }
   lines.push(`- Oplar: ${input.ops.done}/${input.ops.total} bajarildi`);
   if (input.ops.failed > 0) lines.push(`- Xato bergan oplar: ${input.ops.failed}`);
   if (input.patchCount > 0) lines.push(`- Patch'lar: ${input.patchCount}`);

@@ -7,9 +7,18 @@
  * - Vaqtincha: AUDIO → skipped (Faza 4), VERIFY → qo'lda approve (Faza 3), RENDER → skipped (Faza 3).
  */
 import { createHash, randomUUID } from "node:crypto";
-import { compile } from "@aes/compiler";
+import { MAIN_COMP, compile } from "@aes/compiler";
 import type { CompileAsset } from "@aes/compiler";
-import { MAX_PATCHES, fail, makeError, makeOp, ok, opTimeoutMs, parseSpec } from "@aes/shared";
+import {
+  MAX_PATCHES,
+  durationMatches,
+  fail,
+  makeError,
+  makeOp,
+  ok,
+  opTimeoutMs,
+  parseSpec,
+} from "@aes/shared";
 import type {
   AeOpName,
   AesError,
@@ -18,6 +27,7 @@ import type {
   JobState,
   LogLevel,
   OpEnvelope,
+  OutputPreset,
   Result,
   VideoSpec,
 } from "@aes/shared";
@@ -25,7 +35,7 @@ import { and, asc, desc, eq, inArray, max, ne, notInArray } from "drizzle-orm";
 import type { FastifyBaseLogger } from "fastify";
 import { applyScan } from "../assets/routes";
 import type { AppContext } from "../context";
-import { assets, jobEvents, jobs, ops, plans, projects, reports } from "../db/schema";
+import { assets, jobEvents, jobs, ops, plans, projects, renders, reports } from "../db/schema";
 import { normalizeRootPath } from "../projects/routes";
 import { storageKey } from "../storage";
 import { buildReport, pad3 } from "./report";
@@ -133,6 +143,8 @@ export class JobEngine {
   private readonly driving = new Map<string, Promise<void>>();
   private readonly rerun = new Set<string>();
   private readonly listeners = new Set<JobListener>();
+  /** Fondagi ishlar (qayta render): `idle()` ularni ham kutadi. */
+  private readonly background = new Set<Promise<unknown>>();
   private stopped = false;
 
   constructor(
@@ -165,7 +177,9 @@ export class JobEngine {
 
   /** Testlar va to'xtatish: ishlab turgan driverlar tugashini kutadi. */
   async idle(): Promise<void> {
-    while (this.driving.size > 0) await Promise.all([...this.driving.values()]);
+    while (this.driving.size > 0 || this.background.size > 0) {
+      await Promise.all([...this.driving.values(), ...this.background]);
+    }
   }
 
   stop(): void {
@@ -495,8 +509,7 @@ export class JobEngine {
           );
           return { kind: "hold" };
         case "RENDER":
-          await this.event(job, "info", "render.skipped", "RENDER: Faza 3 da qo'shiladi");
-          return { kind: "next" };
+          return await this.renderStep(job);
         case "REPORT":
           return await this.report(job);
         default:
@@ -912,6 +925,15 @@ export class JobEngine {
         done,
         failed: rows.filter((row) => row.status === "failed").length,
       },
+      renders: (await this.rendersOf(job.id))
+        .filter((r) => r.status === "done")
+        .reverse()
+        .map((r) => ({
+          path: r.localPath,
+          duration_s: (r.durationMs ?? 0) / 1000,
+          size_bytes: r.sizeBytes ?? 0,
+          preset: r.preset,
+        })),
       patchCount: job.patchCount,
       warnings: [...new Set(warnings.map((w) => w.message))],
       error: (job.error as AesError | null) ?? null,
@@ -927,6 +949,164 @@ export class JobEngine {
       data: { outcome, local_path: copied.ok ? copy : null },
     });
     return { kind: "next", set: { outcome, paused: false } };
+  }
+
+  // ------------------------------------------------------------------ RENDER (P3.07)
+
+  private async renderStep(job: JobRow): Promise<Step> {
+    if (job.deviceId === null) {
+      return { kind: "block", error: makeError("AUTH_DEVICE_REVOKED", "Qurilma bekor qilingan") };
+    }
+    if (!this.ctx.hub.isOnline(job.deviceId)) {
+      return { kind: "wait_agent", reason: "RENDER: panel ulanmagan" };
+    }
+    const result = await this.render(job);
+    if (!result.ok) {
+      if (result.error.code === "ENV_AGENT_OFFLINE") {
+        return { kind: "wait_agent", reason: "RENDER: panel uzildi" };
+      }
+      return { kind: "block", error: result.error };
+    }
+    const current = await this.get(job.id);
+    if (current === null || current.state !== "RENDER") return { kind: "stale" };
+    return { kind: "next" };
+  }
+
+  /** Kutilgan davomiylik: PREFLIGHT natijasidan (compile), bo'lmasa sahnalar yig'indisi. */
+  private async expectedDuration(job: JobRow, spec: VideoSpec): Promise<number> {
+    const [row] = await this.ctx.db
+      .select({ data: jobEvents.data })
+      .from(jobEvents)
+      .where(and(eq(jobEvents.jobId, job.id), eq(jobEvents.type, "preflight.ok")))
+      .orderBy(desc(jobEvents.id))
+      .limit(1);
+    const fromPreflight = (row?.data as { duration?: unknown } | null)?.duration;
+    if (typeof fromPreflight === "number") return fromPreflight;
+    return spec.scenes.reduce(
+      (sum, scene) => sum + (typeof scene.dur === "number" ? scene.dur : 0),
+      0,
+    );
+  }
+
+  /**
+   * Bitta render: `renders` qatori → panelga `render.request` → gate (fayl bor, davomiylik ±1 kadr).
+   * Job holatini o'zgartirmaydi (RENDER handler ham, qayta render ham ishlatadi).
+   */
+  async render(
+    job: JobRow,
+    presetOverride?: OutputPreset,
+  ): Promise<Result<typeof renders.$inferSelect>> {
+    const project = await this.project(job.projectId);
+    const plan = await this.plan(job.projectId, job.planVersion);
+    if (project === null || plan === null || job.aepVersion === null || job.deviceId === null) {
+      return fail("JOB_BAD_ACTION", "Job hali qurilmagan");
+    }
+    const spec = parseSpec(plan.spec);
+    if (!spec.ok) return spec;
+    const preset = presetOverride ?? spec.data.output.preset;
+    const fps = spec.data.format.fps;
+    const expected = await this.expectedDuration(job, spec.data);
+    const outBase = `out/${fileBase(spec.data.output.name)}_v${pad3(job.aepVersion)}`;
+    const [row] = await this.ctx.db
+      .insert(renders)
+      .values({
+        jobId: job.id,
+        preset,
+        localPath: `${outBase}.mp4`,
+        status: "running",
+        createdAt: this.ctx.now(),
+        updatedAt: this.ctx.now(),
+      })
+      .returning();
+    await this.event(job, "info", "render.started", `RENDER: ${preset} → ${outBase}.mp4`, {
+      data: { render_id: row!.id, preset },
+    });
+    const finish = async (set: Partial<typeof renders.$inferInsert>) => {
+      const [updated] = await this.ctx.db
+        .update(renders)
+        .set({ ...set, updatedAt: this.ctx.now() })
+        .where(eq(renders.id, row!.id))
+        .returning();
+      return updated!;
+    };
+    const reply = await this.ctx.hub.request(
+      job.deviceId,
+      {
+        type: "render.request",
+        request_id: randomUUID(),
+        job_id: job.id,
+        project_path: aepPath(project, job.aepVersion),
+        comp: { op_id: MAIN_COMP, name: spec.data.output.name },
+        out_base: outBase,
+        preset,
+        fps,
+        duration: expected,
+      },
+      Math.max(30 * 60_000, expected * 180_000 + 10 * 60_000),
+    );
+    if (!reply.ok || reply.data.type !== "render.done") {
+      const error = reply.ok ? makeError("SYS_INTERNAL", "Kutilmagan javob") : reply.error;
+      await finish({ status: "failed", error });
+      await this.event(job, "error", "render.failed", `RENDER: ${error.code}`, { data: error });
+      return { ok: false, error };
+    }
+    const done = reply.data;
+    const base = {
+      localPath: done.out,
+      durationMs: Math.round(done.duration * 1000),
+      sizeBytes: done.size,
+      method: done.method,
+      encoder: done.encoder,
+    };
+    if (!durationMatches(done.duration, expected, fps)) {
+      const error = makeError(
+        "RENDER_DURATION_MISMATCH",
+        `Render ${done.duration.toFixed(3)} s, spec ${expected.toFixed(3)} s (±1 kadr)`,
+        { actual: done.duration, expected, fps, out: done.out },
+      );
+      await finish({ ...base, status: "failed", error });
+      await this.event(job, "error", "render.failed", `RENDER: ${error.message}`, { data: error });
+      return { ok: false, error };
+    }
+    const saved = await finish({ ...base, status: "done", error: null });
+    await this.event(job, "info", "render.done", `RENDER tayyor: ${done.out}`, {
+      data: { render_id: saved.id, ...base },
+    });
+    return ok(saved);
+  }
+
+  /** Qayta render (DONE job, Tarix ekrani / MCP render_start): fonda ishlaydi. */
+  async renderAgain(jobId: string, preset?: OutputPreset): Promise<Result<{ started: true }>> {
+    const job = await this.get(jobId);
+    if (job === null) return fail("SYS_NOT_FOUND", "Job topilmadi");
+    if (job.state !== "DONE" || job.aepVersion === null) {
+      return fail("JOB_BAD_ACTION", "Qayta render faqat qurilgan va yakunlangan job uchun");
+    }
+    if (job.deviceId === null || !this.ctx.hub.isOnline(job.deviceId)) {
+      return fail("ENV_AGENT_OFFLINE", "Panel ulanmagan");
+    }
+    const [running] = await this.ctx.db
+      .select({ id: renders.id })
+      .from(renders)
+      .where(and(eq(renders.jobId, job.id), eq(renders.status, "running")))
+      .limit(1);
+    if (running !== undefined) {
+      return fail("JOB_BAD_ACTION", "Bu job uchun render allaqachon ketmoqda");
+    }
+    const task: Promise<unknown> = this.render(job, preset).catch((error: unknown) =>
+      this.log.error({ err: error, job: job.id }, "qayta render xatosi"),
+    );
+    this.background.add(task);
+    void task.finally(() => this.background.delete(task));
+    return ok({ started: true });
+  }
+
+  async rendersOf(jobId: string) {
+    return this.ctx.db
+      .select()
+      .from(renders)
+      .where(eq(renders.jobId, jobId))
+      .orderBy(desc(renders.createdAt));
   }
 
   // ------------------------------------------------------------------ yordamchilar

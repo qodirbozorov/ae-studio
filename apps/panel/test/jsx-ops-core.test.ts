@@ -501,3 +501,59 @@ describe("frames.capture (VERIFY)", () => {
     expect(outside).toMatchObject({ ok: false, error: { code: "ASSET_OUTSIDE_ROOT" } });
   });
 });
+
+describe("render.queue (Q5 zaxira)", () => {
+  it("faqat shu comp render qilinadi, navbat tiklanadi, element olib tashlanadi, loyiha saqlanadi", async () => {
+    const mock = createMockAE({
+      files: { [`${ROOT}/reel_v001.aep`]: {} },
+      onRender: (path) => path.replace(/\.mov$/, ".avi"),
+    });
+    const h = await loadJsx(mock);
+    const run = (op: string, id: string, params: object) =>
+      h.run(op as never, id, params as never, { root: ROOT });
+    run("project.open_or_create", "p", { path: "reel_v001.aep" });
+    run("comp.create", "aes.main", { name: "Main", w: 1080, h: 1920, fps: 30, dur: 3 });
+    run("comp.create", "other", { name: "Other", w: 100, h: 100, fps: 30, dur: 1 });
+    const queue = h.ae.app.project.renderQueue;
+    const otherComp = h.ae.app.project.itemsList.find((i) => i.name === "Other") as CompItem;
+    const existing = queue.items.add(otherComp);
+
+    const res = run("render.queue", "render.rq.1", {
+      comp: "aes.main",
+      preset: "h264_social",
+      out: "out/.render-1/render.mov",
+    });
+    expect(res).toMatchObject({
+      ok: true,
+      data: { info: { file: `${ROOT}/out/.render-1/render.avi` } },
+    });
+    expect(queue.rendered).toEqual([{ comp: "Main", path: `${ROOT}/out/.render-1/render.avi` }]);
+    expect(existing.render).toBe(true);
+    expect(queue.itemsList).toEqual([existing]);
+    expect(h.ae.app.project.dirty).toBe(false);
+
+    const failing = createMockAE({
+      onRender: () => {
+        throw new Error("disk to'la");
+      },
+    });
+    const h2 = await loadJsx(failing);
+    h2.run(
+      "comp.create" as never,
+      "aes.main",
+      { name: "M", w: 10, h: 10, fps: 30, dur: 1 } as never,
+      {
+        root: ROOT,
+      },
+    );
+    const bad = h2.run(
+      "render.queue" as never,
+      "r2",
+      { comp: "aes.main", preset: "h264_social", out: "out/x.mov" } as never,
+      {
+        root: ROOT,
+      },
+    );
+    expect(bad).toMatchObject({ ok: false, error: { code: "RENDER_FAILED" } });
+  });
+});

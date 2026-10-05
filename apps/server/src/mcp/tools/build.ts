@@ -118,6 +118,16 @@ export async function jobView(ctx: ToolContext, job: JobRow, logLimit: number) {
       percent: progress.total === 0 ? 0 : Math.round((progress.done / progress.total) * 100),
     },
     error: job.error,
+    renders: (await ctx.engine.rendersOf(job.id)).map((render) => ({
+      id: render.id,
+      status: render.status,
+      preset: render.preset,
+      local_path: render.localPath,
+      duration_s: render.durationMs === null ? null : render.durationMs / 1000,
+      size_bytes: render.sizeBytes,
+      method: render.method,
+      error: render.error,
+    })),
     next_step: next,
     logs: events.reverse().map((event) => ({
       ts: event.ts,

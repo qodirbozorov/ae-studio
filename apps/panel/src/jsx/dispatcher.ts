@@ -14,6 +14,7 @@ import { info } from "./ops/info";
 import { ping } from "./ops/ping";
 import { projectOpenOrCreate, projectSave } from "./ops/project";
 import { propExpression, propKeyframes } from "./ops/prop";
+import { renderQueue } from "./ops/render";
 import { undo } from "./ops/undo";
 import { isAesThrown, raise } from "./lib/util";
 
@@ -29,6 +30,7 @@ export function registerOp(name: string, handler: OpHandler): void {
 registerOp("ping", ping as OpHandler);
 registerOp("info", info as OpHandler);
 registerOp("frames.capture", framesCapture as OpHandler);
+registerOp("render.queue", renderQueue as OpHandler);
 registerOp("undo", undo as OpHandler);
 registerOp("comp.create", compCreate as OpHandler);
 registerOp("item.import", itemImport as OpHandler);
@@ -51,6 +53,7 @@ const READ_ONLY: { [op: string]: boolean | undefined } = { ping: true, info: tru
 const NO_UNDO: { [op: string]: boolean | undefined } = {
   undo: true,
   "frames.capture": true,
+  "render.queue": true,
   "project.open_or_create": true,
   "project.save": true,
 };

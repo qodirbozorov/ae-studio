@@ -18,6 +18,8 @@ let t: TestApp | undefined;
 let agent: Agent | undefined;
 
 afterEach(async () => {
+  delete process.env.AES_FAKE_RENDER_S;
+  delete process.env.AES_FAKE_FFMPEG;
   agent?.disconnect();
   await t?.close();
   t = agent = undefined;
@@ -57,7 +59,17 @@ describe.skipIf(!FFMPEG_AVAILABLE)("job e2e: plan → server → panel → AE", 
     const ae = createMockAE({ realDisk: true });
     const p = await pairedAgent(s.app, s.base, undefined, root, ae);
     agent = p.agent;
-    p.agent.updateSettings({ ffmpeg_dir: findFfmpegDir() ?? null });
+    const ffmpegDir = findFfmpegDir() ?? null;
+    // RENDER: soxta aerender (render.e2e da batafsil) — spec davomiyligi 3.5 s.
+    p.agent.updateSettings({
+      ffmpeg_dir: ffmpegDir,
+      aerender_path: join(__dirname, "fixtures", "fake-aerender.mjs"),
+    });
+    process.env.AES_FAKE_RENDER_S = "3.5";
+    process.env.AES_FAKE_FFMPEG =
+      ffmpegDir === null
+        ? "ffmpeg"
+        : join(ffmpegDir, process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
     const project = await p.agent.openProject(root);
     // Mock AE import qiladigan fayllar (haqiqiy fayllar ffmpeg bilan yaratilgan).
     const base = project.root_path;

@@ -175,7 +175,8 @@ describe("to'liq oqim", () => {
     const types = events.body.data.map((e: { type: string }) => e.type);
     expect(types).toContain("check.env");
     expect(types).toContain("audio.skipped");
-    expect(types).toContain("render.skipped");
+    expect(types).toContain("render.done");
+    expect(report.body.data.markdown).toContain("Video: `out/reel_v1_v001.mp4` (9.50 s");
 
     // Ikkinchi job yangi vNNN oladi: oldingi versiya ustiga yozilmaydi.
     const second = await startJob();

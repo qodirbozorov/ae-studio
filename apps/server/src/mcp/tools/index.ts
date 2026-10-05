@@ -4,6 +4,7 @@ import { assetTools } from "./assets";
 import { buildTools } from "./build";
 import { envTools } from "./env";
 import { projectTools } from "./projects";
+import { renderTools } from "./render";
 import { specTools } from "./spec";
 import { verifyTools } from "./verify";
 
@@ -13,5 +14,6 @@ export const TOOLS: readonly ToolDef[] = [
   ...assetTools,
   ...buildTools,
   ...verifyTools,
+  ...renderTools,
   ...specTools,
 ];

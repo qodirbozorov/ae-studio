@@ -12,6 +12,8 @@ export function ping(params: PingParams, opId: string): OpResultData {
       jsx_version: JSX_VERSION,
       project_path: file === null ? null : file.fsName,
       os: $.os,
+      /** AE o'rnatilgan papka (agent aerender'ni shu yerdan topadi, Q5). */
+      app_path: Folder.appPackage ? Folder.appPackage.fsName : null,
       echo: params.echo === undefined ? null : params.echo,
     },
   };

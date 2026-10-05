@@ -44,14 +44,26 @@ describe("ish papkasi (§11.1.2)", () => {
     const dataDir = mkdtempSync(join(tmpdir(), "aes-set-"));
     const p = await pairedAgent(s.app, s.base, dataDir);
     agent = p.agent;
-    expect(p.agent.settings()).toEqual({ device_name: null, log_level: "info", ffmpeg_dir: null });
-    p.agent.updateSettings({ device_name: "Studio-PC", log_level: "debug" });
+    expect(p.agent.settings()).toEqual({
+      device_name: null,
+      log_level: "info",
+      ffmpeg_dir: null,
+      aerender_path: null,
+      render_om_template: null,
+    });
+    p.agent.updateSettings({
+      device_name: "Studio-PC",
+      log_level: "debug",
+      aerender_path: "C:/AE/aerender.exe",
+    });
     const fresh = await pairedAgent(s.app, s.base, dataDir);
     fresh.agent.disconnect();
     expect(fresh.agent.settings()).toEqual({
       device_name: "Studio-PC",
       log_level: "debug",
       ffmpeg_dir: null,
+      aerender_path: "C:/AE/aerender.exe",
+      render_om_template: null,
     });
   });
 });
