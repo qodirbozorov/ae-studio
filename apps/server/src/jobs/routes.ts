@@ -2,7 +2,7 @@
  * Plan va job API (kabinet; Faza 3 dagi MCP toollari ham shu engine'ni chaqiradi).
  * Panel (qurilma tokeni) o'z aktiv job'ini boshqarishi uchun `/api/agent/jobs/*` (Live ekrani, P2.12).
  */
-import { JOB_ACTIONS, fail, ok } from "@aes/shared";
+import { JOB_ACTIONS, PANEL_JOB_ACTIONS, fail, ok } from "@aes/shared";
 import type { Result } from "@aes/shared";
 import { and, asc, desc, eq, gt } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -73,6 +73,25 @@ export function registerJobRoutes(app: FastifyInstance, ctx: AppContext, engine:
       .where(and(eq(jobs.id, id), eq(projects.userId, request.user!.id)))
       .limit(1);
     return row?.job ?? null;
+  }
+
+  async function listEvents(jobId: string, afterRaw: string | undefined) {
+    const after = Number(afterRaw ?? 0);
+    const rows = await ctx.db
+      .select()
+      .from(jobEvents)
+      .where(and(eq(jobEvents.jobId, jobId), gt(jobEvents.id, Number.isFinite(after) ? after : 0)))
+      .orderBy(asc(jobEvents.id))
+      .limit(500);
+    return rows.map((row) => ({
+      id: row.id,
+      ts: row.ts,
+      level: row.level,
+      type: row.type,
+      op_id: row.opId,
+      message: row.message,
+      data: row.data,
+    }));
   }
 
   const notFound = (reply: FastifyReply, what: string) =>
@@ -151,24 +170,7 @@ export function registerJobRoutes(app: FastifyInstance, ctx: AppContext, engine:
   app.get("/api/jobs/:id/events", { preHandler: requireUser }, async (request, reply) => {
     const job = await userJob(request);
     if (job === null) return notFound(reply, "Job");
-    const after = Number((request.query as { after?: string }).after ?? 0);
-    const rows = await ctx.db
-      .select()
-      .from(jobEvents)
-      .where(and(eq(jobEvents.jobId, job.id), gt(jobEvents.id, Number.isFinite(after) ? after : 0)))
-      .orderBy(asc(jobEvents.id))
-      .limit(500);
-    return ok(
-      rows.map((row) => ({
-        id: row.id,
-        ts: row.ts,
-        level: row.level,
-        type: row.type,
-        op_id: row.opId,
-        message: row.message,
-        data: row.data,
-      })),
-    );
+    return ok(await listEvents(job.id, (request.query as { after?: string }).after));
   });
 
   app.get("/api/jobs/:id/report", { preHandler: requireUser }, async (request, reply) => {
@@ -209,14 +211,20 @@ export function registerJobRoutes(app: FastifyInstance, ctx: AppContext, engine:
     return ok(job === null ? null : await presentJob(engine, job));
   });
 
-  /** Live ekranidagi tugmalar: faqat pause/resume/cancel. */
+  /** Live ekrani tarixi: panel ochilganda yoki qayta ulanganda. */
+  app.get("/api/agent/jobs/:id/events", { preHandler: deviceAuth }, async (request, reply) => {
+    const id = (request.params as { id: string }).id;
+    const job = uuid.safeParse(id).success ? await engine.get(id) : null;
+    if (job === null || job.deviceId !== request.device!.deviceId) return notFound(reply, "Job");
+    return ok(await listEvents(job.id, (request.query as { after?: string }).after));
+  });
+
+  /** Live ekranidagi tugmalar: Pause / Resume / Cancel / Undo last. */
   app.post("/api/agent/jobs/:id/actions", { preHandler: deviceAuth }, async (request, reply) => {
     const id = (request.params as { id: string }).id;
     const job = uuid.safeParse(id).success ? await engine.get(id) : null;
     if (job === null || job.deviceId !== request.device!.deviceId) return notFound(reply, "Job");
-    const body = z
-      .strictObject({ action: z.enum(["pause", "resume", "cancel"]) })
-      .safeParse(request.body);
+    const body = z.strictObject({ action: z.enum(PANEL_JOB_ACTIONS) }).safeParse(request.body);
     if (!body.success) return reply.code(400).send(fail("SYS_BAD_REQUEST", "action noto'g'ri"));
     const result = await engine.act(job.id, body.data.action);
     if (!result.ok) return reply.code(status(result)).send(result);

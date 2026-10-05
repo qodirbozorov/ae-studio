@@ -7,7 +7,7 @@ import { z } from "zod";
 import { ERROR_DEFS } from "./errors";
 import type { ErrorCode } from "./errors";
 import { parseWith, slugSchema } from "./common";
-import { JOB_STATES, LOG_LEVELS } from "./jobs";
+import { JOB_OUTCOMES, JOB_STATES, LOG_LEVELS } from "./jobs";
 import { opEnvelopeSchema, opIdSchema, opResultDataSchema } from "./ops";
 import { fail } from "./result";
 import type { Result } from "./result";
@@ -98,6 +98,10 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
     prev_state: jobStateSchema.optional(),
     progress: z.strictObject({ done: z.number().int().min(0), total: z.number().int().min(0) }),
     scene_id: slugSchema.optional(),
+    /** Live ekrani uchun qo'shimcha: pauza, yakun, BLOCKED xatosi. */
+    paused: z.boolean().optional(),
+    outcome: z.enum(JOB_OUTCOMES).optional(),
+    error: aesErrorSchema.optional(),
   }),
   z.strictObject({
     type: z.literal("job.event"),

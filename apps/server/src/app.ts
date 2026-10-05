@@ -15,6 +15,7 @@ import type { Env } from "./env";
 import { registerProjectRoutes } from "./projects/routes";
 import { registerHealth } from "./health";
 import { JobEngine } from "./jobs/engine";
+import { registerLive } from "./jobs/live";
 import { registerJobRoutes } from "./jobs/routes";
 import type { RedisLike } from "./redis";
 import { LocalStorage, createStorage } from "./storage";
@@ -111,6 +112,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const engine = new JobEngine(ctx, app.log);
   app.decorate("jobs", engine);
   engine.attach();
+  registerLive(ctx, engine, app.log);
   registerJobRoutes(app, ctx, engine);
   app.addHook("onReady", async () => {
     // DB hali tayyor bo'lmasa server baribir ko'tariladi (health 503 ko'rsatadi).

@@ -39,5 +39,7 @@ export function actionAllowed(action: JobAction, state: JobState, paused: boolea
       return isActive(state) && state !== "REPORT" && !paused;
     case "resume":
       return isActive(state) && paused;
+    case "undo":
+      return state === "BUILD" && paused;
   }
 }

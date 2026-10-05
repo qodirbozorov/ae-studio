@@ -39,6 +39,7 @@ function paths(result: { ok: boolean; error?: { details?: unknown } }): string[]
 /** Har op uchun bitta valid params namunasi. */
 const VALID_PARAMS: { [N in AeOpName]: OpParamsMap[N] } = {
   ping: {},
+  undo: { op_id: "hook.title" },
   "project.open_or_create": { path: "reel_v001.aep" },
   "project.save": { version: 2, path: "reel_v002.aep" },
   "item.import": { file: "source/clip_01.mp4", folder: "Source" },
@@ -112,6 +113,7 @@ const VALID_PARAMS: { [N in AeOpName]: OpParamsMap[N] } = {
 /** Har op uchun bitta noto'g'ri params va kutilgan xato path. */
 const INVALID_PARAMS: { [N in AeOpName]: [unknown, string] } = {
   ping: [{ echo: 5 }, "/params/echo"],
+  undo: [{ op_id: "Bad Id" }, "/params/op_id"],
   "project.open_or_create": [{ path: "C:/x/a.aep" }, "/params/path"],
   "project.save": [{ version: 0, path: "a.aep" }, "/params/version"],
   "item.import": [{ file: "../secret.mp4" }, "/params/file"],

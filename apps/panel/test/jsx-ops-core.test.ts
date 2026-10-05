@@ -396,3 +396,32 @@ describe("fx.add / fx.apply_preset", () => {
     });
   });
 });
+
+describe("undo (Live ekrani: Undo last)", () => {
+  it("faqat AE'dagi oxirgi undo group shu op bo'lsa bekor qiladi; undo group ochmaydi", async () => {
+    const h = await loadJsx(ae());
+    const run = (op: string, id: string, params: object) => {
+      const res = h.run(op as never, id, params as never, { root: ROOT });
+      if (!res.ok) throw new Error(`${id}: ${res.error.code}`);
+      return res.data;
+    };
+    run("comp.create", "c1", { name: "A", w: 1080, h: 1920, fps: 30, dur: 5 });
+    run("layer.add_text", "t1", {
+      comp: "c1",
+      text: "Salom",
+      start: 0,
+      style: {},
+      pos: [540, 960],
+    });
+
+    const wrong = h.run("undo", "undo.c1", { op_id: "c1" }, { root: ROOT });
+    expect(wrong.ok).toBe(false);
+    if (!wrong.ok) expect(wrong.error.code).toBe("AE_NOT_FOUND");
+
+    const res = h.run("undo", "undo.t1", { op_id: "t1" }, { root: ROOT });
+    expect(res).toMatchObject({ ok: true, data: { info: { undone: "t1" } } });
+    expect(h.ae.app.undone).toEqual(["aes:t1"]);
+    expect(h.ae.app.undoGroups).toEqual(["aes:c1"]);
+    expect(h.ae.app.openUndoGroups).toBe(0);
+  });
+});

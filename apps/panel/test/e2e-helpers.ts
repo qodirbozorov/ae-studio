@@ -8,6 +8,7 @@ import { createTestApp, login } from "../../server/test/helpers/app";
 import type { TestApp } from "../../server/test/helpers/app";
 import { createAgent } from "../src/agent/index";
 import type { Agent, ConnectionStatus } from "../src/agent/index";
+import type { MockAE } from "./ae-mock";
 import { loadJsx } from "./jsx-harness";
 
 /** Bo'sh TCP port (PUBLIC_URL oldindan ma'lum bo'lishi uchun — imzolangan URL'lar shunga yasaladi). */
@@ -68,8 +69,9 @@ export async function pairedAgent(
   base: string,
   dataDir = mkdtempSync(join(tmpdir(), "aes-e2e-")),
   root = "D:/Projects/reel",
+  ae?: MockAE,
 ) {
-  const h = await loadJsx();
+  const h = await loadJsx(ae);
   const cookie = await login(app, `owner-${Date.now()}@x.uz`);
   const a = createAgent({
     evalScript: h.evalScript,

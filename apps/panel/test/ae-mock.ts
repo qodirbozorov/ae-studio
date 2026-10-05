@@ -420,8 +420,12 @@ export interface MockApp {
   suppressDialogs: number;
   /** Ochilgan/yaratilgan loyihalar tarixi (testlar uchun). */
   opened: string[];
+  /** Bekor qilingan undo group'lar (Edit → Undo). */
+  undone: string[];
   beginUndoGroup(name: string): void;
   endUndoGroup(): void;
+  findMenuCommandId(name: string): number;
+  executeCommand(id: number): void;
   beginSuppressDialogs(): void;
   endSuppressDialogs(alert: boolean): void;
   open(file: MockFile): MockProject;
@@ -496,6 +500,7 @@ export function createMockAE(
     version: options.version ?? "25.2.0x15",
     project: createProject(null),
     undoGroups: [],
+    undone: [],
     openUndoGroups: 0,
     suppressDialogs: 0,
     opened: [],
@@ -505,6 +510,16 @@ export function createMockAE(
     },
     endUndoGroup() {
       this.openUndoGroups--;
+    },
+    // AE: Edit menyusidagi "Undo <oxirgi group nomi>" (16 — Undo buyrug'i).
+    findMenuCommandId(name) {
+      const last = this.undoGroups[this.undoGroups.length - 1];
+      return last !== undefined && name === "Undo " + last ? 16 : 0;
+    },
+    executeCommand(id) {
+      if (id !== 16) return;
+      const last = this.undoGroups.pop();
+      if (last !== undefined) this.undone.push(last);
     },
     beginSuppressDialogs() {
       this.suppressDialogs++;

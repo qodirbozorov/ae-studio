@@ -121,7 +121,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: snapshot testlar bor; bir xil spec har doim bir xil oplist beradi.
 - [x] **P2.11 — Job state machine (§3).** Barcha holatlar va o'tishlar, gate'lar, `BLOCKED` (retry | patch | ask_user | cancel), `WAITING_AGENT` (`prev_state`), `patch_count`. Handlerlar: CHECK (server, panel, AE, papka, ffmpeg), PLAN (zod + havolalar), INGEST, PREFLIGHT (havola ↔ fayl, shriftlar, compile), BUILD (oxirgi `done` opdan davom etadi), REPORT. Vaqtincha: AUDIO → `skipped` (Faza 4 gacha), VERIFY → qo'lda approve (Faza 3 gacha), RENDER → Faza 3 da. Bitta qurilmada bitta aktiv job.
   - Tayyor: soxta agent bilan to'liq oqim va har bir xato yo'li sinalgan.
-- [ ] **P2.12 — Live log va Live ekrani.** `job_events` → WS → panel: holat zanjiri, progress (op soni), joriy sahna, log; Pause / Resume / Cancel / Undo last (`job.pause`, `job.cancel`).
+- [x] **P2.12 — Live log va Live ekrani.** `job_events` → WS → panel: holat zanjiri, progress (op soni), joriy sahna, log; Pause / Resume / Cancel / Undo last (`job.pause`, `job.cancel`).
   - Tayyor: 👤 job panelda real vaqtda kuzatiladi va boshqariladi.
 - [ ] **P2.13 — Versiyalash va oddiy REPORT.** `plans` versiyalari, `.aep` vNNN, local nusxalar `.aestudio/plan.vNNN.json`. `reports/` generatori (qurilganlar, yo'llar, tahrir qo'llanmasi, ogohlantirishlar) → `reports` jadvali va `.aestudio/report.md`.
   - Tayyor: hech qaysi versiya ustiga yozilmaydi (test).

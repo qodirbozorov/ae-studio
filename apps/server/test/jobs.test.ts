@@ -410,3 +410,130 @@ describe("cancel va pause", () => {
     expect(await job(jobId)).toMatchObject({ state: "VERIFY", paused: false });
   });
 });
+
+describe("Live (P2.12): job_events → WS → panel", () => {
+  it("panelga job.update (holat, progress, sahna) va job.event keladi", async () => {
+    agent.connect();
+    await addPlan();
+    const id = await startJob();
+    await job(id);
+    const updates = agent.ofType("job.update").filter((m) => m.job_id === id);
+    const seen = [...new Set(updates.map((m) => m.state))];
+    expect(seen).toEqual(["PLAN", "INGEST", "AUDIO", "PREFLIGHT", "BUILD", "VERIFY"]);
+    const build = updates.filter((m) => m.state === "BUILD");
+    expect(build.some((m) => m.scene_id === "point")).toBe(true);
+    expect(build.at(-1)!.progress.total).toBeGreaterThan(20);
+    expect(updates.at(-1)!.progress.done).toBe(updates.at(-1)!.progress.total);
+
+    const events = agent.ofType("job.event").map((m) => m.event.type);
+    expect(events).toContain("check.env");
+    expect(events).toContain("build.done");
+    expect(events).toContain("verify.waiting");
+  });
+
+  it("BLOCKED xatosi job.update ichida; qayta ulanganda aktiv job darhol yuboriladi", async () => {
+    agent.connect();
+    agent.onOp = (op) => (op.op === "ping" ? makeError("AE_SCRIPT_ERROR", "x") : "ok");
+    await addPlan();
+    const id = await startJob();
+    await job(id);
+    const blocked = agent.ofType("job.update").at(-1)!;
+    expect(blocked).toMatchObject({ state: "BLOCKED", error: { code: "AE_SCRIPT_ERROR" } });
+
+    agent.disconnect();
+    const before = agent.received.length;
+    agent.connect();
+    const again = await eventuallyMessage(() =>
+      agent.received.slice(before).find((m) => m.type === "job.update"),
+    );
+    expect(again).toMatchObject({ job_id: id, state: "BLOCKED" });
+  });
+
+  it("panel tarixi va amallari qurilma tokeni bilan", async () => {
+    agent.connect();
+    await addPlan();
+    const id = await startJob();
+    await job(id);
+    const token = await deviceToken();
+    const auth = { authorization: `Bearer ${token}` };
+    const active = await t.app.inject({ url: "/api/agent/jobs/active", headers: auth });
+    expect(active.json().data).toMatchObject({ id, state: "VERIFY" });
+    const history = await t.app.inject({ url: `/api/agent/jobs/${id}/events`, headers: auth });
+    expect(history.json().data.length).toBeGreaterThan(10);
+    const approve = await t.app.inject({
+      method: "POST",
+      url: `/api/agent/jobs/${id}/actions`,
+      headers: auth,
+      payload: { action: "approve" },
+    });
+    expect(approve.statusCode).toBe(400);
+    const cancel = await t.app.inject({
+      method: "POST",
+      url: `/api/agent/jobs/${id}/actions`,
+      headers: auth,
+      payload: { action: "cancel" },
+    });
+    expect(cancel.json()).toMatchObject({ ok: true });
+    expect(await job(id)).toMatchObject({ state: "DONE", outcome: "cancelled" });
+  });
+
+  it("Undo last: pauzada oxirgi opni AE'da bekor qiladi, resume uni qayta bajaradi", async () => {
+    agent.connect();
+    await addPlan();
+    let jobId = "";
+    agent.onOp = async (op): Promise<OpReaction> => {
+      if (op.op_id === "hook.title")
+        await api("POST", `/api/jobs/${jobId}/actions`, { action: "pause" });
+      return "ok";
+    };
+    jobId = (await api("POST", `/api/projects/${projectId}/jobs`, {})).body.data.id;
+    expect(await job(jobId)).toMatchObject({ state: "BUILD", paused: true });
+
+    agent.onOp = () => "ok";
+    const undo = await act(jobId, "undo");
+    expect(undo.body.ok).toBe(true);
+    const undoOp = agent.ofType("op.run").at(-1)!.op;
+    expect(undoOp).toMatchObject({ op: "undo", params: { op_id: "hook.title" } });
+    expect((await opStatuses(jobId)).find((o) => o.opId === "hook.title")?.status).toBe("pending");
+    // Ikkinchi undo: oldingi op (hook.l0.anim).
+    await act(jobId, "undo");
+    expect(agent.ofType("op.run").at(-1)!.op.params).toEqual({ op_id: "hook.l0.anim" });
+
+    const ranBefore = agent.ran.length;
+    await act(jobId, "resume");
+    expect(await job(jobId)).toMatchObject({ state: "VERIFY" });
+    expect(agent.ran.slice(ranBefore, ranBefore + 2)).toEqual(["hook.l0.anim", "hook.title"]);
+  });
+
+  it("Undo pauzasiz mumkin emas", async () => {
+    agent.connect();
+    await addPlan();
+    const id = await startJob();
+    const res = await act(id, "undo");
+    expect(res.body.error.code).toBe("JOB_BAD_ACTION");
+  });
+});
+
+async function eventuallyMessage<T>(read: () => T | undefined, timeoutMs = 5_000): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const value = read();
+    if (value !== undefined) return value;
+    if (Date.now() > deadline) throw new Error("xabar kelmadi");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
+
+/** Shu test qurilmasi uchun device token (oauth_tokens ga to'g'ridan-to'g'ri). */
+async function deviceToken(): Promise<string> {
+  const { issueToken } = await import("../src/auth/tokens");
+  const [device] = await t.db.db.select().from(devices).where(eq(devices.id, deviceId));
+  const issued = await issueToken(t.db.db, {
+    kind: "device",
+    userId: device!.userId,
+    deviceId,
+    ttlMs: 3_600_000,
+    now: t.clock.now,
+  });
+  return issued.token;
+}

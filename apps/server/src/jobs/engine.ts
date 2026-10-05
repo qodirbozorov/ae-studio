@@ -21,7 +21,7 @@ import type {
   Result,
   VideoSpec,
 } from "@aes/shared";
-import { and, asc, desc, eq, inArray, max, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, max, ne, notInArray } from "drizzle-orm";
 import type { FastifyBaseLogger } from "fastify";
 import { applyScan } from "../assets/routes";
 import type { AppContext } from "../context";
@@ -294,6 +294,8 @@ export class JobEngine {
         updated = await this.setPaused(job, false);
         if (updated !== null) await this.event(job, "info", "job.resumed", "Davom ettirildi");
         break;
+      case "undo":
+        return this.undoLast(job);
     }
     if (updated === null) {
       return fail("JOB_BAD_ACTION", "Job holati shu payt o'zgardi; qayta urinib ko'ring");
@@ -329,6 +331,49 @@ export class JobEngine {
       data: { plan_version: plan.data.version, patch_count: updated.patchCount },
     });
     void this.drive(job.id);
+    return ok(updated);
+  }
+
+  /**
+   * Undo last (Live ekrani, pauzada): AE'dagi oxirgi bajarilgan opni bekor qiladi va uni `pending` qiladi —
+   * resume'da qayta bajariladi. Loyihani ochish/saqlash undo tarixiga kirmaydi, shuning uchun o'tkaziladi.
+   */
+  private async undoLast(job: JobRow): Promise<Result<JobRow>> {
+    if (job.deviceId === null) return fail("AUTH_DEVICE_REVOKED", "Qurilma bekor qilingan");
+    const [running] = await this.ctx.db
+      .select({ id: ops.id })
+      .from(ops)
+      .where(and(eq(ops.jobId, job.id), eq(ops.status, "running")))
+      .limit(1);
+    if (running !== undefined || this.driving.has(job.id)) {
+      return fail("JOB_BAD_ACTION", "Joriy op hali tugamadi; birozdan keyin qayta urining");
+    }
+    const [last] = await this.ctx.db
+      .select()
+      .from(ops)
+      .where(
+        and(
+          eq(ops.jobId, job.id),
+          eq(ops.status, "done"),
+          notInArray(ops.op, ["project.open_or_create", "project.save"]),
+        ),
+      )
+      .orderBy(desc(ops.seq))
+      .limit(1);
+    if (last === undefined) return fail("JOB_BAD_ACTION", "Bekor qilinadigan op yo'q");
+    const result = await this.ctx.hub.run(
+      job.deviceId,
+      makeOp("undo", `undo.${last.opId}`.slice(0, 128), 0, { op_id: last.opId }),
+      job.id,
+    );
+    if (!result.ok) return result;
+    await this.ctx.db
+      .update(ops)
+      .set({ status: "pending", result: null, finishedAt: null })
+      .where(eq(ops.id, last.id));
+    await this.event(job, "info", "op.undone", `↩ ${last.op} bekor qilindi`, { opId: last.opId });
+    const updated = (await this.get(job.id)) ?? job;
+    await this.notify(updated);
     return ok(updated);
   }
 
@@ -703,7 +748,8 @@ export class JobEngine {
       start = lastSave + 1;
     }
     const queue: OpRow[] = rows.slice(start);
-    if (start > 0 && rows[0]!.op === "project.open_or_create") queue.unshift(rows[0]!);
+    if (interrupted && start > 0 && rows[0]!.op === "project.open_or_create")
+      queue.unshift(rows[0]!);
     if (interrupted) {
       await this.ctx.db
         .update(jobs)

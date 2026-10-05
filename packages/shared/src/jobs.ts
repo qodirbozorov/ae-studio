@@ -46,5 +46,10 @@ export const JOB_ACTIONS = [
   "approve",
   "pause",
   "resume",
+  /** Live ekrani: pauzada AE'dagi oxirgi opni bekor qilish (Undo last). */
+  "undo",
 ] as const;
+
+/** Panel (Live ekrani) bajara oladigan amallar. */
+export const PANEL_JOB_ACTIONS = ["pause", "resume", "cancel", "undo"] as const;
 export type JobAction = (typeof JOB_ACTIONS)[number];

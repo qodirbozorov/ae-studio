@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · jarayonda (11/14)
-- **Oxirgi bajarilgan:** P2.11 — job state machine (2026-10-05)
-- **Keyingi todo:** P2.12 — Live log va Live ekrani
+- **Faza:** 2 — Yadro · jarayonda (12/14)
+- **Oxirgi bajarilgan:** P2.12 — Live log va Live ekrani (2026-10-05)
+- **Keyingi todo:** P2.13 — versiyalash va REPORT lokal nusxalari
 - **Blokerlar:** 👤 AE kompyuterida ZXP sinovi · 👤 RESEND_API_KEY (magic link xati hozir server logida) · git remote URL yo'q (push qilinmagan)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -71,6 +71,8 @@
 | 2026-10-05 | P2.11 | Har job o'tishi compare-and-set (WHERE state=eski); pause jobs.paused ustunida | Amallar ishlab turgan handler bilan poygasiz; server restartda pauza saqlanadi |
 | 2026-10-05 | P2.11 | WAITING_AGENT dan qaytish panel hello xabarida (presence emas) | hello kelganda panel ish papkasi ma'lum bo'ladi (CHECK uchun) |
 | 2026-10-05 | P2.11 | Yangi xato kodlari JOB_ACTIVE, JOB_BAD_ACTION (JOB_ prefiksi) | Bitta qurilmada bitta aktiv job va holatga mos bo'lmagan amal uchun |
+| 2026-10-05 | P2.12 | Undo last = tizim opi undo: AE Edit menyusida aynan 'Undo aes:<op_id>' bo'lsagina bajariladi; faqat BUILD pauzasida | Har op o'z undo group'ida; orada qo'lda qilingan amal tasodifan bekor qilinmaydi |
+| 2026-10-05 | P2.12 | job.update ga paused/outcome/error qo'shildi; panel tarixni HTTP (/api/agent/jobs/:id/events) bilan oladi | Live ekrani qayta ulanganda to'liq holatni ko'rsatishi uchun |
 
 ---
 
@@ -395,3 +397,35 @@
   Repo 257/257 · typecheck · lint · prettier · server build ✅.
 - **Qarz:** CHECK'da shriftlar va ElevenLabs tekshiruvi (Faza 4/5).
 - **Keyingi:** P2.12 (Live log va Live ekrani)
+
+### 2026-10-05 · P2.12 — Live log va Live ekrani · ✅ (AE'da ko'rish 👤)
+- **Server (`jobs/live.ts`):**
+  - Engine tinglovchilari panelga ikki xil xabar yuboradi:
+    - `job.update`: holat, `prev_state`, progress (op soni), joriy sahna, pauza, yakun, BLOCKED xatosi;
+    - `job.event`: har `job_events` yozuvi.
+  - Panel qayta ulanganda (`hello`) aktiv job holati darhol yuboriladi. Panelning `log` xabarlari (`job_id` bilan) job log'iga yoziladi.
+  - Panel uchun yangi endpointlar: `GET /api/agent/jobs/:id/events` (tarix) va `/api/agent/jobs/:id/actions` (pause, resume, cancel, undo).
+- **Undo last:**
+  - Yangi tizim opi `undo`. jsx tomoni AE Edit menyusidagi band aynan `Undo aes:<op_id>` bo'lsagina `executeCommand` qiladi. Orada qo'lda o'zgarish bo'lsa, boshqa amal tasodifan bekor qilinmaydi.
+  - Server faqat BUILD pauzada ruxsat beradi va op hali bajarilayotgan bo'lsa rad etadi. Oxirgi `done` op (ochish/saqlash bundan mustasno) `pending` ga qaytariladi va resume'da qayta bajariladi.
+- **Panel:**
+  - **`agent/live.ts` (`LiveJobStore`):** aktiv job holati va hodisalari. Yangi job kelganda tarix serverdan yuklanadi va jonli kelgan hodisalar bilan dublikatsiz birlashtiriladi.
+  - **`agent.jobAction()`:** Live ekranidagi amallarni serverga yuboradi. Job hodisalari umumiy LiveLog'ga ham chiqadi (op hodisalaridan tashqari, chunki ular op-runner'da allaqachon log qilinadi).
+  - **`Live.tsx`:** holat zanjiri (BLOCKED/WAITING'da `prev_state` bo'yicha), progress bar, sahna, xato; Pause/Resume, Undo last, Cancel (tasdiq bilan); job log'i.
+- **Shared:**
+  - `job.update` ga `paused`, `outcome` va `error` qo'shildi.
+  - `JOB_ACTIONS` ga `undo` qo'shildi; yangi `PANEL_JOB_ACTIONS`.
+  - `SYSTEM_OP_NAMES` ga `undo` qo'shildi.
+- **Tekshiruv:**
+  - `jobs.test.ts` ga 5 ta test:
+    - panelga holatlar zanjiri, sahna, progress va hodisalar boradi;
+    - BLOCKED xatosi update ichida keladi; qayta ulanganda aktiv job darhol yuboriladi;
+    - qurilma tokeni bilan tarix va amallar (approve rad etiladi, cancel ishlaydi);
+    - Undo ikki marta, keyin resume ikkala opni qayta bajaradi;
+    - pauzasiz undo rad etiladi.
+  - `live.test.ts` 3 ta; `jsx-ops-core` ga undo testi (faqat oxirgi group bekor qilinadi, boshqa op so'ralsa `AE_NOT_FOUND`).
+  - **`job.e2e.test.ts` (to'liq zanjir):** haqiqiy server, device flow, agent, haqiqiy ffmpeg INGEST va ES3 bundle (mock AE). Natija: 2 sahnali video quriladi, `.aep` v001 saqlanadi, Live store VERIFY va hodisalarni ko'rsatadi, approve → DONE va hisobot.
+
+  Repo 267+ · typecheck · lint · prettier · panel build ✅.
+- **👤 AE'da:** Live ekranini va Undo last'ni haqiqiy AE'da ko'rish. AE `findMenuCommandId("Undo aes:…")` ni qanday qo'llashi tekshirilishi kerak; ishlamasa undo `AE_NOT_FOUND` bilan xavfsiz rad etadi.
+- **Keyingi:** P2.13 (versiyalash, plan/report lokal nusxalari)

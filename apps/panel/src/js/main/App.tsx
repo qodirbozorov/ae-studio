@@ -4,6 +4,7 @@ import { getAgent } from "../lib/agent";
 import { hostEnvironment, isCep, panelBackground } from "../lib/cep";
 import { Connection, useConnectionStatus } from "./Connection";
 import { DevTools } from "./DevTools";
+import { Live } from "./Live";
 import { LiveLog } from "./LiveLog";
 import { Settings, Workspace } from "./Workspace";
 
@@ -78,6 +79,7 @@ function ConnectionPanel({ agent }: { agent: NonNullable<ReturnType<typeof getAg
     <>
       <Connection agent={agent} status={status} />
       <Workspace agent={agent} connected={status === "connected"} />
+      <Live agent={agent} />
       <DevTools agent={agent} />
       <Settings agent={agent} onChange={(s) => setLogLevel(s.log_level)} />
       <LiveLog store={agent.log} minLevel={logLevel} />

@@ -4,7 +4,7 @@
  */
 import os from "node:os";
 import { makeError, makeOp } from "@aes/shared";
-import type { AesError } from "@aes/shared";
+import type { AesError, ServerMessage } from "@aes/shared";
 import { createAeBridge } from "./ae-bridge";
 import type { AeBridge, EvalScript } from "./ae-bridge";
 import { clearCredentials, loadCredentials, saveCredentials } from "./credentials";
@@ -14,6 +14,8 @@ import { uploadFile } from "./files";
 import { getJson, postJson } from "./http";
 import { scanSource } from "./ingest";
 import type { ScannedAsset } from "./ingest";
+import { LiveJobStore } from "./live";
+import type { LiveEvent } from "./live";
 import { LogStore } from "./log";
 import { createOpRunner } from "./op-runner";
 import type { OpRunner } from "./op-runner";
@@ -57,8 +59,15 @@ export interface Pairing {
   cancel(): void;
 }
 
+/** Live ekrani tugmalari (P2.12). */
+export type PanelJobAction = "pause" | "resume" | "cancel" | "undo";
+
 export interface Agent {
   log: LogStore;
+  /** Aktiv job holati va hodisalari (Live ekrani). */
+  live: LiveJobStore;
+  /** Live ekranidagi Pause / Resume / Cancel / Undo last. */
+  jobAction(action: PanelJobAction): Promise<{ ok: boolean; message?: string }>;
   bridge: AeBridge;
   runner: OpRunner;
   getRoot(): string;
@@ -95,6 +104,9 @@ export function createAgent(options: AgentOptions): Agent {
   const dataDir = options.dataDir ?? os.homedir();
   const panelVersion = options.panelVersion ?? "0.0.0";
   const log = new LogStore();
+  const live = new LiveJobStore();
+  /** Joriy ulanishning HTTP manzili va tokeni (Live tarixi va amallar uchun). */
+  let api: { base: string; token: string } | null = null;
   const bridge = createAeBridge({ evalScript: options.evalScript, jsxPath: options.jsxPath });
   const runner = createOpRunner({ bridge, log, getRoot: () => root });
   let client: WsClient | null = null;
@@ -163,8 +175,55 @@ export function createAgent(options: AgentOptions): Agent {
     return found;
   }
 
+  async function loadHistory(jobId: string): Promise<void> {
+    if (api === null) return;
+    const res = await getJson<{ ok: boolean; data?: LiveEvent[] }>(
+      `${api.base}/api/agent/jobs/${jobId}/events`,
+      { headers: { authorization: `Bearer ${api.token}` } },
+    );
+    if (res.body.ok && res.body.data !== undefined) live.setHistory(jobId, res.body.data);
+  }
+
+  function onJobMessage(message: ServerMessage): void {
+    switch (message.type) {
+      case "job.update":
+        if (live.applyUpdate(message)) {
+          loadHistory(message.job_id).catch((error: unknown) =>
+            log.add({ level: "warn", message: `Live tarixi yuklanmadi: ${String(error)}` }),
+          );
+        }
+        return;
+      case "job.event": {
+        live.applyEvent(message);
+        // Oplar op-runner'da allaqachon log qilinadi; qolgan job hodisalari umumiy log'ga ham.
+        const event = message.event;
+        if (!event.type.startsWith("op.") && event.level !== "debug") {
+          log.add({
+            level: event.level,
+            message: event.message,
+            job_id: message.job_id,
+            ...(event.op_id === undefined ? {} : { op_id: event.op_id }),
+          });
+        }
+        return;
+      }
+      case "job.pause":
+        log.add({ level: "info", message: "⏸ Pauza: joriy op tugagach to'xtaydi" });
+        return;
+      case "job.cancel":
+        log.add({ level: "warn", message: "⏹ Job bekor qilindi" });
+        return;
+      default:
+        return;
+    }
+  }
+
   function connect(server: ServerConnection): WsClient {
     client?.stop();
+    api = {
+      base: server.url.replace(/^ws/, "http").replace(/\/ws\/agent$/, ""),
+      token: server.token,
+    };
     const next = createWsClient({
       ...server,
       runner,
@@ -173,6 +232,7 @@ export function createAgent(options: AgentOptions): Agent {
       aeVersion: () => aeVersion,
     });
     client = next;
+    next.onMessage(onJobMessage);
     next.onMessage((message) => {
       if (message.type !== "assets.scan") return;
       if (message.project_root !== root) {
@@ -219,6 +279,20 @@ export function createAgent(options: AgentOptions): Agent {
 
   return {
     log,
+    live,
+    async jobAction(action) {
+      const job = live.current();
+      if (api === null || job === null) return { ok: false, message: "Aktiv job yo'q" };
+      const res = await postJson<{ ok: boolean; error?: { message?: string; hint?: string } }>(
+        `${api.base}/api/agent/jobs/${job.id}/actions`,
+        { action },
+        { headers: { authorization: `Bearer ${api.token}` } },
+      );
+      if (res.body.ok) return { ok: true };
+      const message = res.body.error?.message ?? res.body.error?.hint ?? `HTTP ${res.status}`;
+      log.add({ level: "warn", message: `${action}: ${message}` });
+      return { ok: false, message };
+    },
     bridge,
     runner,
     getRoot: () => root,
@@ -314,6 +388,7 @@ export function createAgent(options: AgentOptions): Agent {
 export { PairingError };
 export type { Credentials } from "./credentials";
 export type { EvalScript } from "./ae-bridge";
+export type { LiveEvent, LiveJob } from "./live";
 export type { LogEntry } from "./log";
 export type { OpOutcome, RunnerEvent } from "./op-runner";
 export type { DeviceCode } from "./pairing";

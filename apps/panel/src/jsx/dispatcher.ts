@@ -12,6 +12,7 @@ import { layerAddAudio, layerAddMedia, layerAddShape, layerAddText } from "./ops
 import { ping } from "./ops/ping";
 import { projectOpenOrCreate, projectSave } from "./ops/project";
 import { propExpression, propKeyframes } from "./ops/prop";
+import { undo } from "./ops/undo";
 import { isAesThrown, raise } from "./lib/util";
 
 /** Op handler: params tekshirilgan (agent zod bilan), op_id va kontekst bilan chaqiriladi. */
@@ -24,6 +25,7 @@ export function registerOp(name: string, handler: OpHandler): void {
 }
 
 registerOp("ping", ping as OpHandler);
+registerOp("undo", undo as OpHandler);
 registerOp("comp.create", compCreate as OpHandler);
 registerOp("item.import", itemImport as OpHandler);
 registerOp("layer.add_text", layerAddText as OpHandler);
@@ -43,6 +45,7 @@ const READ_ONLY: { [op: string]: boolean | undefined } = { ping: true };
 
 /** Loyihani ochish/saqlash undo tarixiga kirmaydi (undo group ichida loyiha almashtirilmaydi). */
 const NO_UNDO: { [op: string]: boolean | undefined } = {
+  undo: true,
   "project.open_or_create": true,
   "project.save": true,
 };
