@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · jarayonda (1/14); Faza 1 gate'ining AE/Railway bandlari ochiq
-- **Oxirgi bajarilgan:** P2.01 — web login, magic link (2026-10-05)
-- **Keyingi todo:** P2.02 — web kabinet skeleti
+- **Faza:** 2 — Yadro · jarayonda (2/14)
+- **Oxirgi bajarilgan:** P2.03 — device flow RFC 8628 (2026-10-05)
+- **Keyingi todo:** P2.02 — web kabinet (login, device tasdiq, qurilmalar)
 - **Blokerlar:** 👤 Railway'da servislar yaratishga tasdiq · 👤 AE kompyuterida ZXP sinovi · git remote URL yo'q (push qilinmagan)
 - **Ochiq qarorlar:** Q3–Q5, Q7–Q10. Yopilgan: Q1, Q2 (magic link), Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -206,4 +206,14 @@
     - `GET /api/me`, `POST /api/auth/logout`.
   - `context.ts` (AppContext + `now` soat). Env: `RESEND_API_KEY`, `MAIL_FROM`.
 - **Tekshiruv:** `auth.test.ts` 6 ta (to'liq oqim, bir martalik va eskirish, hash saqlash, rate limit, open redirect, email normalizatsiyasi). Server 29/29 · typecheck · lint · prettier ✅.
+- **Keyingi:** P2.02
+
+### 2026-10-05 · P2.03 — Device flow (RFC 8628) · ✅
+- **Eslatma:** P2.02 (kabinet UI) device tasdiqlash API'siga bog'liq, shuning uchun P2.03 oldin bajarildi.
+- **Qilindi:** `src/devices/routes.ts`:
+  - `POST /oauth/device/code`: 6 belgili `user_code` (adashtiradigan belgilarsiz alifbo, faol kodlar orasida takrorlanmaydi), `device_code` (opaque, hash bilan), `verification_uri(_complete)`, 600 s, interval 5.
+  - `POST /oauth/device/token`: RFC javoblari `authorization_pending`, `slow_down`, `expired_token`, `access_denied`. Tasdiqlansa `device_code` atomar iste'mol qilinadi, `devices` qatori va muddatsiz `device` tokeni yaratiladi.
+  - Kabinet: `GET /api/devices/pending?code=` (kod `abc-123` kabi kiritilsa ham normallashtiriladi), `POST /api/devices/confirm`, `GET /api/devices`, `POST /api/devices/:id/revoke` (faqat egasi; qurilma tokenlari ham bekor qilinadi).
+  - `authenticateDevice()` P2.05 WSS uchun.
+- **Tekshiruv:** `device-flow.test.ts` 5 ta (to'liq oqim, slow_down, bir martalik kod, rad etish, eskirish, revoke tokenni darhol o'ldiradi, begona user revoke qila olmaydi, sessiyasiz 401, noto'g'ri grant). typecheck · lint ✅.
 - **Keyingi:** P2.02

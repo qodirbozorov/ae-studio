@@ -9,6 +9,7 @@ import { registerAuthRoutes } from "./auth/routes";
 import { loadSession } from "./auth/session";
 import type { AppContext } from "./context";
 import type { Db } from "./db/client";
+import { registerDeviceRoutes } from "./devices/routes";
 import type { Env } from "./env";
 import { registerHealth } from "./health";
 import type { RedisLike } from "./redis";
@@ -71,6 +72,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   registerHealth(app, deps);
   registerAuthRoutes(app, ctx);
+  registerDeviceRoutes(app, ctx);
 
   // P1.13: faqat DEV_AGENT_TOKEN berilganda (P2.05 da device flow bilan almashtiriladi).
   if (deps.env.DEV_AGENT_TOKEN !== undefined) {

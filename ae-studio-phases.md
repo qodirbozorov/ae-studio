@@ -103,7 +103,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: login/logout ishlaydi, sessiya testlari bor.
 - [ ] **P2.02 — Web kabinet skeleti (§4.3).** `apps/web` (React + Vite): login, device kodni tasdiqlash, ulangan qurilmalar (revoke). Kabinetni server static qilib beradi; `/api/*` REST sessiya bilan ishlaydi.
   - Tayyor: kabinet Railway'da ochiladi.
-- [ ] **P2.03 — Device flow (§4.2, RFC 8628).** `POST /oauth/device/code` (6 belgili `user_code`), `POST /oauth/device/token` poll (`authorization_pending`, `slow_down`, `expired_token`, `access_denied`), `device_token` (hash holida saqlanadi, uzoq muddatli, bekor qilinadi), `devices` jadvali.
+- [x] **P2.03 — Device flow (§4.2, RFC 8628).** `POST /oauth/device/code` (6 belgili `user_code`), `POST /oauth/device/token` poll (`authorization_pending`, `slow_down`, `expired_token`, `access_denied`), `device_token` (hash holida saqlanadi, uzoq muddatli, bekor qilinadi), `devices` jadvali.
   - Tayyor: to'liq oqim bo'yicha integratsiya testi bor.
 - [ ] **P2.04 — Panel: Ulanish ekrani va credentials.** Kodni ko'rsatish, brauzerni ochish, poll. Token `.aestudio/credentials` ga AES bilan yoziladi (kalit mashinaga bog'liq, Node `crypto`, native modulsiz). Holat indikatorlari: 🟢 Server · 🟢 AE.
   - Tayyor: 👤 panel kod orqali ulanadi; AE qayta ochilganda qayta login so'ramaydi.
