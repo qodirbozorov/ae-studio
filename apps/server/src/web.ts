@@ -8,7 +8,7 @@ import fastifyStatic from "@fastify/static";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 
 /** API va boshqa servis yo'llari — SPA fallback'ga tushmaydi. */
-const API_PREFIXES = ["/api/", "/oauth/", "/ws/", "/dev/", "/mcp", "/health", "/.well-known/"];
+const API_PREFIXES = ["/api/", "/oauth/", "/ws/", "/storage/", "/mcp", "/health", "/.well-known/"];
 
 /** `WEB_DIST` yoki yuqoriga qarab `apps/web/dist/index.html` ni qidiradi (tsx'da ham, bundle'da ham). */
 export function findWebDist(

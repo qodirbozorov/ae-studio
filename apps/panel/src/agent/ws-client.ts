@@ -3,9 +3,16 @@
  * brauzer WebSocket `Authorization` header qo'ya olmaydi (Q1).
  * Uzilsa backoff + jitter bilan qayta ulanadi; server `ping` yuboradi, agent `pong` qaytaradi.
  */
-import { PROTOCOL_VERSION, encodeMessage, parseServerMessage } from "@aes/shared";
+import {
+  PROTOCOL_VERSION,
+  encodeMessage,
+  makeError,
+  parseServerMessage,
+  resolveInsideRoot,
+} from "@aes/shared";
 import type { PanelMessage, ServerMessage } from "@aes/shared";
 import WebSocket from "ws";
+import { TransferError, downloadVerified } from "./files";
 import type { LogStore } from "./log";
 import type { OpRunner, RunnerEvent } from "./op-runner";
 
@@ -97,6 +104,29 @@ export function createWsClient(options: WsClientOptions): WsClient {
     }
   });
 
+  /** `file.download` → ish papkasiga (sha256 tekshiruvi bilan) → `file.saved` yoki `request.failed`. */
+  async function download(
+    message: Extract<ServerMessage, { type: "file.download" }>,
+  ): Promise<void> {
+    const dest = resolveInsideRoot(options.getRoot(), message.dest);
+    if (!dest.ok) {
+      send({ type: "request.failed", request_id: message.request_id, error: dest.error });
+      return;
+    }
+    try {
+      const saved = await downloadVerified(message.url, dest.data, message.sha256);
+      log.add({ level: "info", message: `⬇️ ${message.dest} saqlandi` });
+      send({ type: "file.saved", request_id: message.request_id, dest: message.dest, ...saved });
+    } catch (error) {
+      const failure =
+        error instanceof TransferError
+          ? error.error
+          : makeError("SYS_INTERNAL", error instanceof Error ? error.message : String(error));
+      log.add({ level: "error", message: `❌ ${message.dest}: ${failure.code}`, data: failure });
+      send({ type: "request.failed", request_id: message.request_id, error: failure });
+    }
+  }
+
   function handle(message: ServerMessage): void {
     switch (message.type) {
       case "hello_ack":
@@ -115,6 +145,9 @@ export function createWsClient(options: WsClientOptions): WsClient {
         return;
       case "ops.batch":
         for (const op of message.ops) void runner.submit(op, message.job_id);
+        return;
+      case "file.download":
+        void download(message);
         return;
       default:
         return;

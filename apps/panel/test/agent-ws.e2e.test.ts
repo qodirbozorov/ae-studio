@@ -3,17 +3,12 @@
  * ↔ jsx bundle (mock AE). Kabinetdan op → AE → natija; revoke; heartbeat; server qayta ishga tushishi.
  */
 import { makeOp } from "@aes/shared";
-import { existsSync, mkdtempSync } from "node:fs";
-import type { AddressInfo } from "node:net";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
-import { createTestApp, login } from "../../server/test/helpers/app";
 import type { TestApp } from "../../server/test/helpers/app";
 import { credentialsPath } from "../src/agent/credentials";
-import { createAgent } from "../src/agent/index";
-import type { Agent, ConnectionStatus } from "../src/agent/index";
-import { loadJsx } from "./jsx-harness";
+import type { Agent } from "../src/agent/index";
+import { eventually, pairedAgent, start, waitFor } from "./e2e-helpers";
 
 let t: TestApp | undefined;
 let agent: Agent | undefined;
@@ -23,69 +18,6 @@ afterEach(async () => {
   await t?.close();
   t = agent = undefined;
 });
-
-async function start(port = 0, db?: TestApp["db"]) {
-  const app = await createTestApp({}, db);
-  await app.app.listen({ port, host: "127.0.0.1" });
-  const base = `http://127.0.0.1:${(app.app.server.address() as AddressInfo).port}`;
-  return { app, base };
-}
-
-function waitFor(a: Agent, status: ConnectionStatus, timeoutMs = 8_000): Promise<void> {
-  const client = a.connection();
-  if (client === null) return Promise.reject(new Error("ulanish yo'q"));
-  if (client.status() === status) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error(`holat kutildi: ${status}, hozir: ${client.status()}`)),
-      timeoutMs,
-    );
-    const off = client.onStatus((next) => {
-      if (next === status) {
-        clearTimeout(timer);
-        off();
-        resolve();
-      }
-    });
-  });
-}
-
-async function eventually<T>(read: () => Promise<T>, ok: (value: T) => boolean, timeoutMs = 5_000) {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    const value = await read();
-    if (ok(value) || Date.now() > deadline) return value;
-    await new Promise((r) => setTimeout(r, 50));
-  }
-}
-
-/** Haqiqiy device flow: kod → kabinetda tasdiq → token → WS. */
-async function pairedAgent(
-  app: TestApp,
-  base: string,
-  dataDir = mkdtempSync(join(tmpdir(), "aes-e2e-")),
-) {
-  const h = await loadJsx();
-  const cookie = await login(app, `owner-${Date.now()}@x.uz`);
-  const a = createAgent({
-    evalScript: h.evalScript,
-    root: "D:/Projects/reel",
-    dataDir,
-    panelVersion: "0.1.0",
-    pollOptions: { sleep: async () => app.clock.advance(6_000) },
-  });
-  const pairing = a.pair(base);
-  const code = await pairing.code;
-  await app.app.inject({
-    method: "POST",
-    url: "/api/devices/confirm",
-    headers: { cookie },
-    payload: { user_code: code.user_code, approve: true },
-  });
-  const credentials = await pairing.done;
-  await waitFor(a, "connected");
-  return { agent: a, h, cookie, credentials, dataDir };
-}
 
 describe("production WS: device token", () => {
   it("kabinetdan yuborilgan op AE'da bajariladi; AE versiyasi qurilmaga yoziladi", async () => {

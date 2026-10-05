@@ -1,3 +1,6 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app";
 import { MemoryMailer } from "../../src/auth/mailer";
@@ -33,6 +36,7 @@ export async function createTestApp(
       NODE_ENV: "test",
       LOG_LEVEL: "silent",
       PUBLIC_URL: "https://aes.test",
+      STORAGE_DIR: mkdtempSync(join(tmpdir(), "aes-storage-")),
       ...env,
     }),
     db: testDb.db,
@@ -56,9 +60,7 @@ export async function createTestApp(
 export async function login(t: TestApp, email: string): Promise<string> {
   await t.app.inject({ method: "POST", url: "/api/auth/magic-link", payload: { email } });
   const mail = t.mailer.sent.at(-1);
-  const link = /https:\/\/aes\.test(\/api\/auth\/verify\?token=[^\s"]+)/.exec(
-    mail?.text ?? "",
-  )?.[1];
+  const link = /https?:\/\/[^/\s]+(\/api\/auth\/verify\?token=[^\s"]+)/.exec(mail?.text ?? "")?.[1];
   if (link === undefined) throw new Error("magic link topilmadi");
   const response = await t.app.inject({ method: "GET", url: link });
   const cookie = response.cookies.find((c) => c.name === "aes_session");

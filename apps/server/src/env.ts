@@ -40,6 +40,9 @@ export const envSchema = z
     RESEND_API_KEY: optionalString,
     MAIL_FROM: z.string().min(3).default("AE Studio <noreply@aestudio.app>"),
 
+    /** Lokal storage drayveri papkasi (S3 berilmaganda). */
+    STORAGE_DIR: optionalString,
+
     /** Web kabinet build papkasi; berilmasa `apps/web/dist` avtomatik qidiriladi. */
     WEB_DIST: optionalString,
   })

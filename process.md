@@ -10,11 +10,11 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · jarayonda (5/14)
-- **Oxirgi bajarilgan:** P2.05 — production WSS, device token, heartbeat (2026-10-05)
-- **Keyingi todo:** P2.06 — storage (S3 interfeysi; R2/Railway bucket 👤 Q3) yoki undan mustaqil P2.07–P2.13
+- **Faza:** 2 — Yadro · jarayonda (6/14)
+- **Oxirgi bajarilgan:** P2.06 — storage (S3/lokal), panel upload/download sha256 (2026-10-05)
+- **Keyingi todo:** P2.07 — ish papkasi + sozlamalar (projects)
 - **Blokerlar:** 👤 Railway'da servislar yaratishga tasdiq · 👤 AE kompyuterida ZXP sinovi · git remote URL yo'q (push qilinmagan)
-- **Ochiq qarorlar:** Q3–Q5, Q7–Q10. Yopilgan: Q1, Q2 (magic link), Q6
+- **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
 - **Bash tool eslatmasi:** shu sessiyada PATH yangilanmagan, har buyruq oldidan: `export PATH="/c/Users/991106847/AppData/Local/Programs/nodejs:/c/Users/991106847/AppData/Local/Programs/ffmpeg/bin:$PATH"`
 - **Muhim yo'llar / URL'lar:** Node `%LOCALAPPDATA%\Programs\nodejs` · ffmpeg `%LOCALAPPDATA%\Programs\ffmpeg\bin` · Railway URL hali yo'q
@@ -60,6 +60,7 @@
 | 2026-10-05 | P2.01 | Sessiyalar JWT emas, DB'dagi opaque token (sha256 hash, cookie) | Darhol bekor qilish mumkin, kalit boshqaruvi yo'q; JWT_SIGNING_KEY hozircha ishlatilmaydi |
 | 2026-10-05 | P2.02 | DB oqimlari testlarida production drayveri ham sinaladi: `createWireTestDb()` (PGlite socket + postgres.js) | PGlite drayveri postgres.js xatolarini (Date param) yashirgani aniqlandi |
 | 2026-10-05 | P2.05 | Dev token rejimi (DEV_AGENT_TOKEN, /dev/op) olib tashlandi; o'rniga sessiya bilan himoyalangan POST /api/devices/:id/ops | Rejada 'dev token o'chiriladi'; diagnostika uchun egasi o'z qurilmasiga op yubora oladi |
+| 2026-10-05 | P2.06 | Storage: S3-mos interfeys (R2/Railway bucket — env bilan) + lokal drayver (HMAC imzoli /storage/*) dev/test uchun | Q3 kodga ta'sir qilmaydi; bulutsiz to'liq upload/download e2e testlari |
 
 ---
 
@@ -251,3 +252,15 @@
   - **Agent:** ulangach `ping` → `ae.state` (AE versiyasi, loyiha yo'li); `WsClient.reportAeState`.
 - **Tekshiruv:** `agent-ws.e2e.test.ts` 4 ta (haqiqiy device flow bilan juftlash → device token bilan WS → kabinetdan op → mock AE → natija; AE versiyasi qurilma ro'yxatida; revoke → uzilish → 401 → `unauthorized` → credentials fayli o'chadi; heartbeat timeout → server uzadi → panel qayta ulanadi; server qayta ishga tushsa saqlangan token bilan ulanadi; ulanmagan qurilma → `ENV_AGENT_OFFLINE`). Repo 183/183 · typecheck · lint · prettier ✅.
 - **Keyingi:** P2.06 (storage) — ❓ 👤 R2 yoki Railway bucket (Q3)
+
+### 2026-10-05 · P2.06 — Storage (S3 / lokal) · ✅ (R2 yoki Railway bucket kalitlari 👤)
+- **Qilindi:**
+  - **Server:** `src/storage/`:
+    - `Storage` interfeysi (`presignPut/presignGet` 15 daqiqa, `head/getBytes/putBytes`); `storageKey()` → `u/<user>/p/<project>/{thumbs|frames|audio-in|audio-out}/<hash>.<ext>` (path traversal yo'q).
+    - `S3Storage` (AWS SDK v3, path-style, region `auto`): R2 ham, Railway bucket ham faqat `S3_*` env bilan ulanadi.
+    - `LocalStorage` (dev/test): disk + HMAC-SHA256 imzoli `/storage/*` PUT/GET (muddat, metod va kalit imzo ichida; xom oqim faqat shu plagin scope'ida).
+    - `createStorage()`: S3 env to'liq bo'lsa S3, aks holda lokal (production'da ogohlantiradi). `app.storage` decorate qilingan; SPA fallback `/storage/` ni chetlaydi.
+  - **Panel agent:** `files.ts`: `sha256File` (oqim bilan), `downloadVerified` (vaqtinchalik `.part` fayl → hash → rename; 3 urinish → `ASSET_CORRUPT`), `uploadFile` (PUT stream). WS `file.download` → ish papkasi guard'i → `file.saved` yoki `request.failed`.
+- **Tekshiruv:** `storage.test.ts` 7 ta (kalitlar; imzolangan PUT/GET; buzilgan, boshqa metod va muddati o'tgan imzo → 403; JSON route'lar ta'sirlanmagan; S3 presign formati tarmoqsiz). `files.e2e.test.ts` 3 ta (300 KB upload; download + sha256; mos kelmasa aynan 3 urinish va `.part` qolmaydi; WS `file.download` → fayl ish papkasida, `..` → `ASSET_OUTSIDE_ROOT`, noto'g'ri hash → `ASSET_CORRUPT`). Repo 193/193 · typecheck · lint · prettier ✅.
+- **Qarz:** "resumable multipart upload" (katta audio, §16) P4.04 da.
+- **Keyingi:** P2.07

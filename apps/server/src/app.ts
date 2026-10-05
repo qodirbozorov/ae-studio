@@ -13,6 +13,8 @@ import { registerDeviceRoutes } from "./devices/routes";
 import type { Env } from "./env";
 import { registerHealth } from "./health";
 import type { RedisLike } from "./redis";
+import { LocalStorage, createStorage } from "./storage";
+import type { Storage } from "./storage";
 import { findWebDist, isSpaRequest, registerWeb } from "./web";
 import { AgentHub } from "./ws/hub";
 import { registerAgentSocket } from "./ws/routes";
@@ -21,6 +23,7 @@ declare module "fastify" {
   interface FastifyInstance {
     /** Ulangan panellar markazi (testlar va keyingi modullar uchun). */
     hub: AgentHub;
+    storage: Storage;
   }
 }
 
@@ -31,6 +34,8 @@ export interface AppDeps {
   /** Berilmasa: RESEND_API_KEY bo'lsa Resend, aks holda log (dev). */
   mailer?: Mailer;
   now?: () => Date;
+  /** Berilmasa env bo'yicha (S3 yoki lokal). */
+  storage?: Storage;
 }
 
 /** Fastify ilovasini yig'adi (tinglamaydi): testlar `app.inject()` bilan chaqiradi. */
@@ -65,8 +70,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const now = deps.now ?? (() => new Date());
   const hub = new AgentHub(deps.db, app.log, now);
   app.decorate("hub", hub);
+  const storage = deps.storage ?? createStorage(deps.env, app.log, now);
+  app.decorate("storage", storage);
   const ctx: AppContext = {
     hub,
+    storage,
     env: deps.env,
     db: deps.db,
     redis: deps.redis,
@@ -87,6 +95,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
 
   if (webRoot !== null) await registerWeb(app, webRoot);
+  if (storage instanceof LocalStorage) await storage.register(app);
   registerHealth(app, deps);
   registerAuthRoutes(app, ctx);
   registerDeviceRoutes(app, ctx);

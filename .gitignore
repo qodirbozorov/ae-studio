@@ -17,3 +17,6 @@ Thumbs.db
 
 # Lokal dev Postgres (PGlite) ma'lumotlari
 .pglite/
+
+# Lokal storage drayveri (dev/test)
+.storage/
