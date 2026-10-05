@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 3 — Claude loop'i · kod va prod qismi to'liq (12/12), Claude UI va AE bandlari 👤 · Faza 4 navbatda
-- **Oxirgi bajarilgan:** P3.12 — Faza 3 gate: lokal va production ✅ (2026-10-05)
-- **Keyingi todo:** Faza 4 — P4.01 (ElevenLabs kaliti 👤)
+- **Faza:** 4 — ElevenLabs · jarayonda (1/15)
+- **Oxirgi bajarilgan:** P4.01 — ElevenLabs kaliti va xavfsizlik (2026-10-05)
+- **Keyingi todo:** P4.02 — eleven/ imkoniyatlar qatlami
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -84,6 +84,8 @@
 | 2026-10-05 | P3.07 | Q5 yopildi: aerender asosiy, Render Queue zaxira; AE oraliq fayl → panel ffmpeg (preset) → out/<nom>_vNNN.mp4, ustiga yozmaslik (_2…) | Output module shablonlari AE versiyalari orasida farq qiladi; ffmpeg preset'ni bir xil qiladi; LGPL build'da libx264 yo'q → encoder avtomatik tanlanadi |
 | 2026-10-05 | P3.10 | §5 ga audit_log jadvali; MCP audit faqat o'zgartiruvchi (readOnlyHint bo'lmagan) toollar | Xavfsizlik hodisalari kuzatilsin, o'qish chaqiruvlari jurnalni to'ldirmasin |
 | 2026-10-05 | P3.12 | Faza 3 gate'i skriptlangan Claude (faqat MCP toollari) bilan lokal va production'da yopildi; haqiqiy Claude UI va AE bandlari 👤 | Bu kompyuterda AE yo'q, Claude connector login'i uchun RESEND kaliti kerak |
+| 2026-10-05 | P4.01 | ElevenLabs uchun SDK o'rniga yupqa fetch klient | Aniq nazorat (retry, timeout, xato xaritasi), soxta API bilan to'liq test, bog'liqlik kam |
+| 2026-10-05 | P4.01 | Q7 yopildi: o'zbekcha TTS — eleven_v4 (default), STT — scribe_v2 | Rasmiy models sahifasi: uzb faqat v4/v4_turbo; Scribe 'Good' tier |
 
 ---
 
@@ -850,3 +852,32 @@
   - 👤 **Haqiqiy AE'da:** `saveFrameToPng`, aerender, Live/Undo.
 - **Faza 3 yakuni:** P3.01–P3.10 ✅; P3.11 va P3.12 ning server, kod va prod qismi ✅. Repo 350 test ✅ (2 ta prod smoke qo'lda ishga tushiriladi).
 - **Keyingi:** Faza 4 — P4.01 (ElevenLabs kaliti 👤)
+
+### 2026-10-05 · P4.01 — Kalit va xavfsizlik · ✅ (haqiqiy kalit 👤)
+- **Manbalar:** ElevenLabs rasmiy API reference (TTS with-timestamps, STT, forced alignment, SFX, music + plan, dialogue, dubbing + status + audio, voice design, IVC, STS, isolation, pronunciation dictionaries, user/subscription, models).
+- **Q7 yopildi:** o'zbekcha TTS faqat `eleven_v4` va `eleven_v4_turbo` da (v3 va multilingual_v2 da yo'q). STT `scribe_v2` o'zbekchani "Good" darajada (WER 10–20%) qo'llaydi.
+- **Qilindi:**
+  - **`eleven/client.ts`:** yupqa `fetch` klient (SDK o'rniga); `xi-api-key`; har so'rovga timeout.
+    - Xato xaritasi: 401 → `EL_AUTH`, 402/kvota → `EL_QUOTA`, 429 → `EL_RATE_LIMIT`, 5xx/tarmoq → `EL_TIMEOUT`, boshqa 4xx → `EL_BAD_PARAMS`.
+    - 429/5xx da 3 marta exponential backoff (0.5/1/2 s).
+    - `ELEVENLABS_BASE_URL` env (regional server yoki test).
+  - **`secrets.ts`:** AES-256-GCM (`MASTER_KEY`), `save/read/delete`, `…abcd` niqob.
+  - **`eleven/service.ts` (`ctx.eleven`):**
+    - kalitni `GET /v1/user/subscription` bilan tekshirib saqlash (noto'g'ri kalit saqlanmaydi);
+    - obuna 60 s kesh; holat: tarif, ishlatilgan/limit, qoldiq, yangilanish sanasi;
+    - user bo'yicha 60 chaqiruv/daqiqa;
+    - panelga yangi WS xabari `elevenlabs.status` (hello'da va kalit o'zgarganda).
+  - **Web kabinet → Sozlamalar → ElevenLabs:** kalit maydoni (password), holat, almashtirish, o'chirish. Kalit javobda hech qachon qaytmaydi. Audit: `elevenlabs.key_set` va `key_removed`.
+  - **CHECK:** spec ElevenLabs talab qilsa (`audioUsesEleven`) — kalit yo'q → `EL_AUTH`, hisob xatosi → o'sha kod, kvota 0 → `EL_QUOTA` (BLOCKED).
+  - **`env_check`:** `checks.elevenlabs` (configured, ok, tier, qolgan belgilar, hint).
+  - **Panel:** holat qatorida ElevenLabs 🟢 (qoldiq bilan), 🔴 kalit yo'q yoki xato.
+- **Tekshiruv:**
+  - Soxta ElevenLabs (`test/helpers/fake-eleven.ts`): rasmiy yo'llar va javob shakllari; audio sifatida haqiqiy WAV.
+  - `eleven-settings.test.ts` 5 ta:
+    - kalit oqimi (noto'g'ri → saqlanmaydi; to'g'ri → shifrlangan, javobda yo'q, audit; o'chirish; sessiyasiz 401);
+    - GCM buzilgan shifr ochilmaydi;
+    - xato xaritasi; retry (429×2 → muvaffaqiyat; 5xx → 3 qayta urinish; 422 → retry'siz);
+    - CHECK (`EL_AUTH`, `EL_QUOTA`), `env_check` holati, panelga `elevenlabs.status`.
+
+  Repo 356 ✅.
+- **Keyingi:** P4.02 (imkoniyatlar qatlami)

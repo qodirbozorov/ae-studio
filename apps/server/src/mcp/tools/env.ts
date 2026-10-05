@@ -47,6 +47,18 @@ export const envTools = [
         if (device.ffmpeg === false) issues.push(makeError("ENV_FFMPEG_MISSING"));
       }
       const active = device === null ? null : await ctx.engine.activeJob(device.id);
+      // ElevenLabs faqat audio kerak bo'lganda talab qilinadi: ready'ga ta'sir qilmaydi, holat ko'rsatiladi.
+      const account = await ctx.app.eleven.account(ctx.userId);
+      const eleven = {
+        configured: account.configured,
+        ok: account.configured && account.error === null,
+        tier: account.tier,
+        remaining_characters: account.remaining,
+        error: account.error,
+        hint: account.configured
+          ? null
+          : "Audio (ovoz, musiqa, SFX, subtitr) uchun kabinetda ElevenLabs kalitini kiriting",
+      };
       return ok({
         ready: issues.length === 0,
         server: { ok: true, version: SERVER_VERSION },
@@ -56,7 +68,7 @@ export const envTools = [
           after_effects: device?.ae_version ?? null,
           folder: device?.project_root ?? null,
           ffmpeg: device?.ffmpeg ?? null,
-          elevenlabs: "not_configured (Faza 4)",
+          elevenlabs: eleven,
         },
         active_job: active === null ? null : { id: active.id, state: active.state },
         issues,

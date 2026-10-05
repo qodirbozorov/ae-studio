@@ -46,6 +46,27 @@ function ClaudeStatus({ agent }: { agent: NonNullable<ReturnType<typeof getAgent
   );
 }
 
+function ElevenStatus({ agent }: { agent: NonNullable<ReturnType<typeof getAgent>> }) {
+  const status = useSyncExternalStore(
+    (notify) => agent.eleven.subscribe(notify),
+    () => agent.eleven.current(),
+  );
+  const dot: Status = status === null ? "unknown" : status.ok ? "ok" : "off";
+  const text =
+    status === null
+      ? "ElevenLabs"
+      : !status.configured
+        ? "ElevenLabs: kalit yo'q"
+        : status.ok
+          ? `ElevenLabs${status.remaining !== null ? ` (${status.remaining.toLocaleString()})` : ""}`
+          : "ElevenLabs: xato";
+  return (
+    <div>
+      <Dot status={dot} /> {text}
+    </div>
+  );
+}
+
 function ServerStatus({ agent }: { agent: NonNullable<ReturnType<typeof getAgent>> }) {
   const status = useConnectionStatus(agent);
   return (
@@ -89,9 +110,13 @@ export function App() {
         ) : (
           <ClaudeStatus agent={agent} />
         )}
-        <div>
-          <Dot status="unknown" /> ElevenLabs
-        </div>
+        {agent === null ? (
+          <div>
+            <Dot status="unknown" /> ElevenLabs
+          </div>
+        ) : (
+          <ElevenStatus agent={agent} />
+        )}
       </section>
 
       {agent === null ? (

@@ -524,3 +524,16 @@ export function specJsonSchema(): Record<string, unknown> {
   cachedJsonSchema ??= z.toJSONSchema(videoSpecSchema, { io: "input" }) as Record<string, unknown>;
   return cachedJsonSchema;
 }
+
+/** Spec ElevenLabs'ni talab qiladimi (CHECK: kalit va kvota kerak). */
+export function audioUsesEleven(spec: VideoSpec): boolean {
+  const audio = spec.audio;
+  if (audio === undefined) return false;
+  const vo = audio.voiceover;
+  if (vo !== undefined && (vo.kind !== "asset" || vo.text !== undefined)) return true;
+  if (audio.music?.kind === "music") return true;
+  if (audio.sfx.some((sfx) => sfx.prompt !== undefined)) return true;
+  if (audio.captions !== undefined && audio.captions.method !== "tts_timestamps") return true;
+  const source = audio.source_audio;
+  return source !== undefined && (source.isolate || source.transcribe);
+}

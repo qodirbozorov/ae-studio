@@ -11,6 +11,7 @@ import { MAIN_COMP, compile } from "@aes/compiler";
 import type { CompileAsset } from "@aes/compiler";
 import {
   MAX_PATCHES,
+  audioUsesEleven,
   durationMatches,
   fail,
   makeError,
@@ -81,7 +82,7 @@ const CHECK_PING_TIMEOUT_MS = 15_000;
 /** Bitta drive siklidagi holatlar soni chegarasi (cheksiz aylanishdan himoya). */
 const MAX_STEPS = 64;
 
-export type EngineContext = Pick<AppContext, "db" | "hub" | "now" | "storage">;
+export type EngineContext = Pick<AppContext, "db" | "hub" | "now" | "storage" | "eleven">;
 
 /** Ish papkasidagi lokal nusxalar (§2.10): versiyali, hech biri ustiga yozilmaydi. */
 export function planCopyPath(version: number): string {
@@ -637,6 +638,30 @@ export class JobEngine {
     }
     const agent = this.ctx.hub.state(job.deviceId);
     if (agent === null) return { kind: "wait_agent", reason: "CHECK: panel ulanmagan" };
+    // ElevenLabs: spec audio talab qilsa — kalit va kvota (P4.01).
+    const plan = await this.plan(job.projectId, job.planVersion);
+    const planSpec = plan === null ? null : parseSpec(plan.spec);
+    if (planSpec?.ok === true && audioUsesEleven(planSpec.data)) {
+      const account = await this.ctx.eleven.account(project.userId);
+      if (!account.configured) {
+        return {
+          kind: "block",
+          error: makeError(
+            "EL_AUTH",
+            "ElevenLabs kaliti kiritilmagan: kabinet → Sozlamalar → ElevenLabs",
+          ),
+        };
+      }
+      if (account.error !== null) {
+        return {
+          kind: "block",
+          error: makeError(account.error as "EL_AUTH", "ElevenLabs hisobi tekshirilmadi"),
+        };
+      }
+      if (account.remaining === 0) {
+        return { kind: "block", error: makeError("EL_QUOTA", "ElevenLabs kvotasi tugagan") };
+      }
+    }
     const root = agent.projectRoot === null ? null : normalizeRootPath(agent.projectRoot);
     if (root !== project.rootPath) {
       return {

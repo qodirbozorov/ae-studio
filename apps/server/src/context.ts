@@ -1,5 +1,6 @@
 import type { Mailer } from "./auth/mailer";
 import type { Db } from "./db/client";
+import type { ElevenService } from "./eleven/service";
 import type { Env } from "./env";
 import type { RedisLike } from "./redis";
 import type { Storage } from "./storage";
@@ -15,4 +16,6 @@ export interface AppContext {
   storage: Storage;
   /** Ulangan panellar (WS). */
   hub: AgentHub;
+  /** ElevenLabs hisobi va klientlari (P4.01). */
+  eleven: ElevenService;
 }

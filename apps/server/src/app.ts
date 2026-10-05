@@ -21,6 +21,9 @@ import { JobEngine } from "./jobs/engine";
 import { registerLive } from "./jobs/live";
 import { ClaudePresence } from "./mcp/presence";
 import { registerMcpRoutes } from "./mcp/routes";
+import type { ElevenOptions } from "./eleven/client";
+import { registerElevenRoutes } from "./eleven/routes";
+import { ElevenService } from "./eleven/service";
 import { registerJobRoutes } from "./jobs/routes";
 import type { RedisLike } from "./redis";
 import { LocalStorage, createStorage } from "./storage";
@@ -50,6 +53,8 @@ export interface AppDeps {
   storage?: Storage;
   /** OAuth CIMD hujjatlarini olish (testlar uchun). */
   oauthFetcher?: MetadataFetcher;
+  /** ElevenLabs klient sozlamalari (testlar: soxta fetch, tez retry). */
+  elevenOptions?: ElevenOptions;
 }
 
 /** Fastify ilovasini yig'adi (tinglamaydi): testlar `app.inject()` bilan chaqiradi. */
@@ -86,7 +91,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.decorate("hub", hub);
   const storage = deps.storage ?? createStorage(deps.env, app.log, now);
   app.decorate("storage", storage);
-  const ctx: AppContext = {
+  const ctx = {
     hub,
     storage,
     env: deps.env,
@@ -98,7 +103,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       (deps.env.RESEND_API_KEY !== undefined
         ? new ResendMailer(deps.env.RESEND_API_KEY, deps.env.MAIL_FROM)
         : new ConsoleMailer(app.log)),
-  };
+  } as AppContext;
+  ctx.eleven = new ElevenService(ctx, app.log, deps.elevenOptions ?? {});
+  ctx.eleven.attach();
 
   await app.register(cookie);
   // OAuth token/revoke va ruxsat formasi (RFC 6749: application/x-www-form-urlencoded).
@@ -165,6 +172,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     },
   });
   registerAuditRoutes(app, ctx);
+  registerElevenRoutes(app, ctx);
   app.addHook("onReady", async () => {
     // DB hali tayyor bo'lmasa server baribir ko'tariladi (health 503 ko'rsatadi).
     try {

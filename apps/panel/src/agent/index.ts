@@ -17,7 +17,7 @@ import { uploadFile } from "./files";
 import { getJson, postJson } from "./http";
 import { scanSource } from "./ingest";
 import type { ScannedAsset } from "./ingest";
-import { ClaudeStatusStore } from "./claude";
+import { ClaudeStatusStore, ElevenStatusStore } from "./claude";
 import { LiveJobStore } from "./live";
 import type { LiveEvent } from "./live";
 import { LogStore } from "./log";
@@ -86,6 +86,8 @@ export interface Agent {
   jobAction(action: PanelJobAction): Promise<{ ok: boolean; message?: string }>;
   /** Claude indikatori (serverdan). */
   claude: ClaudeStatusStore;
+  /** ElevenLabs indikatori (serverdan). */
+  eleven: ElevenStatusStore;
   /** Tarix ekrani: joblar, hisobot, qayta render. */
   history(): Promise<HistoryJob[]>;
   jobReport(jobId: string): Promise<string | null>;
@@ -128,6 +130,7 @@ export function createAgent(options: AgentOptions): Agent {
   const log = new LogStore();
   const live = new LiveJobStore();
   const claude = new ClaudeStatusStore();
+  const eleven = new ElevenStatusStore();
   /** Joriy ulanishning HTTP manzili va tokeni (Live tarixi va amallar uchun). */
   let api: { base: string; token: string } | null = null;
   const bridge = createAeBridge({ evalScript: options.evalScript, jsxPath: options.jsxPath });
@@ -244,6 +247,13 @@ export function createAgent(options: AgentOptions): Agent {
         return;
       case "claude.status":
         claude.set({ linked: message.linked, last_seen_at: message.last_seen_at });
+        return;
+      case "elevenlabs.status":
+        eleven.set({
+          configured: message.configured,
+          ok: message.ok,
+          remaining: message.remaining,
+        });
         return;
       case "job.cancel":
         log.add({ level: "warn", message: "⏹ Job bekor qilindi" });
@@ -407,6 +417,7 @@ export function createAgent(options: AgentOptions): Agent {
     log,
     live,
     claude,
+    eleven,
     async history() {
       const { base, headers } = authed();
       const res = await getJson<{ ok: boolean; data?: HistoryJob[] }>(`${base}/api/agent/jobs`, {

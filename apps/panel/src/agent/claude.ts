@@ -37,3 +37,29 @@ export class ClaudeStatusStore {
     return () => this.listeners.delete(listener);
   }
 }
+
+/** Holat qatoridagi ElevenLabs indikatori (P4.01): serverdan `elevenlabs.status`. */
+export interface ElevenStatus {
+  configured: boolean;
+  ok: boolean;
+  remaining: number | null;
+}
+
+export class ElevenStatusStore {
+  private status: ElevenStatus | null = null;
+  private readonly listeners = new Set<() => void>();
+
+  current(): ElevenStatus | null {
+    return this.status;
+  }
+
+  set(status: ElevenStatus): void {
+    this.status = status;
+    for (const listener of this.listeners) listener();
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+}

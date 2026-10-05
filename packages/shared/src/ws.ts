@@ -122,6 +122,13 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
     linked: z.boolean(),
     last_seen_at: z.iso.datetime().nullable(),
   }),
+  z.strictObject({
+    /** Panel holat qatoridagi ElevenLabs indikatori (P4.01). */
+    type: z.literal("elevenlabs.status"),
+    configured: z.boolean(),
+    ok: z.boolean(),
+    remaining: z.number().int().nullable(),
+  }),
   z.strictObject({ type: z.literal("job.pause"), job_id: idSchema }),
   z.strictObject({ type: z.literal("job.cancel"), job_id: idSchema }),
   z.strictObject({

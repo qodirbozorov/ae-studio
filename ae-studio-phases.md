@@ -164,7 +164,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 
 **Maqsad:** §7 dagi barcha imkoniyatlar yagona `audio_task` modeli orqali ishlaydi va loopga to'liq ulanadi. Endpoint va parametrlar rasmiy API reference'dan tekshiriladi.
 
-- [ ] **P4.01 — Kalit va xavfsizlik.** 👤 ElevenLabs API kaliti. Kabinetda kiritiladi → `secrets` (AES-256-GCM, `MASTER_KEY`), `GET /v1/user/subscription` bilan tekshiriladi. Kalit hech qachon qaytarilmaydi (faqat `…abcd` ko'rinadi). CHECK ga ElevenLabs + kvota qo'shiladi; 🟢 ElevenLabs indikatori.
+- [x] **P4.01 — Kalit va xavfsizlik.** 👤 ElevenLabs API kaliti. Kabinetda kiritiladi → `secrets` (AES-256-GCM, `MASTER_KEY`), `GET /v1/user/subscription` bilan tekshiriladi. Kalit hech qachon qaytarilmaydi (faqat `…abcd` ko'rinadi). CHECK ga ElevenLabs + kvota qo'shiladi; 🟢 ElevenLabs indikatori.
 - [ ] **P4.02 — `eleven/` klient qatlami.** `@elevenlabs/elevenlabs-js`, har imkoniyat alohida faylda. Xato xaritasi: 401 → `EL_AUTH`, 402/kvota → `EL_QUOTA`, 429 → `EL_RATE_LIMIT`, timeout → `EL_TIMEOUT`, 4xx → `EL_BAD_PARAMS`. 429/5xx da 3 marta exponential backoff; user bo'yicha rate limit.
 - [ ] **P4.03 — `audio_task` va worker.** `apps/worker` (BullMQ) Railway'da. Oqim: `kind + params → params_hash → eleven_cache → navbat → storage (audio-out) → audio.ready → file.download → panel /audio (sha256) → file.saved`. Asinxron endpointlar poll qilinadi (timeout 30 daqiqa); `audio_tasks_status` tool.
 - [ ] **P4.04 — Panel: audio ajratish.** `audio.extract.request` → ffmpeg (mono/opus siqish) → resumable multipart upload (`audio-in`).

@@ -181,3 +181,9 @@ h2 {
   opacity: 1;
   font-weight: 600;
 }
+
+.kv {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 12px;
+}

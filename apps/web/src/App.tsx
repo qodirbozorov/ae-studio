@@ -5,6 +5,7 @@ import { ConnectionsPage } from "./pages/ConnectionsPage";
 import { DevicePage } from "./pages/DevicePage";
 import { DevicesPage } from "./pages/DevicesPage";
 import { LoginPage } from "./pages/LoginPage";
+import { SettingsPage } from "./pages/SettingsPage";
 
 export function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -53,11 +54,16 @@ export function App() {
         <a href="/connections" className={path === "/connections" ? "active" : undefined}>
           Ulangan ilovalar
         </a>
+        <a href="/settings" className={path === "/settings" ? "active" : undefined}>
+          Sozlamalar
+        </a>
       </nav>
       {path === "/device" ? (
         <DevicePage />
       ) : path === "/connections" ? (
         <ConnectionsPage />
+      ) : path === "/settings" ? (
+        <SettingsPage />
       ) : (
         <DevicesPage />
       )}

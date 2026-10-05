@@ -260,6 +260,7 @@ const SERVER_MESSAGES: Record<string, unknown> = {
     linked: true,
     last_seen_at: "2026-10-05T10:00:00.000Z",
   },
+  "elevenlabs.status": { type: "elevenlabs.status", configured: true, ok: true, remaining: 9000 },
   "job.pause": { type: "job.pause", job_id: "job-1" },
   "job.cancel": { type: "job.cancel", job_id: "job-1" },
   "job.update": {

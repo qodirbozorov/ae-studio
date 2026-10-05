@@ -21,7 +21,7 @@ export interface TestApp {
 export async function createTestApp(
   env: Record<string, string> = {},
   db?: TestDb,
-  extra: Pick<AppDeps, "oauthFetcher"> = {},
+  extra: Pick<AppDeps, "oauthFetcher" | "elevenOptions"> = {},
 ): Promise<TestApp> {
   const testDb = db ?? (await createTestDb());
   const mailer = new MemoryMailer();
@@ -39,6 +39,7 @@ export async function createTestApp(
       LOG_LEVEL: "silent",
       PUBLIC_URL: "https://aes.test",
       STORAGE_DIR: mkdtempSync(join(tmpdir(), "aes-storage-")),
+      MASTER_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
       ...env,
     }),
     db: testDb.db,

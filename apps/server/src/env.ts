@@ -35,6 +35,8 @@ export const envSchema = z
     S3_SECRET_KEY: optionalString,
     /** Faqat dev uchun. */
     ELEVENLABS_DEFAULT_KEY: optionalString,
+    /** ElevenLabs API manzili (default https://api.elevenlabs.io; testlarda soxta server). */
+    ELEVENLABS_BASE_URL: z.url().optional(),
 
     /** Magic link xatlari (Resend). Berilmasa havola server logiga chiqadi (dev). */
     RESEND_API_KEY: optionalString,
