@@ -82,3 +82,40 @@ describe("claudeIndicator", () => {
     );
   });
 });
+
+describe("AudioStore", () => {
+  it("ro'yxat, upsert, loyiha filtri, yangi birinchi", async () => {
+    const { AudioStore } = await import("../src/agent/audio-store");
+    const store = new AudioStore();
+    let changes = 0;
+    store.subscribe(() => changes++);
+    const base = {
+      kind: "tts" as const,
+      label: null,
+      status: "queued" as const,
+      job_id: null,
+      local_path: null,
+      duration_s: null,
+      cached: false,
+      error: null,
+    };
+    store.replace([
+      { ...base, id: "a", project_id: "p1", created_at: "2026-10-05T10:00:00.000Z" },
+      { ...base, id: "b", project_id: "p2", created_at: "2026-10-05T10:01:00.000Z" },
+    ]);
+    store.upsert({
+      ...base,
+      id: "a",
+      project_id: "p1",
+      status: "done",
+      created_at: "2026-10-05T10:00:00.000Z",
+    });
+    store.upsert({ ...base, id: "c", project_id: "p1", created_at: "2026-10-05T10:02:00.000Z" });
+    expect(store.list("p1").map((t) => [t.id, t.status])).toEqual([
+      ["c", "queued"],
+      ["a", "done"],
+    ]);
+    expect(store.list().map((t) => t.id)).toEqual(["c", "b", "a"]);
+    expect(changes).toBe(3);
+  });
+});

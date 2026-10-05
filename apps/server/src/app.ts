@@ -24,6 +24,7 @@ import { registerMcpRoutes } from "./mcp/routes";
 import type { ElevenOptions } from "./eleven/client";
 import { registerElevenRoutes } from "./eleven/routes";
 import { ElevenService } from "./eleven/service";
+import { registerAudioRoutes } from "./audio/routes";
 import { AudioService, presentTask } from "./audio/service";
 import { registerJobRoutes } from "./jobs/routes";
 import type { RedisLike } from "./redis";
@@ -182,6 +183,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   registerAuditRoutes(app, ctx);
   registerElevenRoutes(app, ctx);
+  registerAudioRoutes(app, ctx);
   // Audio ekrani: vazifa holati loyiha qurilmasiga (P4.12).
   ctx.audio.listen((task) => {
     if (task.projectId === null) return;

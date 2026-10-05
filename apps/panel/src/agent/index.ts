@@ -18,6 +18,8 @@ import { uploadFile } from "./files";
 import { getJson, postJson } from "./http";
 import { scanSource } from "./ingest";
 import type { ScannedAsset } from "./ingest";
+import { AudioStore } from "./audio-store";
+import type { AudioTaskView } from "./audio-store";
 import { ClaudeStatusStore, ElevenStatusStore } from "./claude";
 import { LiveJobStore } from "./live";
 import type { LiveEvent } from "./live";
@@ -89,6 +91,15 @@ export interface Agent {
   claude: ClaudeStatusStore;
   /** ElevenLabs indikatori (serverdan). */
   eleven: ElevenStatusStore;
+  /** Audio ekrani (P4.12). */
+  audio: AudioStore;
+  loadAudio(projectId?: string): Promise<AudioTaskView[]>;
+  audioAction(
+    taskId: string,
+    action: "regenerate" | "retry",
+  ): Promise<{ ok: boolean; message?: string }>;
+  /** Ish papkasidagi faylning to'liq yo'li (Audio ekranida eshitish uchun). */
+  absolutePath(relative: string): string | null;
   /** Tarix ekrani: joblar, hisobot, qayta render. */
   history(): Promise<HistoryJob[]>;
   jobReport(jobId: string): Promise<string | null>;
@@ -132,6 +143,7 @@ export function createAgent(options: AgentOptions): Agent {
   const live = new LiveJobStore();
   const claude = new ClaudeStatusStore();
   const eleven = new ElevenStatusStore();
+  const audioStore = new AudioStore();
   /** Joriy ulanishning HTTP manzili va tokeni (Live tarixi va amallar uchun). */
   let api: { base: string; token: string } | null = null;
   const bridge = createAeBridge({ evalScript: options.evalScript, jsxPath: options.jsxPath });
@@ -248,6 +260,9 @@ export function createAgent(options: AgentOptions): Agent {
         return;
       case "claude.status":
         claude.set({ linked: message.linked, last_seen_at: message.last_seen_at });
+        return;
+      case "audio.update":
+        audioStore.upsert(message.task);
         return;
       case "elevenlabs.status":
         eleven.set({
@@ -443,6 +458,40 @@ export function createAgent(options: AgentOptions): Agent {
     live,
     claude,
     eleven,
+    audio: audioStore,
+    async loadAudio(projectId) {
+      const { base, headers } = authed();
+      const query = projectId === undefined ? "" : `?project_id=${encodeURIComponent(projectId)}`;
+      const res = await getJson<{ ok: boolean; data?: AudioTaskView[] }>(
+        `${base}/api/agent/audio${query}`,
+        {
+          headers,
+        },
+      );
+      const list = res.body.ok ? (res.body.data ?? []) : [];
+      audioStore.replace(list);
+      return list;
+    },
+    async audioAction(taskId, action) {
+      const { base, headers } = authed();
+      const res = await postJson<{
+        ok: boolean;
+        data?: AudioTaskView;
+        error?: { message?: string; hint?: string };
+      }>(`${base}/api/agent/audio/${taskId}/${action}`, {}, { headers });
+      if (res.body.ok && res.body.data !== undefined) {
+        audioStore.upsert(res.body.data);
+        return { ok: true };
+      }
+      return {
+        ok: false,
+        message: res.body.error?.message ?? res.body.error?.hint ?? `HTTP ${res.status}`,
+      };
+    },
+    absolutePath(relative) {
+      if (root === "") return null;
+      return `${root.replace(/\\/g, "/").replace(/\/+$/, "")}/${relative}`;
+    },
     async history() {
       const { base, headers } = authed();
       const res = await getJson<{ ok: boolean; data?: HistoryJob[] }>(`${base}/api/agent/jobs`, {
@@ -583,6 +632,7 @@ export function createAgent(options: AgentOptions): Agent {
 export { PairingError };
 export type { Credentials } from "./credentials";
 export type { EvalScript } from "./ae-bridge";
+export type { AudioTaskView } from "./audio-store";
 export type { ClaudeIndicator, ClaudeStatus } from "./claude";
 export { claudeIndicator } from "./claude";
 export type { LiveEvent, LiveJob } from "./live";

@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 4 — ElevenLabs · jarayonda (11/15)
-- **Oxirgi bajarilgan:** P4.11 — audio oplar (2026-10-05)
-- **Keyingi todo:** P4.12 — panel Audio ekrani
+- **Faza:** 4 — ElevenLabs · jarayonda (12/15)
+- **Oxirgi bajarilgan:** P4.12 — panel Audio ekrani (2026-10-05)
+- **Keyingi todo:** P4.13 — MCP promptlar (/subtitle-video, /dub-video, /new-reel)
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -1087,3 +1087,23 @@
 
   Repo 390 ✅, panel build ✅.
 - **Keyingi:** P4.12 (panel Audio ekrani)
+
+### 2026-10-05 · P4.12 — Panel Audio ekrani · ✅ (AE'da ko'rish 👤)
+- **Server (`audio/routes.ts`, qurilma tokeni, faqat o'z loyihalari):**
+  - `GET /api/agent/audio` — loyiha bo'yicha filtr.
+  - `POST /api/agent/audio/:id/regenerate` — o'sha parametrlar, kesh chetlab o'tiladi, yangi variant; eski fayl qoladi, chunki yangisi boshqa (tarkibga bog'liq) nom oladi.
+  - `POST /api/agent/audio/:id/retry` — faqat `failed` uchun, aks holda 409.
+  - Jonli yangilanish: `audio.update` WS (P4.03 dan).
+- **Panel:**
+  - **`agent/audio-store.ts`:** ro'yxat, upsert, loyiha filtri, yangisi birinchi.
+  - **Agent:** `loadAudio`, `audioAction` (regenerate/retry), `absolutePath`.
+  - **`Audio.tsx`:**
+    - holat, nom, tur, davomiylik, "keshdan" belgisi, fayl yo'li, xato;
+    - "▶ Eshitish" (`<audio>` ish papkasidagi faylni `file:///` orqali ochadi);
+    - "Qayta generatsiya" (transkript turlari uchun yo'q), "Qayta urinish".
+- **Tekshiruv:**
+  - `audio-screen.test.ts` 2 ta: ro'yxat; jonli `queued` → `done`; qayta generatsiya → yangi ElevenLabs so'rovi; done uchun retry → 409; boshqa qurilma begona audio'ni ko'rmaydi (404).
+  - `live.test.ts`: `AudioStore`.
+
+  Panel build ✅.
+- **Keyingi:** P4.13 (MCP promptlar)
