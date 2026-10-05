@@ -1,6 +1,6 @@
-import type { CompCreateParams, OpResultData } from "@aes/shared/ae";
-import { findOrCreateFolder, itemResult } from "../lib/ae";
-import { findItemByOpId, stampItem } from "../lib/trace";
+import type { CompCreateParams, CompNestParams, OpResultData } from "@aes/shared/ae";
+import { findOrCreateFolder, itemResult, layerResult, setLayerTiming } from "../lib/ae";
+import { findItemByOpId, findLayerInComp, requireComp, stampItem, stampLayer } from "../lib/trace";
 import { hexToRgb, raise } from "../lib/util";
 
 /** `comp.create` — izi bor bo'lsa mavjud comp qaytariladi (dublikat yo'q). */
@@ -17,4 +17,18 @@ export function compCreate(p: CompCreateParams, opId: string): OpResultData {
   if (p.folder !== undefined) comp.parentFolder = findOrCreateFolder(p.folder);
   stampItem(comp, opId);
   return itemResult(opId, "comp", comp, false);
+}
+
+/** `comp.nest` — sahna comp'ini asosiy comp ichiga layer sifatida qo'yadi. */
+export function compNest(p: CompNestParams, opId: string): OpResultData {
+  const parent = requireComp(p.parent);
+  const existing = findLayerInComp(parent, opId);
+  if (existing !== null) return layerResult(opId, existing, parent, true);
+  const child = requireComp(p.child);
+  if (child.id === parent.id) return raise("AE_BAD_PARAMS", "Comp o'zini o'ziga nest qila olmaydi");
+  const layer = parent.layers.add(child);
+  if (p.name !== undefined) layer.name = p.name;
+  setLayerTiming(layer, parent, p.start, p.dur === undefined ? child.duration : p.dur);
+  stampLayer(layer, opId);
+  return layerResult(opId, layer, parent, false);
 }

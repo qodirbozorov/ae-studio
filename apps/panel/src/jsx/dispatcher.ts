@@ -5,10 +5,13 @@
 import type { AeContext, AeRequest, AeResponse, OpEnvelope, OpResultData } from "@aes/shared/ae";
 import { makeError } from "@aes/shared/errors";
 import { MIN_AE_VERSION } from "../shared/constants";
-import { compCreate } from "./ops/comp";
+import { compCreate, compNest } from "./ops/comp";
+import { fxAdd, fxApplyPreset } from "./ops/fx";
 import { itemImport } from "./ops/item";
-import { layerAddMedia, layerAddText } from "./ops/layer";
+import { layerAddAudio, layerAddMedia, layerAddShape, layerAddText } from "./ops/layer";
 import { ping } from "./ops/ping";
+import { projectOpenOrCreate, projectSave } from "./ops/project";
+import { propExpression, propKeyframes } from "./ops/prop";
 import { isAesThrown, raise } from "./lib/util";
 
 /** Op handler: params tekshirilgan (agent zod bilan), op_id va kontekst bilan chaqiriladi. */
@@ -25,9 +28,24 @@ registerOp("comp.create", compCreate as OpHandler);
 registerOp("item.import", itemImport as OpHandler);
 registerOp("layer.add_text", layerAddText as OpHandler);
 registerOp("layer.add_media", layerAddMedia as OpHandler);
+registerOp("project.open_or_create", projectOpenOrCreate as OpHandler);
+registerOp("project.save", projectSave as OpHandler);
+registerOp("comp.nest", compNest as OpHandler);
+registerOp("layer.add_shape", layerAddShape as OpHandler);
+registerOp("layer.add_audio", layerAddAudio as OpHandler);
+registerOp("prop.keyframes", propKeyframes as OpHandler);
+registerOp("prop.expression", propExpression as OpHandler);
+registerOp("fx.apply_preset", fxApplyPreset as OpHandler);
+registerOp("fx.add", fxAdd as OpHandler);
 
 /** O'zgartirmaydigan oplar: undo group ochilmaydi. */
 const READ_ONLY: { [op: string]: boolean | undefined } = { ping: true };
+
+/** Loyihani ochish/saqlash undo tarixiga kirmaydi (undo group ichida loyiha almashtirilmaydi). */
+const NO_UNDO: { [op: string]: boolean | undefined } = {
+  "project.open_or_create": true,
+  "project.save": true,
+};
 
 function respond(response: AeResponse): string {
   return JSON.stringify(response);
@@ -68,7 +86,8 @@ export function runOp(json: string): string {
     request.ctx === undefined || request.ctx === null ? { root: "" } : request.ctx;
 
   app.beginSuppressDialogs();
-  if (!readOnly) app.beginUndoGroup("aes:" + op.op_id);
+  const undo = !readOnly && NO_UNDO[op.op] !== true;
+  if (undo) app.beginUndoGroup("aes:" + op.op_id);
   try {
     const data = execute(handler, op);
     return respond({ ok: true, data: data });
@@ -78,7 +97,7 @@ export function runOp(json: string): string {
     }
     return respond({ ok: false, error: makeError("AE_SCRIPT_ERROR", describeError(error)) });
   } finally {
-    if (!readOnly) app.endUndoGroup();
+    if (undo) app.endUndoGroup();
     app.endSuppressDialogs(false);
   }
 

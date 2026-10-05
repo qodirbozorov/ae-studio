@@ -1,24 +1,166 @@
 /**
  * After Effects object model'ining test uchun soddalashtirilgan nusxasi (faqat panel oplari ishlatadigan qismi).
  * Indekslar AE'dagidek 1 dan boshlanadi; yangi layer comp'ning tepasiga (1-indeks) qo'shiladi.
+ * Property'lar matchName, ko'rinadigan nom yoki 1-indeks bo'yicha olinadi (`property(...)`).
  */
+
+export const KeyframeInterpolationType = { LINEAR: 6612, BEZIER: 6613, HOLD: 6614 };
+export const PropertyValueType = {
+  NO_VALUE: 6412,
+  ThreeD_SPATIAL: 6413,
+  ThreeD: 6414,
+  TwoD_SPATIAL: 6415,
+  TwoD: 6416,
+  OneD: 6417,
+  COLOR: 6418,
+  CUSTOM_VALUE: 6419,
+  MARKER: 6420,
+  LAYER_INDEX: 6421,
+  MASK_INDEX: 6422,
+  SHAPE: 6423,
+  TEXT_DOCUMENT: 6424,
+};
+
+export class KeyframeEase {
+  constructor(
+    readonly speed: number,
+    readonly influence: number,
+  ) {}
+}
+
+export interface MockKey {
+  time: number;
+  value: unknown;
+  inInterp: number;
+  outInterp: number;
+  inEase: KeyframeEase[] | null;
+  outEase: KeyframeEase[] | null;
+}
+
+type Factory = () => MockProperty;
 
 export class MockProperty {
   value: unknown;
+  expression = "";
+  readonly keys: MockKey[] = [];
+  readonly children: MockProperty[];
+  readonly name: string;
+  private readonly addable: Record<string, Factory>;
+
   constructor(
     readonly matchName: string,
-    initial: unknown,
-    private readonly children: Record<string, MockProperty> = {},
+    initial: unknown = null,
+    children: MockProperty[] | Record<string, MockProperty> = [],
+    options: { name?: string; addable?: Record<string, Factory> } = {},
   ) {
     this.value = initial;
+    this.children = Array.isArray(children) ? children : Object.values(children);
+    this.name = options.name ?? matchName;
+    this.addable = options.addable ?? {};
   }
+
   setValue(value: unknown) {
+    if (this.keys.length > 0) throw new Error("Keyframe'li property'ga setValue mumkin emas");
     this.value = value;
   }
-  property(name: string): MockProperty {
-    const child = this.children[name];
-    if (child === undefined) throw new Error("Property topilmadi: " + name);
+
+  /** Haqiqiy AE kabi hech narsa qaytarmaydi; indeks `nearestKeyIndex` bilan olinadi. */
+  setValueAtTime(time: number, value: unknown): void {
+    const existing = this.keys.findIndex((k) => Math.abs(k.time - time) < 1e-6);
+    const key: MockKey = {
+      time,
+      value,
+      inInterp: KeyframeInterpolationType.LINEAR,
+      outInterp: KeyframeInterpolationType.LINEAR,
+      inEase: null,
+      outEase: null,
+    };
+    if (existing >= 0) this.keys[existing] = key;
+    else {
+      this.keys.push(key);
+      this.keys.sort((a, b) => a.time - b.time);
+    }
+  }
+
+  nearestKeyIndex(time: number): number {
+    if (this.keys.length === 0) throw new Error("Keyframe yo'q");
+    let best = 0;
+    for (let i = 1; i < this.keys.length; i++) {
+      if (Math.abs(this.keys[i]!.time - time) < Math.abs(this.keys[best]!.time - time)) best = i;
+    }
+    return best + 1;
+  }
+
+  get canSetExpression(): boolean {
+    return this.children.length === 0;
+  }
+
+  get propertyValueType(): number {
+    if (this.children.length > 0) return PropertyValueType.NO_VALUE;
+    if (this.value instanceof TextDocument) return PropertyValueType.TEXT_DOCUMENT;
+    if (Array.isArray(this.value)) {
+      const spatial = /Position|Anchor Point/.test(this.matchName);
+      if (this.value.length === 2)
+        return spatial ? PropertyValueType.TwoD_SPATIAL : PropertyValueType.TwoD;
+      if (this.value.length === 4) return PropertyValueType.COLOR;
+      return spatial ? PropertyValueType.ThreeD_SPATIAL : PropertyValueType.ThreeD;
+    }
+    return PropertyValueType.OneD;
+  }
+
+  get numKeys(): number {
+    return this.keys.length;
+  }
+
+  private key(index: number): MockKey {
+    const key = this.keys[index - 1];
+    if (key === undefined) throw new Error("Keyframe indeksi noto'g'ri: " + index);
+    return key;
+  }
+
+  keyTime(index: number): number {
+    return this.key(index).time;
+  }
+
+  keyValue(index: number): unknown {
+    return this.key(index).value;
+  }
+
+  setInterpolationTypeAtKey(index: number, inType: number, outType?: number) {
+    const key = this.key(index);
+    key.inInterp = inType;
+    key.outInterp = outType ?? inType;
+  }
+
+  setTemporalEaseAtKey(index: number, inEase: KeyframeEase[], outEase?: KeyframeEase[]) {
+    const key = this.key(index);
+    key.inEase = inEase;
+    key.outEase = outEase ?? inEase;
+  }
+
+  get numProperties(): number {
+    return this.children.length;
+  }
+
+  property(nameOrIndex: string | number): MockProperty {
+    const child =
+      typeof nameOrIndex === "number"
+        ? this.children[nameOrIndex - 1]
+        : this.children.find((c) => c.matchName === nameOrIndex || c.name === nameOrIndex);
+    if (child === undefined) throw new Error("Property topilmadi: " + String(nameOrIndex));
     return child;
+  }
+
+  canAddProperty(matchName: string): boolean {
+    return this.addable[matchName] !== undefined;
+  }
+
+  addProperty(matchName: string): MockProperty {
+    const factory = this.addable[matchName];
+    if (factory === undefined) throw new Error("Qo'shib bo'lmaydi: " + matchName);
+    const created = factory();
+    this.children.push(created);
+    return created;
   }
 }
 
@@ -36,6 +178,64 @@ export class TextDocument {
   leading = 0;
   allCaps = false;
   constructor(public text: string) {}
+}
+
+/** Effektlar katalogi: matchName → (ko'rinadigan nom, parametrlar). */
+const EFFECTS: Record<string, { name: string; params: [string, string, unknown][] }> = {
+  "ADBE Gaussian Blur 2": {
+    name: "Gaussian Blur",
+    params: [
+      ["ADBE Gaussian Blur 2-0001", "Blurriness", 0],
+      ["ADBE Gaussian Blur 2-0003", "Repeat Edge Pixels", false],
+    ],
+  },
+  "ADBE Fill": {
+    name: "Fill",
+    params: [["ADBE Fill-0002", "Color", [1, 0, 0]]],
+  },
+};
+
+function effectFactories(): Record<string, Factory> {
+  const out: Record<string, Factory> = {};
+  for (const [matchName, spec] of Object.entries(EFFECTS)) {
+    out[matchName] = () =>
+      new MockProperty(
+        matchName,
+        null,
+        spec.params.map(([mn, name, value]) => new MockProperty(mn, value, [], { name })),
+        { name: spec.name },
+      );
+  }
+  return out;
+}
+
+function shapeContents(): MockProperty {
+  const vectorItems: Record<string, Factory> = {
+    "ADBE Vector Shape - Rect": () =>
+      new MockProperty("ADBE Vector Shape - Rect", null, [
+        new MockProperty("ADBE Vector Rect Size", [100, 100]),
+        new MockProperty("ADBE Vector Rect Position", [0, 0]),
+        new MockProperty("ADBE Vector Rect Roundness", 0),
+      ]),
+    "ADBE Vector Shape - Ellipse": () =>
+      new MockProperty("ADBE Vector Shape - Ellipse", null, [
+        new MockProperty("ADBE Vector Ellipse Size", [100, 100]),
+        new MockProperty("ADBE Vector Ellipse Position", [0, 0]),
+      ]),
+    "ADBE Vector Graphic - Fill": () =>
+      new MockProperty("ADBE Vector Graphic - Fill", null, [
+        new MockProperty("ADBE Vector Fill Color", [1, 1, 1, 1]),
+        new MockProperty("ADBE Vector Fill Opacity", 100),
+      ]),
+  };
+  return new MockProperty("ADBE Root Vectors Group", null, [], {
+    addable: {
+      "ADBE Vector Group": () =>
+        new MockProperty("ADBE Vector Group", null, [
+          new MockProperty("ADBE Vectors Group", null, [], { addable: vectorItems }),
+        ]),
+    },
+  });
 }
 
 let nextId = 1;
@@ -89,41 +289,55 @@ export class Layer {
   outPoint: number;
   enabled = true;
   audioEnabled = true;
-  readonly transform: MockProperty;
-  readonly text: MockProperty | null;
+  readonly presets: string[] = [];
+  readonly root: MockProperty;
   constructor(
     readonly containingComp: CompItem,
     readonly source: AVItem | null,
     name: string,
-    text?: TextDocument,
+    extra: { text?: TextDocument; shape?: boolean } = {},
   ) {
     this.name = name;
     this.outPoint = containingComp.duration;
-    this.transform = new MockProperty("ADBE Transform Group", null, {
-      "ADBE Position": new MockProperty("ADBE Position", [
-        containingComp.width / 2,
-        containingComp.height / 2,
-        0,
+    const groups = [
+      new MockProperty("ADBE Transform Group", null, [
+        new MockProperty("ADBE Anchor Point", [0, 0, 0]),
+        new MockProperty(
+          "ADBE Position",
+          [containingComp.width / 2, containingComp.height / 2, 0],
+          [],
+          { name: "Position" },
+        ),
+        new MockProperty("ADBE Scale", [100, 100, 100], [], { name: "Scale" }),
+        new MockProperty("ADBE Rotate Z", 0, [], { name: "Rotation" }),
+        new MockProperty("ADBE Opacity", 100, [], { name: "Opacity" }),
       ]),
-      "ADBE Scale": new MockProperty("ADBE Scale", [100, 100, 100]),
-      "ADBE Opacity": new MockProperty("ADBE Opacity", 100),
-      "ADBE Anchor Point": new MockProperty("ADBE Anchor Point", [0, 0, 0]),
-      "ADBE Rotate Z": new MockProperty("ADBE Rotate Z", 0),
-    });
-    this.text =
-      text === undefined
-        ? null
-        : new MockProperty("ADBE Text Properties", null, {
-            "ADBE Text Document": new MockProperty("ADBE Text Document", text),
-          });
+      new MockProperty("ADBE Effect Parade", null, [], { addable: effectFactories() }),
+      new MockProperty("ADBE Audio Group", null, [new MockProperty("ADBE Audio Levels", [0, 0])]),
+    ];
+    if (extra.text !== undefined) {
+      groups.push(
+        new MockProperty("ADBE Text Properties", null, [
+          new MockProperty("ADBE Text Document", extra.text),
+        ]),
+      );
+    }
+    if (extra.shape === true) groups.push(shapeContents());
+    this.root = new MockProperty("ADBE Layer", null, groups);
   }
   get index(): number {
     return this.containingComp.layersList.indexOf(this) + 1;
   }
   property(name: string): MockProperty {
-    if (name === "ADBE Transform Group") return this.transform;
-    if (name === "ADBE Text Properties" && this.text !== null) return this.text;
-    throw new Error("Layer property topilmadi: " + name);
+    return this.root.property(name);
+  }
+  /** Qisqa yo'l: testlarda transform property'si. */
+  transform(matchName: string): MockProperty {
+    return this.property("ADBE Transform Group").property(matchName);
+  }
+  applyPreset(file: MockFile) {
+    if (!file.exists) throw new Error("Preset topilmadi: " + file.fsName);
+    this.presets.push(file.fsName);
   }
 }
 
@@ -132,12 +346,14 @@ export class CompItem extends AVItem {
   pixelAspect = 1;
   readonly layersList: Layer[] = [];
   readonly layers = {
-    addText: (text: string) => this.push(new Layer(this, null, text, new TextDocument(text))),
+    addText: (text: string) =>
+      this.push(new Layer(this, null, text, { text: new TextDocument(text) })),
     addBoxText: (size: number[], text: string) => {
       const doc = new TextDocument(text);
       (doc as TextDocument & { boxTextSize?: number[] }).boxTextSize = size;
-      return this.push(new Layer(this, null, text, doc));
+      return this.push(new Layer(this, null, text, { text: doc }));
     },
+    addShape: () => this.push(new Layer(this, null, "Shape Layer 1", { shape: true })),
     add: (item: AVItem, duration?: number) => {
       const layer = new Layer(this, item, item.name);
       if (duration !== undefined) layer.outPoint = duration;
@@ -202,14 +418,19 @@ export interface MockApp {
   undoGroups: string[];
   openUndoGroups: number;
   suppressDialogs: number;
+  /** Ochilgan/yaratilgan loyihalar tarixi (testlar uchun). */
+  opened: string[];
   beginUndoGroup(name: string): void;
   endUndoGroup(): void;
   beginSuppressDialogs(): void;
   endSuppressDialogs(alert: boolean): void;
+  open(file: MockFile): MockProject;
+  newProject(): MockProject;
 }
 
 export interface MockProject {
   file: MockFile | null;
+  dirty: boolean;
   itemsList: Item[];
   readonly numItems: number;
   item(index: number): Item;
@@ -218,6 +439,7 @@ export interface MockProject {
     addFolder(name: string): FolderItem;
   };
   importFile(options: { file: MockFile; importAs?: number }): FootageItem;
+  save(file?: MockFile): boolean;
 }
 
 /** Yangi mock AE: `files` — mavjud fayllar (yo'l → media metadata). */
@@ -225,42 +447,58 @@ export function createMockAE(
   options: { version?: string; files?: Record<string, Partial<MediaMeta>> } = {},
 ): MockAE {
   const files = new Map(Object.entries(options.files ?? {}));
-  const itemsList: Item[] = [];
-  const add = <T extends Item>(item: T) => {
-    itemsList.push(item);
-    return item;
-  };
-  const project: MockProject = {
-    file: null,
-    itemsList,
-    get numItems() {
-      return itemsList.length;
-    },
-    item(index: number) {
-      const found = itemsList[index - 1];
-      if (found === undefined) throw new Error("Item indeksi noto'g'ri: " + index);
-      return found;
-    },
-    items: {
-      addComp: (name, w, h, pa, dur, fps) => {
-        const comp = new CompItem(name, w, h, dur, fps);
-        comp.pixelAspect = pa;
-        return add(comp);
+
+  function createProject(file: MockFile | null): MockProject {
+    const itemsList: Item[] = [];
+    const add = <T extends Item>(item: T) => {
+      itemsList.push(item);
+      project.dirty = true;
+      return item;
+    };
+    const project: MockProject = {
+      file,
+      dirty: false,
+      itemsList,
+      get numItems() {
+        return itemsList.length;
       },
-      addFolder: (name) => add(new FolderItem(name)),
-    },
-    importFile(io) {
-      if (!io.file.exists) throw new Error("File not found: " + io.file.fsName);
-      const meta = files.get(io.file.fsName) ?? {};
-      return add(new FootageItem(io.file.name, io.file, meta));
-    },
-  };
+      item(index: number) {
+        const found = itemsList[index - 1];
+        if (found === undefined) throw new Error("Item indeksi noto'g'ri: " + index);
+        return found;
+      },
+      items: {
+        addComp: (name, w, h, pa, dur, fps) => {
+          const comp = new CompItem(name, w, h, dur, fps);
+          comp.pixelAspect = pa;
+          return add(comp);
+        },
+        addFolder: (name) => add(new FolderItem(name)),
+      },
+      importFile(io) {
+        if (!io.file.exists) throw new Error("File not found: " + io.file.fsName);
+        const meta = files.get(io.file.fsName) ?? {};
+        return add(new FootageItem(io.file.name, io.file, meta));
+      },
+      save(target) {
+        const into = target ?? project.file;
+        if (into === null) throw new Error("Saqlash uchun fayl yo'q");
+        files.set(into.fsName, {});
+        project.file = into;
+        project.dirty = false;
+        return true;
+      },
+    };
+    return project;
+  }
+
   const app: MockApp = {
     version: options.version ?? "25.2.0x15",
-    project,
+    project: createProject(null),
     undoGroups: [],
     openUndoGroups: 0,
     suppressDialogs: 0,
+    opened: [],
     beginUndoGroup(name) {
       this.undoGroups.push(name);
       this.openUndoGroups++;
@@ -273,6 +511,17 @@ export function createMockAE(
     },
     endSuppressDialogs() {
       this.suppressDialogs--;
+    },
+    open(file) {
+      if (!file.exists) throw new Error("Loyiha topilmadi: " + file.fsName);
+      this.project = createProject(file);
+      this.opened.push("open:" + file.fsName);
+      return this.project;
+    },
+    newProject() {
+      this.project = createProject(null);
+      this.opened.push("new");
+      return this.project;
     },
   };
   class ImportOptions {
@@ -295,6 +544,9 @@ export function createMockAE(
       ImportOptions,
       ImportAsType,
       ParagraphJustification,
+      KeyframeInterpolationType,
+      KeyframeEase,
+      PropertyValueType,
       CompItem,
       FolderItem,
       FootageItem,

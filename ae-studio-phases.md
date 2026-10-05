@@ -115,7 +115,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: papkadan tashqaridagi yo'l ikkala tomonda ham rad etiladi (test).
 - [x] **P2.08 — ffmpeg wrapper va INGEST.** `child_process.spawn` + timeout + kill. ffprobe metadata, rasm thumbnail / video kadrlari (≤1280px JPG) storage'ga yuklanadi; `asset.scanned` → `assets` jadvali; katta fayllar uchun tez hash strategiyasi.
   - Tayyor: aralash papka (video, rasm, audio, buzuq fayl) to'g'ri skanerlanadi.
-- [ ] **P2.09 — Qolgan yadro oplar.** `project.open_or_create`, `project.save` (vNNN), `comp.nest`, `layer.add_shape`, `layer.add_audio`, `prop.keyframes` (ease), `prop.expression` (+ expression kutubxonasi: wiggle, bounce, loop va boshqalar, faqat nom bilan, §11.4.4), `fx.apply_preset`, `fx.add`; `ops.batch`.
+- [x] **P2.09 — Qolgan yadro oplar.** `project.open_or_create`, `project.save` (vNNN), `comp.nest`, `layer.add_shape`, `layer.add_audio`, `prop.keyframes` (ease), `prop.expression` (+ expression kutubxonasi: wiggle, bounce, loop va boshqalar, faqat nom bilan, §11.4.4), `fx.apply_preset`, `fx.add`; `ops.batch`.
   - Tayyor: har op idempotent, har biriga AE smoke-test bor.
 - [ ] **P2.10 — Compiler (Spec → oplist).** Sof funksiya: format → asosiy comp; sahnalar → sahna comp'lari + nest; layerlar → oplar; `anim` (ken_burns_in, typewriter, fade, slide…), `pos` (lower_third, center…) formatga nisbiy; `transition_out` (whip_left…) keyframe asosida; VERIFY uchun kalit vaqtlar; **deterministik `op_id`** (resume va patch uchun barqaror). `vo:` davomiyliklari Faza 4 da.
   - Tayyor: snapshot testlar bor; bir xil spec har doim bir xil oplist beradi.

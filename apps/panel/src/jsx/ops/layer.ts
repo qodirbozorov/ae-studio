@@ -1,5 +1,7 @@
 import type {
+  LayerAddAudioParams,
   LayerAddMediaParams,
+  LayerAddShapeParams,
   LayerAddTextParams,
   OpResultData,
   TextStyleOp,
@@ -82,6 +84,54 @@ export function layerAddMedia(p: LayerAddMediaParams, opId: string): OpResultDat
   );
   if (p.opacity !== undefined) transformProperty(layer, "ADBE Opacity").setValue(p.opacity);
   if (item.hasAudio && p.keep_audio !== true) layer.audioEnabled = false;
+  setLayerTiming(layer, comp, p.start, p.dur);
+  stampLayer(layer, opId);
+  return layerResult(opId, layer, comp, false);
+}
+
+/** `layer.add_shape` — to'rtburchak (radius bilan) yoki ellips, to'ldirilgan rang. */
+export function layerAddShape(p: LayerAddShapeParams, opId: string): OpResultData {
+  const comp = requireComp(p.comp);
+  const existing = findLayerInComp(comp, opId);
+  if (existing !== null) return layerResult(opId, existing, comp, true);
+
+  const layer = comp.layers.addShape();
+  if (p.name !== undefined) layer.name = p.name;
+  const contents = layer.property("ADBE Root Vectors Group") as PropertyGroup;
+  const group = contents.addProperty("ADBE Vector Group") as PropertyGroup;
+  const vectors = group.property("ADBE Vectors Group") as PropertyGroup;
+  const rect = p.kind === "rect";
+  const shape = vectors.addProperty(
+    rect ? "ADBE Vector Shape - Rect" : "ADBE Vector Shape - Ellipse",
+  ) as PropertyGroup;
+  (
+    shape.property(rect ? "ADBE Vector Rect Size" : "ADBE Vector Ellipse Size") as Property
+  ).setValue(p.size);
+  if (rect && p.radius !== undefined) {
+    (shape.property("ADBE Vector Rect Roundness") as Property).setValue(p.radius);
+  }
+  const fill = vectors.addProperty("ADBE Vector Graphic - Fill") as PropertyGroup;
+  (fill.property("ADBE Vector Fill Color") as Property).setValue(hexToRgb(p.color));
+  transformProperty(layer, "ADBE Position").setValue(p.pos);
+  if (p.opacity !== undefined) transformProperty(layer, "ADBE Opacity").setValue(p.opacity);
+  setLayerTiming(layer, comp, p.start, p.dur);
+  stampLayer(layer, opId);
+  return layerResult(opId, layer, comp, false);
+}
+
+/** `layer.add_audio` — ovoz darajasi dB da; video'li element bo'lsa tasvir o'chiriladi. */
+export function layerAddAudio(p: LayerAddAudioParams, opId: string): OpResultData {
+  const comp = requireComp(p.comp);
+  const existing = findLayerInComp(comp, opId);
+  if (existing !== null) return layerResult(opId, existing, comp, true);
+
+  const item = requireAvItem(requireItem(p.item), p.item);
+  if (!item.hasAudio) return raise("AE_BAD_PARAMS", "Elementda ovoz yo'q: " + p.item);
+  const layer = comp.layers.add(item);
+  if (p.name !== undefined) layer.name = p.name;
+  if (item.hasVideo) layer.enabled = false;
+  const audio = layer.property("ADBE Audio Group") as PropertyGroup;
+  (audio.property("ADBE Audio Levels") as Property).setValue([p.volume, p.volume]);
   setLayerTiming(layer, comp, p.start, p.dur);
   stampLayer(layer, opId);
   return layerResult(opId, layer, comp, false);

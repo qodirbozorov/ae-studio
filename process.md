@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · jarayonda (8/14)
-- **Oxirgi bajarilgan:** P2.08 — ffmpeg wrapper + INGEST (2026-10-05)
-- **Keyingi todo:** P2.09 — qolgan yadro oplar (project.*, comp.nest, shape, audio, keyframes, expression, fx)
+- **Faza:** 2 — Yadro · jarayonda (9/14)
+- **Oxirgi bajarilgan:** P2.09 — 9 ta yadro op ExtendScript'da (2026-10-05)
+- **Keyingi todo:** P2.10 — compiler (Spec → oplist, deterministik op_id)
 - **Blokerlar:** 👤 Railway'da servislar yaratishga tasdiq · 👤 AE kompyuterida ZXP sinovi · git remote URL yo'q (push qilinmagan)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -289,3 +289,19 @@
 - **Tekshiruv:** haqiqiy ffmpeg (LGPL build) bilan yaratilgan test media'da (1920×1080 video + audio, 640×360 .mov, png, wav, buzuq mp4, txt, yashirin fayl): `ingest.test.ts` 8 ta; `ingest.e2e.test.ts` 2 ta (kabinet → server → panel → ffmpeg → thumbnail storage'da → DB; o'chirilgan fayl → `missing`; boshqa papka ochiq → `ENV_NO_FOLDER`; ulanmagan → 503). Repo 209/209 · typecheck · lint · prettier · panel build ✅.
 - **Topilma:** LGPL ffmpeg'da `libx264` yo'q, lekin `libopenh264`, `h264_mf` va apparat encoder'lar bor (P3.07 render qarori uchun).
 - **Keyingi:** P2.09 (qolgan yadro oplar)
+
+### 2026-10-05 · P2.09 — Qolgan yadro oplar · ✅ (AE'da sinash 👤)
+- **Qilindi (ExtendScript, ES3):**
+  - `project.open_or_create`: o'sha fayl ochiq bo'lsa `reused`; mavjud bo'lsa `app.open`, yo'q bo'lsa yangi loyiha + saqlash. Ochiq loyihada saqlanmagan o'zgarish bo'lsa **ochilmaydi** (§2.10: hech narsa yo'qolmaydi). Bu holat `dirty` (AE 22 tiplarida yo'q, ehtiyotkor talqin) bilan aniqlanadi.
+  - `project.save`: `vNNN`; boshqa mavjud versiya ustiga yozilmaydi; resume'da shu faylning o'ziga saqlanadi. Loyiha oplari undo group'siz.
+  - `comp.nest`: o'z-o'ziga nest rad etiladi; davomiylik child comp'dan olinadi.
+  - `layer.add_shape`: rect/ellipse, radius, fill rangi, pozitsiya, shaffoflik (shape contents → vector group → shape + fill).
+  - `layer.add_audio`: daraja dB; video'li element bo'lsa tasvir o'chiriladi; ovozsiz element → `AE_BAD_PARAMS`.
+  - `prop.keyframes`: alias yoki matchName yo'li (raqamli segment — indeks); `relative` vaqt; ease (linear / hold / bezier: ease_in, ease_out, ease_in_out); ease o'lchami `propertyValueType` bo'yicha (spatial 1, TwoD 2, ThreeD 3); kalit indeksi `nearestKeyIndex` bilan olinadi (`setValueAtTime` hech narsa qaytarmaydi).
+  - `prop.expression`: faqat kutubxonadan (`wiggle`, `loop_out`, `bounce`, `pulse`); argumentlar faqat chegaralangan son yoki ruxsat etilgan qiymat, kod kiritib bo'lmaydi. `EXPRESSION_IDS` shared'da ham bor (test mosligini tekshiradi).
+  - `fx.add`: `canAddProperty` → effekt; parametr matchName yoki ko'rinadigan nom bilan; noma'lum effekt/parametr → `AE_BAD_PARAMS`. `fx.apply_preset`: ish papkasidan `.ffx`.
+
+  Yaratmaydigan oplarda idempotentlik layer comment'idagi `[aes:<op_id>]` izi orqali (`hasLayerTag`). `ops.batch` P1.13 dan beri agent'da bor.
+- **Mock AE:** umumiy property tizimi (addProperty/canAddProperty, nom/indeks bo'yicha, keyframe/interp/ease, expression, `propertyValueType` haqiqiy enum qiymatlari bilan, `nearestKeyIndex`), shape contents, effektlar, audio darajalari, `app.open/newProject`, `project.save/dirty`.
+- **Tekshiruv:** `jsx-ops-core.test.ts` 15 ta (haqiqiy ES3 bundle mock AE'da). jsx bundle 36 KB, ES3 parse va ES5 API taqiqi testlari o'tadi. Repo 224/224 · typecheck (ES3 tiplari) · lint · prettier · build ✅.
+- **Keyingi:** P2.10 (compiler: Spec → oplist)

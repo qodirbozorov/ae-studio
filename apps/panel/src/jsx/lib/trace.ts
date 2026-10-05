@@ -21,6 +21,11 @@ export function stampItem(item: _ItemClasses, opId: string): void {
   item.comment = withTag(item.comment, opId);
 }
 
+/** Layer ustida bajarilgan op izi (keyframe, effekt, expression kabi yaratmaydigan oplar uchun). */
+export function hasLayerTag(layer: Layer, opId: string): boolean {
+  return hasTag(layer.comment, opId);
+}
+
 export function stampLayer(layer: Layer, opId: string): void {
   layer.comment = withTag(layer.comment, opId);
 }
@@ -67,4 +72,11 @@ export function requireItem(ref: string): _ItemClasses {
   const item = findItemByOpId(ref);
   if (item === null) return raise("AE_NOT_FOUND", "Element topilmadi: " + ref);
   return item;
+}
+
+/** Havola qilingan layer (uni yaratgan opning op_id si bo'yicha); topilmasa AE_NOT_FOUND. */
+export function requireLayer(ref: string): Layer {
+  const layer = findLayerByOpId(ref);
+  if (layer === null) return raise("AE_NOT_FOUND", "Layer topilmadi: " + ref);
+  return layer;
 }

@@ -36,6 +36,9 @@ export type OpName = (typeof OP_NAMES)[number];
 
 export const PROP_ALIASES = ["position", "scale", "rotation", "opacity", "anchor_point"] as const;
 
+/** `prop.expression` kutubxonasi (§11.4.4). ExtendScript tomonidagi `lib/expressions.ts` bilan bir xil. */
+export const EXPRESSION_IDS = ["wiggle", "loop_out", "bounce", "pulse"] as const;
+
 /** Op timeout'lari (ms), §2.3 "har chaqiruvda timeout". */
 export const DEFAULT_OP_TIMEOUT_MS = 30_000;
 export const OP_TIMEOUT_MS: { [N in Ae.AeOpName]?: number } = {

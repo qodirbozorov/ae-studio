@@ -139,7 +139,8 @@ describe("layer.add_text", () => {
 
     const main = h.ae.app.project.itemsList.find((i) => i.name === "MAIN") as CompItem;
     const layer = main.layer(1);
-    const doc = layer.text!.property("ADBE Text Document").value as Record<string, unknown>;
+    const doc = layer.property("ADBE Text Properties").property("ADBE Text Document")
+      .value as Record<string, unknown>;
     expect(doc).toMatchObject({
       text: "3 TA XATO",
       font: "Montserrat-Bold",
@@ -147,7 +148,7 @@ describe("layer.add_text", () => {
       fillColor: [1, 1, 1],
       justification: 7415,
     });
-    expect(layer.transform.property("ADBE Position").value).toEqual([540, 800]);
+    expect(layer.transform("ADBE Position").value).toEqual([540, 800]);
     expect(layer.startTime).toBe(1);
     expect(layer.outPoint).toBe(4);
     expect(layer.comment).toBe("[aes:s1.title]");
@@ -193,10 +194,10 @@ describe("layer.add_media", () => {
     });
     if (!res.ok) throw new Error(res.error.message);
     const layer = (h.ae.app.project.itemsList.find((i) => i.name === "MAIN") as CompItem).layer(1);
-    const scale = layer.transform.property("ADBE Scale").value as number[];
+    const scale = layer.transform("ADBE Scale").value as number[];
     expect(scale[0]).toBeCloseTo((1920 / 1080) * 100, 5);
     expect(scale[1]).toBeCloseTo((1920 / 1080) * 100, 5);
-    expect(layer.transform.property("ADBE Position").value).toEqual([540, 960]);
+    expect(layer.transform("ADBE Position").value).toEqual([540, 960]);
     expect(layer.audioEnabled).toBe(false);
     expect(layer.outPoint).toBe(5);
   });
@@ -208,7 +209,7 @@ describe("layer.add_media", () => {
     const scaleOf = (opId: string, fit: "contain" | "stretch") => {
       h.run("layer.add_media", opId, { comp: "main.comp", item: "asset.photo", start: 0, fit });
       const main = h.ae.app.project.itemsList.find((i) => i.name === "MAIN") as CompItem;
-      return main.layer(1).transform.property("ADBE Scale").value as number[];
+      return main.layer(1).transform("ADBE Scale").value as number[];
     };
     expect(scaleOf("m1", "contain")).toEqual([108, 108]);
     expect(scaleOf("m2", "stretch")).toEqual([108, 128]);
