@@ -10,10 +10,10 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 3 — Claude loop'i · jarayonda (10/12)
-- **Oxirgi bajarilgan:** P3.10 — xavfsizlik (2026-10-05)
-- **Keyingi todo:** P3.11 — Claude'ga ulash (deploy, prod OAuth/MCP tekshiruvi, yo'riqnoma)
-- **Blokerlar:** 👤 AE kompyuterida: ZXP, kabinet kodi bilan ulanish, Live/Undo, AE'ni o'rtada yopib-ochish · 👤 RESEND_API_KEY (magic link hozir server logida)
+- **Faza:** 3 — Claude loop'i · jarayonda (11/12, P3.11 👤)
+- **Oxirgi bajarilgan:** P3.11 — Claude'ga ulash: server va prod oqim tayyor (2026-10-05)
+- **Keyingi todo:** P3.12 — Faza 3 gate
+- **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
 - **Bash tool eslatmasi:** shu sessiyada PATH yangilanmagan, har buyruq oldidan: `export PATH="/c/Users/991106847/AppData/Local/Programs/nodejs:/c/Users/991106847/AppData/Local/Programs/ffmpeg/bin:$PATH"`
@@ -805,3 +805,19 @@
 
   Web build ✅. Repo testlari ✅.
 - **Keyingi:** P3.11 (Claude'ga ulash: deploy + tayyorgarlik)
+
+### 2026-10-05 · P3.11 — Claude'ga ulash · ⚠️ server tayyor, Claude UI'da ulash 👤
+- **Deploy:** Railway'ga P3.01–P3.10 bilan deploy qilindi; migratsiyalar 0002–0004 qo'llandi. `/health` → db ok, redis ok.
+- **Production'da avtomatik tekshirildi** (`apps/server/scripts/oauth-smoke.mjs` — Claude connector'ning qadamlari bilan, foydalanuvchi sessiyasi orqali):
+  1. `POST /mcp` tokensiz → 401 + `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource/mcp", scope="mcp"`.
+  2. PRM: `resource` = `https://server-production-9c75.up.railway.app/mcp`. AS metadata: S256, CIMD=true.
+  3. DCR: Claude callback'i `https://claude.ai/api/mcp/auth_callback` bilan → ruxsat ekrani → kod (state mos) → token (form-urlencoded, `expires_in` 3600, scope `mcp offline_access`).
+  4. MCP SDK klient HTTPS orqali: initialize (`ae-studio 0.1.0`), 25 ta tool, `new-reel` prompti, `env_check`.
+  5. Refresh rotation; kabinetdan uzish → eski token 401.
+
+  Sessiyasiz authorize → 303 `/login?next=/oauth/authorize?…`; `/login` SPA 200.
+- **Yo'riqnoma:** `docs/claude-connector.md` (oldindan kerak bo'lganlar, ulash qadamlari, tekshirish, uzish, texnik jadval).
+- **👤 Qoldi:**
+  - Claude Settings → Connectors → Add custom connector → URL → login → ruxsat; web, desktop va telefondan tekshirish.
+  - **Bloker:** magic link xati hozir yuborilmaydi (`RESEND_API_KEY` yo'q), shuning uchun foydalanuvchi o'zi kira olmaydi. `RESEND_API_KEY` va `MAIL_FROM` Railway'ga qo'shilishi kerak.
+- **Keyingi:** P3.12 (Faza 3 gate)
