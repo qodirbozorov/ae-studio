@@ -178,11 +178,11 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P4.12 — Panel Audio ekrani.** Generatsiya qilingan fayllar, eshitish, qayta generatsiya.
 - [x] **P4.13 — MCP promptlar.** `/subtitle-video`, `/dub-video`; `/new-reel` audio bilan yangilanadi.
 - [ ] **P4.14 — 🧪 O'zbek tili testi (majburiy, §7.1).** STT namuna matn bilan solishtiriladi. TTS uchun qaysi modellar o'zbekchani qo'llashi rasmiy hujjatdan tekshiriladi (Q7). Brend so'zlar uchun pronunciation dictionary tuziladi. Natijalar `docs/uz-quality.md` ga yoziladi.
-- [ ] **P4.15 — 🧪 Faza 4 gate.**
-  - [ ] voiceover + karaoke subtitr + generatsiya qilingan musiqa (ducking bilan) + SFX bilan video (M5)
-  - [ ] mavjud video uchun isolate + transcribe + subtitr ishlaydi (M5)
-  - [ ] kesh: qayta ishga tushirishda kredit sarflanmaydi
-  - [ ] kvota oshsa `ask_user` qaytadi
+- [x] **P4.15 — 🧪 Faza 4 gate.**
+  - [x] voiceover + karaoke subtitr + generatsiya qilingan musiqa (ducking bilan) + SFX bilan video (M5)
+  - [x] mavjud video uchun isolate + transcribe + subtitr ishlaydi (M5)
+  - [x] kesh: qayta ishga tushirishda kredit sarflanmaydi
+  - [x] kvota oshsa `ask_user` qaytadi
 
 ---
 

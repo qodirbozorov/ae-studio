@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 4 — ElevenLabs · jarayonda (14/15, P4.14 👤)
-- **Oxirgi bajarilgan:** P4.14 — o'zbek tili testi vositasi va hujjati (2026-10-05)
-- **Keyingi todo:** P4.15 — Faza 4 gate
+- **Faza:** 4 — ElevenLabs · kod qismi tugadi (15/15; P4.14 real o'lchov 👤 kalit) → 5 boshlanadi
+- **Oxirgi bajarilgan:** P4.15 — Faza 4 gate e2e (2026-10-05)
+- **Keyingi todo:** P5.01 — Shablon tizimi
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -94,6 +94,7 @@
 | 2026-10-05 | P4.09 | AUDIO: SFX xatosi skipped (job davom etadi), voiceover/musiqa/manba xatosi BLOCKED; patch AUDIO'dan qayta boshlanadi | §7.1 'done yoki skipped(sabab)'; asosiy ovozsiz video ma'nosiz |
 | 2026-10-05 | P4.10 | vo:a-b = B[b]-B[a], B[k] = k-gap boshlanishi (pauza oldingi sahnaga), oxiriga 0.3 s | Sahna almashuvi gap boshlanishiga to'g'ri keladi, oxirgi so'z kesilmaydi |
 | 2026-10-05 | P4.11 | karaoke = so'zlar navbat bilan paydo bo'ladi (Source Text hold keyframe'lari), rangli so'z ajratish emas | ES3/AE 22 da belgi diapazoni uslublari yo'q; ishonchli va AE versiyalarida bir xil |
+| 2026-10-05 | P4.15 | Kvota gate'i keshlangan vazifalarni ham baholashga qo'shadi | oddiy va xavfsiz: kam qoldiqda foydalanuvchidan so'raladi; keyin optimallashtirish mumkin |
 
 ---
 
@@ -1135,3 +1136,19 @@
 - **Tekshiruv:** `uz-quality.test.ts` 2 ta (normalizatsiya va apostroflar; WER turlari). Skript typecheck'dan o'tadi.
 - **👤 Qoldi:** ElevenLabs kaliti bilan `uz-quality.mts` ni ishga tushirish va jadvalni `docs/uz-quality.md` ga ko'chirish.
 - **Keyingi:** P4.15 (Faza 4 gate)
+
+### P4.15 — 🧪 Faza 4 gate (2026-10-05)
+
+**Nima qilindi:**
+- `apps/panel/test/gate4.e2e.test.ts` — haqiqiy server + haqiqiy agent (Node) + ffmpeg + ES3 jsx bundle (mock AE, `realDisk`) + soxta aerender + soxta ElevenLabs API (rasmiy yo'llar, haqiqiy WAV). Hammasi Claude ishlatadigan MCP toollari orqali:
+  1. **Voiceover + karaoke + musiqa (ducking) + SFX:** `plan_write` → `preflight` (`pending_audio: true`) → `build_start` → AUDIO (tts, sfx, music `match_video`) → har fayl server storage'idan panelga yuklab olinadi (`audio/<kind>_<sha12>.<ext>`) → AE'da `VOICEOVER`, `MUSIC` (Audio Levels kalitlari — ducking), `SFX whoosh`, `CAPTION n` (so'zma-so'z Source Text: `BUGUN` → `BUGUN UCHTA` → `BUGUN UCHTA SIR.`) → `frames_capture` → `verify_approve` → `out/vo_reel_v001.mp4`.
+  2. **Mavjud video:** `source_audio` isolate + transcribe (`language_code: uz`) → `SOURCE (clean)` + `CAPTION 1` (`SALOM BU INTERVYU EDI`) → render → `out/interview_v001.mp4`.
+  3. **Kesh:** bir xil plan bilan yangi job — ElevenLabs'ga generatsiya so'rovi 0 ta, hamma vazifa `cached: true, credits: 0`.
+  4. **Kvota:** qoldiq 10 belgi, yangi matn → job `BLOCKED EL_QUOTA` (`details.ask_user: true`), `el_estimate` → `fits: false, ask_user: true`; generatsiya so'rovi yo'q.
+- `e2e-helpers.start()` — uchinchi parametr (`createTestApp` deps: `elevenOptions` va h.k.).
+- `ae-mock` — `realDisk` rejimida diskdagi audio fayllarni (mp3/wav/ogg/m4a) AE "ko'radi" (agent yuklab olgan ElevenLabs fayllari import qilinadi).
+- MCP `preflight` / `build_start dry_run` — `vo:a-b` sahnalari uchun AUDIO natijasi bo'lmasa `pending_audio: true` (vaqtlar AUDIO bosqichida aniqlanadi); bo'lsa shu plan versiyasining oxirgi `audio.ready` natijasi bilan kompilyatsiya (`engine.audioReadyFor`).
+
+**Tekshiruv:** `pnpm test` 398 o'tdi / 2 skip · typecheck · lint · prettier · panel build — toza.
+
+**👤 qolgan:** haqiqiy ElevenLabs kaliti bilan va haqiqiy AE'da shu ikki ssenariyni qo'lda o'tkazish (kalit web → Sozlamalar → ElevenLabs).

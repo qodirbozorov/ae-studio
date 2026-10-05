@@ -1001,6 +1001,22 @@ export class JobEngine {
   // ------------------------------------------------------------------ AUDIO (P4.09)
 
   /** Oxirgi `audio.ready` natijasi (PREFLIGHT compile kontekstiga). */
+  /** Loyihadagi shu plan versiyasi uchun oxirgi AUDIO natijasi (MCP preflight uchun). */
+  async audioReadyFor(projectId: string, planVersion: number): Promise<CompileAudio | null> {
+    const rows = await this.ctx.db
+      .select({ data: jobEvents.data })
+      .from(jobEvents)
+      .innerJoin(jobs, eq(jobs.id, jobEvents.jobId))
+      .where(and(eq(jobs.projectId, projectId), eq(jobEvents.type, "audio.ready")))
+      .orderBy(desc(jobEvents.id))
+      .limit(20);
+    for (const row of rows) {
+      const data = row.data as { compile?: CompileAudio; plan_version?: number } | null;
+      if (data?.compile !== undefined && data.plan_version === planVersion) return data.compile;
+    }
+    return null;
+  }
+
   private async audioReady(job: JobRow): Promise<CompileAudio | null> {
     const [row] = await this.ctx.db
       .select({ data: jobEvents.data })

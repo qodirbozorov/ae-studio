@@ -39,7 +39,12 @@ interface MissingRef {
 }
 
 /** Spec + joriy assetlar → oplist (job yaratmasdan). */
-async function dryCompile(ctx: ToolContext, project: ProjectRow, spec: VideoSpec) {
+async function dryCompile(
+  ctx: ToolContext,
+  project: ProjectRow,
+  spec: VideoSpec,
+  planVersion: number,
+) {
   const assets = await compileAssets(ctx.app.db, project.id);
   const missing: MissingRef[] = [];
   for (const key of collectAssetRefs(spec)) {
@@ -51,8 +56,16 @@ async function dryCompile(ctx: ToolContext, project: ProjectRow, spec: VideoSpec
   }
   const version = await ctx.engine.nextAepVersion(project.id);
   const projectPath = aepPath(project, version);
-  const compiled = compile(spec, { assets, projectPath, version });
-  return { missing, projectPath, compiled };
+  // TTS-first: AUDIO natijasi bor bo'lsa sahna vaqtlari voiceover'dan; bo'lmasa vaqt AUDIO'dan keyin aniqlanadi.
+  const audio = await ctx.engine.audioReadyFor(project.id, planVersion);
+  const compiled = compile(spec, {
+    assets,
+    projectPath,
+    version,
+    ...(audio === null ? {} : { audio }),
+  });
+  const pendingAudio = audio === null && spec.scenes.some((scene) => typeof scene.dur === "string");
+  return { missing, projectPath, compiled, pendingAudio };
 }
 
 async function loadSpec(
@@ -162,11 +175,22 @@ export const buildTools = [
       if (!project.ok) return project;
       const plan = await loadSpec(ctx, project.data, input.plan_version);
       if (!plan.ok) return plan;
-      const { missing, projectPath, compiled } = await dryCompile(
+      const { missing, projectPath, compiled, pendingAudio } = await dryCompile(
         ctx,
         project.data,
         plan.data.spec,
+        plan.data.version,
       );
+      if (pendingAudio && missing.length === 0) {
+        return ok({
+          ready: true,
+          pending_audio: true,
+          plan_version: plan.data.version,
+          missing,
+          aep_path: projectPath,
+          note: "Sahna vaqtlari voiceover'dan (vo:a-b): build'ning AUDIO bosqichida aniqlanadi",
+        });
+      }
       if (!compiled.ok && missing.length === 0) return compiled;
       return ok({
         ready: compiled.ok && missing.length === 0,
@@ -210,11 +234,30 @@ export const buildTools = [
       if (input.dry_run) {
         const plan = await loadSpec(ctx, project.data, input.plan_version);
         if (!plan.ok) return plan;
-        const { missing, projectPath, compiled } = await dryCompile(
+        const { missing, projectPath, compiled, pendingAudio } = await dryCompile(
           ctx,
           project.data,
           plan.data.spec,
+          plan.data.version,
         );
+        if (!compiled.ok && pendingAudio) {
+          // Vaqtlar voiceover'dan: oplar AUDIO'dan keyin aniqlanadi, lekin audio narxi hozir ma'lum.
+          const pendingPlan = planAudioTasks(plan.data.spec, {
+            videoDuration: null,
+            dictionaries: await dictionaries(ctx, ctx.userId),
+          });
+          const pendingCredits = await estimateWithQuota(ctx, pendingPlan);
+          return ok({
+            dry_run: true,
+            pending_audio: true,
+            plan_version: plan.data.version,
+            missing,
+            aep_path: projectPath,
+            credits: pendingCredits.total,
+            audio: pendingCredits,
+            note: "Sahna vaqtlari va oplar AUDIO bosqichidan keyin aniqlanadi (TTS-first)",
+          });
+        }
         if (!compiled.ok) return compiled;
         const byOp = compiled.data.ops.reduce<Record<string, number>>((acc, op) => {
           acc[op.op] = (acc[op.op] ?? 0) + 1;

@@ -23,10 +23,14 @@ export function freePort(): Promise<number> {
   });
 }
 
-export async function start(port?: number, db?: TestApp["db"]) {
+export async function start(
+  port?: number,
+  db?: TestApp["db"],
+  extra: Parameters<typeof createTestApp>[2] = {},
+) {
   const listenPort = port ?? (await freePort());
   const base = `http://127.0.0.1:${listenPort}`;
-  const app = await createTestApp({ PUBLIC_URL: base }, db);
+  const app = await createTestApp({ PUBLIC_URL: base }, db, extra);
   await app.app.listen({ port: listenPort, host: "127.0.0.1" });
   return { app, base };
 }

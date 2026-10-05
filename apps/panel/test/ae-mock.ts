@@ -434,7 +434,13 @@ export class MockFile {
     private readonly realDisk = false,
   ) {}
   get exists(): boolean {
-    return this.fs.has(this.fsName);
+    if (this.fs.has(this.fsName)) return true;
+    // realDisk: panel yuklab olgan audio (ElevenLabs) fayllarini ham AE "ko'radi".
+    if (this.realDisk && /\.(mp3|wav|ogg|m4a)$/i.test(this.fsName) && existsSync(this.fsName)) {
+      this.fs.set(this.fsName, { hasVideo: false, hasAudio: true, duration: 5 });
+      return true;
+    }
+    return false;
   }
   get parent(): { exists: boolean; create(): boolean } {
     const dir = dirname(this.fsName);
