@@ -18,6 +18,7 @@ import { registerProjectRoutes } from "./projects/routes";
 import { registerHealth } from "./health";
 import { JobEngine } from "./jobs/engine";
 import { registerLive } from "./jobs/live";
+import { ClaudePresence } from "./mcp/presence";
 import { registerMcpRoutes } from "./mcp/routes";
 import { registerJobRoutes } from "./jobs/routes";
 import type { RedisLike } from "./redis";
@@ -132,7 +133,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   engine.attach();
   registerLive(ctx, engine, app.log);
   registerJobRoutes(app, ctx, engine);
-  registerMcpRoutes(app, ctx, engine);
+  const presence = new ClaudePresence(ctx, app.log);
+  presence.attach();
+  registerMcpRoutes(app, ctx, engine, { onRequest: (userId) => presence.touch(userId) });
   app.addHook("onReady", async () => {
     // DB hali tayyor bo'lmasa server baribir ko'tariladi (health 503 ko'rsatadi).
     try {

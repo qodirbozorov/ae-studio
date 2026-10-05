@@ -66,3 +66,19 @@ describe("LiveJobStore", () => {
     });
   });
 });
+
+describe("claudeIndicator", () => {
+  it("faol (15 daqiqa), ulangan, ulanmagan, noma'lum", async () => {
+    const { claudeIndicator } = await import("../src/agent/claude");
+    const now = Date.parse("2026-10-05T10:00:00Z");
+    expect(claudeIndicator(null, now)).toBe("unknown");
+    expect(claudeIndicator({ linked: false, last_seen_at: null }, now)).toBe("off");
+    expect(claudeIndicator({ linked: true, last_seen_at: null }, now)).toBe("linked");
+    expect(claudeIndicator({ linked: true, last_seen_at: "2026-10-05T09:50:00Z" }, now)).toBe(
+      "active",
+    );
+    expect(claudeIndicator({ linked: true, last_seen_at: "2026-10-05T09:40:00Z" }, now)).toBe(
+      "linked",
+    );
+  });
+});

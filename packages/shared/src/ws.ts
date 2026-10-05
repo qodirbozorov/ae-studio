@@ -116,6 +116,12 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
     fps: z.number().positive().max(240),
     duration: z.number().positive().max(36_000),
   }),
+  z.strictObject({
+    /** Panel holat qatoridagi Claude indikatori (§11.1): ulangan (faol token) va oxirgi MCP chaqiruvi. */
+    type: z.literal("claude.status"),
+    linked: z.boolean(),
+    last_seen_at: z.iso.datetime().nullable(),
+  }),
   z.strictObject({ type: z.literal("job.pause"), job_id: idSchema }),
   z.strictObject({ type: z.literal("job.cancel"), job_id: idSchema }),
   z.strictObject({

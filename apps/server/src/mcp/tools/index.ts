@@ -5,6 +5,7 @@ import { buildTools } from "./build";
 import { envTools } from "./env";
 import { projectTools } from "./projects";
 import { renderTools } from "./render";
+import { reportTools } from "./report";
 import { specTools } from "./spec";
 import { verifyTools } from "./verify";
 
@@ -15,5 +16,6 @@ export const TOOLS: readonly ToolDef[] = [
   ...buildTools,
   ...verifyTools,
   ...renderTools,
+  ...reportTools,
   ...specTools,
 ];

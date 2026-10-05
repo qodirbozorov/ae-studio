@@ -152,6 +152,17 @@ describe.skipIf(!FFMPEG_AVAILABLE)("job e2e: plan → server → panel → AE", 
     expect(readFileSync(join(root, ".aestudio", "report.v001.md"), "utf8")).toBe(
       report.data.markdown,
     );
+    // Tarix ekrani va Claude indikatori (P3.08).
+    const history = await p.agent.history();
+    expect(history[0]).toMatchObject({ id: jobId, state: "DONE", outcome: "success" });
+    expect(history[0]!.renders[0]).toMatchObject({ status: "done" });
+    expect(await p.agent.jobReport(jobId)).toBe(report.data.markdown);
+    const claude = await eventually(
+      async () => p.agent.claude.current(),
+      (status) => status?.linked === true,
+    );
+    expect(claude?.last_seen_at).not.toBeNull();
+
     expect(
       await eventually(
         async () => p.agent.live.current()?.state,

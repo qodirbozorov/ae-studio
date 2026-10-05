@@ -255,6 +255,11 @@ const SERVER_MESSAGES: Record<string, unknown> = {
     fps: 30,
     duration: 9.5,
   },
+  "claude.status": {
+    type: "claude.status",
+    linked: true,
+    last_seen_at: "2026-10-05T10:00:00.000Z",
+  },
   "job.pause": { type: "job.pause", job_id: "job-1" },
   "job.cancel": { type: "job.cancel", job_id: "job-1" },
   "job.update": {

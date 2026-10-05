@@ -17,6 +17,7 @@ import { uploadFile } from "./files";
 import { getJson, postJson } from "./http";
 import { scanSource } from "./ingest";
 import type { ScannedAsset } from "./ingest";
+import { ClaudeStatusStore } from "./claude";
 import { LiveJobStore } from "./live";
 import type { LiveEvent } from "./live";
 import { LogStore } from "./log";
@@ -65,12 +66,30 @@ export interface Pairing {
 /** Live ekrani tugmalari (P2.12). */
 export type PanelJobAction = "pause" | "resume" | "cancel" | "undo";
 
+/** Tarix ekrani (P3.08): shu qurilmadagi job. */
+export interface HistoryJob {
+  id: string;
+  project_name: string;
+  state: string;
+  outcome: string | null;
+  plan_version: number;
+  aep_path: string | null;
+  created_at: string;
+  renders: { id: string; status: string; preset: string; local_path: string }[];
+}
+
 export interface Agent {
   log: LogStore;
   /** Aktiv job holati va hodisalari (Live ekrani). */
   live: LiveJobStore;
   /** Live ekranidagi Pause / Resume / Cancel / Undo last. */
   jobAction(action: PanelJobAction): Promise<{ ok: boolean; message?: string }>;
+  /** Claude indikatori (serverdan). */
+  claude: ClaudeStatusStore;
+  /** Tarix ekrani: joblar, hisobot, qayta render. */
+  history(): Promise<HistoryJob[]>;
+  jobReport(jobId: string): Promise<string | null>;
+  renderAgain(jobId: string, preset?: string): Promise<{ ok: boolean; message?: string }>;
   bridge: AeBridge;
   runner: OpRunner;
   getRoot(): string;
@@ -108,6 +127,7 @@ export function createAgent(options: AgentOptions): Agent {
   const panelVersion = options.panelVersion ?? "0.0.0";
   const log = new LogStore();
   const live = new LiveJobStore();
+  const claude = new ClaudeStatusStore();
   /** Joriy ulanishning HTTP manzili va tokeni (Live tarixi va amallar uchun). */
   let api: { base: string; token: string } | null = null;
   const bridge = createAeBridge({ evalScript: options.evalScript, jsxPath: options.jsxPath });
@@ -218,6 +238,9 @@ export function createAgent(options: AgentOptions): Agent {
       }
       case "job.pause":
         log.add({ level: "info", message: "⏸ Pauza: joriy op tugagach to'xtaydi" });
+        return;
+      case "claude.status":
+        claude.set({ linked: message.linked, last_seen_at: message.last_seen_at });
         return;
       case "job.cancel":
         log.add({ level: "warn", message: "⏹ Job bekor qilindi" });
@@ -372,9 +395,43 @@ export function createAgent(options: AgentOptions): Agent {
     });
   }
 
+  const authed = () => {
+    if (api === null) throw new Error("Panel serverga ulanmagan");
+    return { base: api.base, headers: { authorization: `Bearer ${api.token}` } };
+  };
+
   const agent: Agent = {
     log,
     live,
+    claude,
+    async history() {
+      const { base, headers } = authed();
+      const res = await getJson<{ ok: boolean; data?: HistoryJob[] }>(`${base}/api/agent/jobs`, {
+        headers,
+      });
+      return res.body.ok ? (res.body.data ?? []) : [];
+    },
+    async jobReport(jobId) {
+      const { base, headers } = authed();
+      const res = await getJson<{ ok: boolean; data?: { markdown: string } }>(
+        `${base}/api/agent/jobs/${jobId}/report`,
+        { headers },
+      );
+      return res.body.ok ? (res.body.data?.markdown ?? null) : null;
+    },
+    async renderAgain(jobId, preset) {
+      const { base, headers } = authed();
+      const res = await postJson<{ ok: boolean; error?: { message?: string; hint?: string } }>(
+        `${base}/api/agent/jobs/${jobId}/render`,
+        preset === undefined ? {} : { preset },
+        { headers },
+      );
+      if (res.body.ok) return { ok: true };
+      return {
+        ok: false,
+        message: res.body.error?.message ?? res.body.error?.hint ?? `HTTP ${res.status}`,
+      };
+    },
     async jobAction(action) {
       const job = live.current();
       if (api === null || job === null) return { ok: false, message: "Aktiv job yo'q" };
@@ -484,6 +541,8 @@ export function createAgent(options: AgentOptions): Agent {
 export { PairingError };
 export type { Credentials } from "./credentials";
 export type { EvalScript } from "./ae-bridge";
+export type { ClaudeIndicator, ClaudeStatus } from "./claude";
+export { claudeIndicator } from "./claude";
 export type { LiveEvent, LiveJob } from "./live";
 export type { LogEntry } from "./log";
 export type { OpOutcome, RunnerEvent } from "./op-runner";

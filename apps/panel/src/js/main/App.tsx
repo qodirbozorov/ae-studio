@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { claudeIndicator } from "../../agent/claude";
 import pkg from "../../../package.json";
 import { getAgent } from "../lib/agent";
 import { hostEnvironment, isCep, panelBackground } from "../lib/cep";
 import { Connection, useConnectionStatus } from "./Connection";
 import { DevTools } from "./DevTools";
+import { History } from "./History";
 import { Live } from "./Live";
 import { LiveLog } from "./LiveLog";
 import { Settings, Workspace } from "./Workspace";
@@ -16,6 +18,33 @@ function Dot({ status }: { status: Status }) {
 }
 
 const SERVER_DOT: Record<string, Status> = { connected: "ok", disconnected: "off" };
+
+const CLAUDE_DOT: Record<string, Status> = { active: "ok", linked: "ok", off: "off" };
+const CLAUDE_TEXT: Record<string, string> = {
+  active: "Claude (faol)",
+  linked: "Claude (ulangan)",
+  off: "Claude ulanmagan",
+  unknown: "Claude",
+};
+
+function ClaudeStatus({ agent }: { agent: NonNullable<ReturnType<typeof getAgent>> }) {
+  const status = useSyncExternalStore(
+    (notify) => agent.claude.subscribe(notify),
+    () => agent.claude.current(),
+  );
+  // Faollik vaqt o'tishi bilan o'zgaradi: daqiqada bir qayta hisoblanadi.
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => tick((n) => n + 1), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  const indicator = claudeIndicator(status);
+  return (
+    <div>
+      <Dot status={CLAUDE_DOT[indicator] ?? "unknown"} /> {CLAUDE_TEXT[indicator]}
+    </div>
+  );
+}
 
 function ServerStatus({ agent }: { agent: NonNullable<ReturnType<typeof getAgent>> }) {
   const status = useConnectionStatus(agent);
@@ -53,9 +82,13 @@ export function App() {
         <div>
           <Dot status={isCep() ? "ok" : "off"} /> AE {host ? host.appVersion : "(CEP tashqarisida)"}
         </div>
-        <div>
-          <Dot status="unknown" /> Claude
-        </div>
+        {agent === null ? (
+          <div>
+            <Dot status="unknown" /> Claude
+          </div>
+        ) : (
+          <ClaudeStatus agent={agent} />
+        )}
         <div>
           <Dot status="unknown" /> ElevenLabs
         </div>
@@ -80,6 +113,7 @@ function ConnectionPanel({ agent }: { agent: NonNullable<ReturnType<typeof getAg
       <Connection agent={agent} status={status} />
       <Workspace agent={agent} connected={status === "connected"} />
       <Live agent={agent} />
+      <History agent={agent} connected={status === "connected"} />
       <DevTools agent={agent} />
       <Settings agent={agent} onChange={(s) => setLogLevel(s.log_level)} />
       <LiveLog store={agent.log} minLevel={logLevel} />

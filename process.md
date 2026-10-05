@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 3 — Claude loop'i · jarayonda (7/12)
-- **Oxirgi bajarilgan:** P3.07 — RENDER (2026-10-05)
-- **Keyingi todo:** P3.08 — report_get, panel Tarix ekrani, Claude indikatori
+- **Faza:** 3 — Claude loop'i · jarayonda (8/12)
+- **Oxirgi bajarilgan:** P3.08 — report_get, Tarix ekrani, Claude indikatori (2026-10-05)
+- **Keyingi todo:** P3.09 — MCP prompt /new-reel
 - **Blokerlar:** 👤 AE kompyuterida: ZXP, kabinet kodi bilan ulanish, Live/Undo, AE'ni o'rtada yopib-ochish · 👤 RESEND_API_KEY (magic link hozir server logida)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -723,3 +723,32 @@
   Repo 335 ✅, panel build ✅.
 - **👤 AE'da:** haqiqiy `aerender` (AE 2022+) va output module default'i (AE 23+ da H.264) bilan oraliq fayl; kerak bo'lsa `render_om_template` sozlamasi.
 - **Keyingi:** P3.08 (report_get, Tarix ekrani, Claude indikatori)
+
+### 2026-10-05 · P3.08 — To'liq REPORT va Tarix ekrani · ✅ (AE'da ko'rish 👤)
+- **MCP:**
+  - **`report_get`:** yakuniy markdown, outcome, `.aep` yo'li, tayyor videolar. REPORT'gacha `JOB_BAD_ACTION` (holat bilan).
+  - Hisobot P3.07 dan beri `Video: out/…mp4` qatorlarini ham o'z ichiga oladi.
+- **Claude indikatori (`mcp/presence.ts`):**
+  - `linked`: user'da faol OAuth access yoki refresh token bor; `last_seen_at`: oxirgi MCP so'rovi.
+  - Server bu holatni panelga ikki holatda yuboradi: `hello` paytida va MCP so'rovida (30 s da ko'pi bilan bir marta).
+  - Yangi WS xabari: `claude.status`.
+- **Panel endpointlari (qurilma tokeni, faqat o'z joblari):**
+  - `GET /api/agent/jobs` (loyiha nomi, `.aep` yo'li, renderlar);
+  - `GET /api/agent/jobs/:id/report`;
+  - `POST /api/agent/jobs/:id/render` (qayta render, preset bilan).
+- **Panel:**
+  - **Agent:** `claude` store, `history()`, `jobReport()`, `renderAgain()`.
+  - **`claude.ts`:** `claudeIndicator` sof modul — UI uni Node kodisiz import qiladi (UI bundle'ga agent tushmaydi).
+  - **`History.tsx`:** joblar ro'yxati (natija belgisi, holat, plan versiyasi, vaqt, `.aep`, video), hisobotni ochish/yopish, DONE job uchun "Qayta render", yangilash tugmasi.
+  - **Holat qatori:** Claude 🟢 — faol (15 daqiqa ichida chaqiruv) yoki ulangan; 🔴 — ulanmagan.
+- **Tekshiruv:**
+  - `history.test.ts` 4 ta:
+    - `claude.status`: hello'da ulanmagan, MCP'dan keyin `linked` + vaqt, 30 s throttle;
+    - `report_get` REPORT'gacha va keyin;
+    - Tarix, hisobot va qayta render qurilma tokeni bilan; noto'g'ri preset; tokensiz → 401;
+    - boshqa qurilma begona job'ni ko'rmaydi.
+  - `live.test.ts`: `claudeIndicator`.
+  - `job.e2e`: haqiqiy agent bilan `history()`, `jobReport()` va Claude store (`linked`).
+
+  Panel build ✅. Repo testlari ✅.
+- **Keyingi:** P3.09 (MCP prompt `/new-reel`)

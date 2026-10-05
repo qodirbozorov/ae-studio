@@ -249,3 +249,25 @@ select {
   max-height: 160px;
   margin-top: 8px;
 }
+
+.history li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.report {
+  max-height: 220px;
+  margin: 6px 0 0;
+  padding: 8px;
+  overflow: auto;
+  background: #1b1b1b;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: pre-wrap;
+  user-select: text;
+}

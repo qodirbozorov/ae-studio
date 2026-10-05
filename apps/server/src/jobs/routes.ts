@@ -2,7 +2,7 @@
  * Plan va job API (kabinet; Faza 3 dagi MCP toollari ham shu engine'ni chaqiradi).
  * Panel (qurilma tokeni) o'z aktiv job'ini boshqarishi uchun `/api/agent/jobs/*` (Live ekrani, P2.12).
  */
-import { JOB_ACTIONS, PANEL_JOB_ACTIONS, fail, ok } from "@aes/shared";
+import { JOB_ACTIONS, OUTPUT_PRESETS, PANEL_JOB_ACTIONS, fail, ok } from "@aes/shared";
 import type { Result } from "@aes/shared";
 import { and, asc, desc, eq, gt } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -11,6 +11,7 @@ import { requireUser } from "../auth/session";
 import type { AppContext } from "../context";
 import { jobEvents, jobs, plans, projects, reports } from "../db/schema";
 import { authenticateDevice } from "../devices/routes";
+import { aepPath } from "./engine";
 import type { JobEngine, JobRow } from "./engine";
 
 const planSchema = z.strictObject({ spec: z.unknown() });
@@ -204,6 +205,65 @@ export function registerJobRoutes(app: FastifyInstance, ctx: AppContext, engine:
       await reply.code(401).send(fail("AUTH_DEVICE_REVOKED", "Qurilma tokeni yaroqsiz"));
     }
   };
+
+  /** Tarix ekrani (§11.1): shu qurilmadagi oxirgi joblar. */
+  app.get("/api/agent/jobs", { preHandler: deviceAuth }, async (request) => {
+    const rows = await ctx.db
+      .select({ job: jobs, project: projects })
+      .from(jobs)
+      .innerJoin(projects, eq(projects.id, jobs.projectId))
+      .where(eq(jobs.deviceId, request.device!.deviceId))
+      .orderBy(desc(jobs.createdAt))
+      .limit(30);
+    return ok(
+      await Promise.all(
+        rows.map(async ({ job, project }) => ({
+          ...(await presentJob(engine, job)),
+          project_name: project.name,
+          aep_path: job.aepVersion === null ? null : aepPath(project, job.aepVersion),
+          renders: (await engine.rendersOf(job.id)).map((render) => ({
+            id: render.id,
+            status: render.status,
+            preset: render.preset,
+            local_path: render.localPath,
+          })),
+        })),
+      ),
+    );
+  });
+
+  async function deviceJob(request: FastifyRequest): Promise<JobRow | null> {
+    const id = (request.params as { id: string }).id;
+    const job = uuid.safeParse(id).success ? await engine.get(id) : null;
+    return job !== null && job.deviceId === request.device!.deviceId ? job : null;
+  }
+
+  app.get("/api/agent/jobs/:id/report", { preHandler: deviceAuth }, async (request, reply) => {
+    const job = await deviceJob(request);
+    if (job === null) return notFound(reply, "Job");
+    const [row] = await ctx.db
+      .select()
+      .from(reports)
+      .where(eq(reports.jobId, job.id))
+      .orderBy(desc(reports.createdAt))
+      .limit(1);
+    if (row === undefined) return notFound(reply, "Hisobot");
+    return ok({ markdown: row.markdown, created_at: row.createdAt });
+  });
+
+  /** Tarix ekranidagi "Qayta render". */
+  app.post("/api/agent/jobs/:id/render", { preHandler: deviceAuth }, async (request, reply) => {
+    const job = await deviceJob(request);
+    if (job === null) return notFound(reply, "Job");
+    const body = z
+      .strictObject({ preset: z.enum(OUTPUT_PRESETS).optional() })
+      .safeParse(request.body ?? {});
+    if (!body.success) return reply.code(400).send(fail("SYS_BAD_REQUEST", "preset noto'g'ri"));
+    const result = await engine.renderAgain(job.id, body.data.preset);
+    if (!result.ok)
+      return reply.code(result.error.code === "ENV_AGENT_OFFLINE" ? 503 : 409).send(result);
+    return ok(result.data);
+  });
 
   /** Panel ochilganda: shu qurilmadagi aktiv job (Live ekrani). */
   app.get("/api/agent/jobs/active", { preHandler: deviceAuth }, async (request) => {
