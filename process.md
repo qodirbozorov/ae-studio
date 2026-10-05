@@ -13,7 +13,7 @@
 - **Faza:** 2 — Yadro · kod qismi to'liq (14/14), AE bandlari 👤 · Faza 3 navbatda
 - **Oxirgi bajarilgan:** P2.14 — Faza 2 gate: kod va prod qismi ✅ (2026-10-05)
 - **Keyingi todo:** Faza 3 — P3.01 (ae-studio-phases.md dagi birinchi [ ] todo)
-- **Blokerlar:** 👤 AE kompyuterida: ZXP, kabinet kodi bilan ulanish, Live/Undo, AE'ni o'rtada yopib-ochish · 👤 RESEND_API_KEY (magic link hozir server logida) · git remote URL yo'q (push qilinmagan)
+- **Blokerlar:** 👤 AE kompyuterida: ZXP, kabinet kodi bilan ulanish, Live/Undo, AE'ni o'rtada yopib-ochish · 👤 RESEND_API_KEY (magic link hozir server logida)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
 - **Bash tool eslatmasi:** shu sessiyada PATH yangilanmagan, har buyruq oldidan: `export PATH="/c/Users/991106847/AppData/Local/Programs/nodejs:/c/Users/991106847/AppData/Local/Programs/ffmpeg/bin:$PATH"`
