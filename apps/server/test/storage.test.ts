@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { LocalStorage} from "../src/storage";
+import type { LocalStorage } from "../src/storage";
 import { S3Storage, isValidKey, storageKey } from "../src/storage";
 import { createTestApp } from "./helpers/app";
 import type { TestApp } from "./helpers/app";
