@@ -10,11 +10,11 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 1 — Poydevor · 12/14 kod tayyor; P1.08 va P1.14 👤 kutmoqda
-- **Oxirgi bajarilgan:** P1.14 gate kod qismi + ZXP (2026-10-05)
-- **Keyingi todo:** P1.08 Railway deploy (👤 tasdiq) → P1.14 AE'da sinov (👤) → Faza 2 (P2.01)
+- **Faza:** 2 — Yadro · jarayonda (1/14); Faza 1 gate'ining AE/Railway bandlari ochiq
+- **Oxirgi bajarilgan:** P2.01 — web login, magic link (2026-10-05)
+- **Keyingi todo:** P2.02 — web kabinet skeleti
 - **Blokerlar:** 👤 Railway'da servislar yaratishga tasdiq · 👤 AE kompyuterida ZXP sinovi · git remote URL yo'q (push qilinmagan)
-- **Ochiq qarorlar:** Q2–Q5, Q7–Q10 (phases §9). Yopilgan: Q1 (ws paketi + Authorization header), Q6 (zod v4)
+- **Ochiq qarorlar:** Q3–Q5, Q7–Q10. Yopilgan: Q1, Q2 (magic link), Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
 - **Bash tool eslatmasi:** shu sessiyada PATH yangilanmagan, har buyruq oldidan: `export PATH="/c/Users/991106847/AppData/Local/Programs/nodejs:/c/Users/991106847/AppData/Local/Programs/ffmpeg/bin:$PATH"`
 - **Muhim yo'llar / URL'lar:** Node `%LOCALAPPDATA%\Programs\nodejs` · ffmpeg `%LOCALAPPDATA%\Programs\ffmpeg\bin` · Railway URL hali yo'q
@@ -55,6 +55,9 @@
 | 2026-10-05 | P1.09 | Agent (Node) alohida esbuild bundle (dist/cep/agent/agent.cjs), UI uni CEP Node require bilan yuklaydi; CSInterface vendor qilinmaydi | `ws` va Node API brauzer bundle'iga aralashmaydi; agent Node'da test qilinadi |
 | 2026-10-05 | P1.09 | vitest maxWorkers: 1 | Dev kompyuterda xotira kam, parallel worker'lar crash beradi |
 | 2026-10-05 | P1.13 | **Q1 yopildi:** panel WS — CEP Node'dagi sof-JS `ws` paketi, `Authorization: Bearer` header bilan (agent.cjs ichiga bundle qilinadi) | Brauzer WebSocket header qo'ya olmaydi; e2e test va bundle sinovidan o'tdi |
+| 2026-10-05 | P2.01 | Faza 1 gate'i (AE va Railway bandlari) ochiq qolgan holda Faza 2 boshlandi | Foydalanuvchi: 'test qilib ko'rishni imkoni bo'lmadi, qolgan ishlarni davom ettiraver' |
+| 2026-10-05 | P2.01 | **Q2 yopildi:** web login — email magic link; xatlar Resend API orqali (`RESEND_API_KEY`), kalit bo'lmasa dev rejimda havola logga chiqadi | Eng sodda, Google OAuth client shart emas |
+| 2026-10-05 | P2.01 | Sessiyalar JWT emas, DB'dagi opaque token (sha256 hash, cookie) | Darhol bekor qilish mumkin, kalit boshqaruvi yo'q; JWT_SIGNING_KEY hozircha ishlatilmaydi |
 
 ---
 
@@ -190,3 +193,17 @@
 - **Kutilmoqda:** (1) 👤 P1.08 Railway deploy uchun tasdiq → `/health` va Railway'dan `op.run`; (2) 👤 AE kompyuterida: ZXP o'rnatish → panel tugmalari va `ae-smoke.jsx` natijasi.
 - **Eslatma:** bu muhitda `NoDefaultCurrentDirectoryInExePath=1` bor, shuning uchun ZXP faqat `env -u NoDefaultCurrentDirectoryInExePath pnpm --filter @aes/panel zxp` bilan quriladi. Oddiy terminalda `pnpm zxp` yetarli. ZXP org nomi bo'sh joysiz (`AEStudio`). `.debug` fayli ZXP ichida qoladi, uni production'da olib tashlash (P5.10) qarz sifatida yozildi.
 - **Keyingi:** 👤 javoblar: Railway tasdig'i va git remote URL
+
+### 2026-10-05 · P2.01 — Web login (email magic link) · ✅ (Resend kaliti 👤 keyin)
+- **Kontekst:** foydalanuvchi AE sinovini o'tkaza olmadi va "qolgan ishlarni davom ettir" dedi. Faza 1 gate'ining AE/Railway bandlari ochiq qoldi, Faza 2 boshlandi.
+- **Qilindi:**
+  - `auth/tokens.ts`: opaque tokenlar; DB'da faqat sha256 saqlanadi. `issue/findActive/consume` (atomar, bir martalik) va `revoke`.
+  - `auth/mailer.ts`: `RESEND_API_KEY` bo'lsa Resend, bo'lmasa logga chiqaradi; testlar uchun `MemoryMailer`.
+  - `auth/session.ts`: `aes_session` HttpOnly cookie, Lax, https'da Secure, 30 kun. `request.user` to'ldiriladi, `requireUser` → 401 `AUTH_EXPIRED`.
+  - `auth/routes.ts`:
+    - `POST /api/auth/magic-link`: havola 15 daqiqa amal qiladi, bir email'ga 30 s'da bitta; javob email mavjudligini oshkor qilmaydi.
+    - `GET /api/auth/verify`: havola bir marta ishlatiladi; user topiladi yoki yaratiladi; sessiya ochilib, faqat ichki `next` ga 303 qaytaradi (open redirect yo'q).
+    - `GET /api/me`, `POST /api/auth/logout`.
+  - `context.ts` (AppContext + `now` soat). Env: `RESEND_API_KEY`, `MAIL_FROM`.
+- **Tekshiruv:** `auth.test.ts` 6 ta (to'liq oqim, bir martalik va eskirish, hash saqlash, rate limit, open redirect, email normalizatsiyasi). Server 29/29 · typecheck · lint · prettier ✅.
+- **Keyingi:** P2.02

@@ -99,7 +99,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 
 **Maqsad:** xavfsiz va doimiy ulanish; joblarni server boshqaradi: `plan.json` → compiler → oplar → AE.
 
-- [ ] **P2.01 — Web login.** ❓ 👤 usulni tanlash: email magic link (Resend/SMTP kaliti) yoki Google OAuth (client ID) (Q2). `users`, sessiya (`JWT_SIGNING_KEY`); dev rejimda link logga chiqadi.
+- [x] **P2.01 — Web login.** ❓ 👤 usulni tanlash: email magic link (Resend/SMTP kaliti) yoki Google OAuth (client ID) (Q2). `users`, sessiya (`JWT_SIGNING_KEY`); dev rejimda link logga chiqadi.
   - Tayyor: login/logout ishlaydi, sessiya testlari bor.
 - [ ] **P2.02 — Web kabinet skeleti (§4.3).** `apps/web` (React + Vite): login, device kodni tasdiqlash, ulangan qurilmalar (revoke). Kabinetni server static qilib beradi; `/api/*` REST sessiya bilan ishlaydi.
   - Tayyor: kabinet Railway'da ochiladi.
