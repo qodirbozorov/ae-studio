@@ -10,10 +10,10 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 1 — Poydevor · 12/14 (P1.08 👤 tasdiq kutmoqda, P1.14 gate)
-- **Oxirgi bajarilgan:** P1.13 — dev WS server ↔ panel agent (2026-10-05)
-- **Keyingi todo:** P1.08 Railway deploy (👤 tasdiq) → P1.14 gate
-- **Blokerlar:** git remote yo'q (push uchun repo URL kerak) · P1.08 Railway uchun tasdiq kerak
+- **Faza:** 1 — Poydevor · 12/14 kod tayyor; P1.08 va P1.14 👤 kutmoqda
+- **Oxirgi bajarilgan:** P1.14 gate kod qismi + ZXP (2026-10-05)
+- **Keyingi todo:** P1.08 Railway deploy (👤 tasdiq) → P1.14 AE'da sinov (👤) → Faza 2 (P2.01)
+- **Blokerlar:** 👤 Railway'da servislar yaratishga tasdiq · 👤 AE kompyuterida ZXP sinovi · git remote URL yo'q (push qilinmagan)
 - **Ochiq qarorlar:** Q2–Q5, Q7–Q10 (phases §9). Yopilgan: Q1 (ws paketi + Authorization header), Q6 (zod v4)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
 - **Bash tool eslatmasi:** shu sessiyada PATH yangilanmagan, har buyruq oldidan: `export PATH="/c/Users/991106847/AppData/Local/Programs/nodejs:/c/Users/991106847/AppData/Local/Programs/ffmpeg/bin:$PATH"`
@@ -183,3 +183,10 @@
   - **UI:** `Connection` (URL + token, localStorage), 🟢/🔴 Server indikatori.
 - **Tekshiruv:** `dev-ws.e2e.test.ts` (haqiqiy Fastify port + haqiqiy `ws` + haqiqiy jsx bundle mock AE'da): `POST /dev/op` → AE'da comp va matn yaratiladi → javob; AE xatosi tasniflangan holda qaytadi; panel yo'q → 503; noto'g'ri token → 401 (HTTP va WS); server o'chib qayta yonsa agent o'zi qayta ulanadi. Build qilingan `agent.cjs` (536 KB, `ws` ichida) oddiy Node'da haqiqiy server jarayoniga ulandi va `/dev/op` → 200. Repo 164/164 · typecheck · lint · prettier ✅.
 - **Keyingi:** P1.14 (gate). P1.08 Railway 👤 tasdiq kutmoqda.
+
+### 2026-10-05 · P1.14 — 🧪 Faza 1 gate · ⚠️ qisman (kod qismi ✅, Railway va AE 👤 kutilmoqda)
+- **Kod darajasida o'tdi:** `pnpm test` 164/164; typecheck (shared, compiler, server, panel UI, agent@node16, jsx@ES3); lint; prettier. E2E zanjir (server WS ↔ agent ↔ jsx mock AE) avtomatik testda ishlaydi. Server bundle haqiqiy Postgres protokoli bilan `/health` (db=ok) qaytaradi.
+- **Sinov uchun tayyor fayl:** `apps/panel/dist/zxp/com.aestudio.panel.zxp` (self-signed, DigiCert timestamp, `ZXPSignCmd -verify` → OK; ichida agent, jsx, manifest, ikonkalar, `ae-smoke.jsx`). Ko'rsatma `docs/panel-install.md` da.
+- **Kutilmoqda:** (1) 👤 P1.08 Railway deploy uchun tasdiq → `/health` va Railway'dan `op.run`; (2) 👤 AE kompyuterida: ZXP o'rnatish → panel tugmalari va `ae-smoke.jsx` natijasi.
+- **Eslatma:** bu muhitda `NoDefaultCurrentDirectoryInExePath=1` bor, shuning uchun ZXP faqat `env -u NoDefaultCurrentDirectoryInExePath pnpm --filter @aes/panel zxp` bilan quriladi. Oddiy terminalda `pnpm zxp` yetarli. ZXP org nomi bo'sh joysiz (`AEStudio`). `.debug` fayli ZXP ichida qoladi, uni production'da olib tashlash (P5.10) qarz sifatida yozildi.
+- **Keyingi:** 👤 javoblar: Railway tasdig'i va git remote URL

@@ -88,7 +88,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P1.13 — Dev WS.** Server `/ws/agent` (vaqtinchalik dev token), panel WS klienti, `hello`/`hello_ack`, `ping`/`pong`, `op.run` → `op.started`/`op.done`/`op.failed`, `log`; dev endpoint `POST /dev/op`.
   - Tayyor: Railway'dagi serverdan yuborilgan op AE'da bajariladi, natija serverga qaytadi.
 - [ ] **P1.14 — 🧪 Faza 1 gate.**
-  - [ ] `pnpm test` o'tadi (M0)
+  - [x] `pnpm test` o'tadi (M0) — 164/164, 2026-10-05
   - [ ] `/health` Railway'da javob beradi (M0)
   - [ ] 👤 panel tugmasi AE'da comp + matn yaratadi va bu live logda ko'rinadi (M1)
   - [ ] Railway'dan yuborilgan `op.run` AE'da bajariladi (§17.5)

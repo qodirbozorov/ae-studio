@@ -43,7 +43,8 @@ const config: CEP_Config = {
   zxp: {
     country: "UZ",
     province: "Toshkent",
-    org: "AE Studio",
+    // ZXPSignCmd argumenti: bo'sh joysiz.
+    org: "AEStudio",
     // Self-signed sertifikat paroli (Q8). Tarqatish uchun ZXP_PASSWORD env bilan almashtiriladi.
     password: process.env.ZXP_PASSWORD ?? "aestudio-dev-cert",
     tsa: ["http://timestamp.digicert.com/", "http://timestamp.apple.com/ts01"],
