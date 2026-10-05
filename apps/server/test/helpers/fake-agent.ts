@@ -48,6 +48,11 @@ export class FakeAgent {
   /** `file.download` bilan "saqlangan" fayllar: dest → sha256 (ustiga yozilmaydi, panel kabi). */
   readonly files = new Map<string, string>();
   onOp: (op: OpEnvelope) => OpReaction | Promise<OpReaction> = () => "ok";
+  /** `asset.preview.request`: JPEG'ni to'g'ridan-to'g'ri storage'ga yozadi (berilsa). */
+  storage: { putBytes(key: string, data: Buffer, contentType?: string): Promise<void> } | null =
+    null;
+  /** Preview so'ralgan yo'llar. */
+  readonly previews: string[] = [];
   /** `project.open` (MCP project_create): loyihani ro'yxatdan o'tkazadi. */
   onProjectOpen:
     ((root: string) => Promise<{ id: string; name: string; root_path: string }>) | null = null;
@@ -136,6 +141,29 @@ export class FakeAgent {
           socket,
         );
       }
+    } else if (message.type === "asset.preview.request") {
+      this.previews.push(message.local_path);
+      if (this.storage === null) {
+        this.deliver(
+          {
+            type: "request.failed",
+            request_id: message.request_id,
+            error: makeError("ENV_FFMPEG_MISSING", "soxta agentda storage yo'q"),
+          },
+          socket,
+        );
+        return;
+      }
+      const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0xff, 0xd9]);
+      const files = [];
+      for (const upload of message.uploads.slice(
+        0,
+        message.mode === "image" ? 1 : message.uploads.length,
+      )) {
+        await this.storage.putBytes(upload.storage_key, jpeg, "image/jpeg");
+        files.push({ storage_key: upload.storage_key, time: null, size: jpeg.length });
+      }
+      this.deliver({ type: "asset.preview.ready", request_id: message.request_id, files }, socket);
     } else if (message.type === "project.open") {
       if (this.onProjectOpen === null) {
         this.deliver(

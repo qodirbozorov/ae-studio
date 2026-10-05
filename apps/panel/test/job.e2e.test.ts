@@ -10,6 +10,7 @@ import type { TestApp } from "../../server/test/helpers/app";
 import type { Agent } from "../src/agent/index";
 import type { CompItem } from "./ae-mock";
 import { createMockAE } from "./ae-mock";
+import { mcpSessionForDevice } from "../../server/test/helpers/mcp";
 import { eventually, pairedAgent, start } from "./e2e-helpers";
 import { FFMPEG_AVAILABLE, findFfmpegDir, makeSourceFolder } from "./media";
 
@@ -53,7 +54,7 @@ describe.skipIf(!FFMPEG_AVAILABLE)("job e2e: plan → server → panel → AE", 
     t = s.app;
     const root = mkdtempSync(join(tmpdir(), "aes-job-")).replace(/\\/g, "/");
     makeSourceFolder(root);
-    const ae = createMockAE();
+    const ae = createMockAE({ realDisk: true });
     const p = await pairedAgent(s.app, s.base, undefined, root, ae);
     agent = p.agent;
     p.agent.updateSettings({ ffmpeg_dir: findFfmpegDir() ?? null });
@@ -108,6 +109,17 @@ describe.skipIf(!FFMPEG_AVAILABLE)("job e2e: plan → server → panel → AE", 
     const types = p.agent.live.events().map((e) => e.type);
     expect(types).toContain("ingest.done");
     expect(types).toContain("build.done");
+
+    // VERIFY: Claude kadrlarni ko'radi (AE → PNG → panel ffmpeg → JPEG → MCP image).
+    const mcp = await mcpSessionForDevice(s.app, p.credentials.device_id);
+    const frames = await mcp.call("frames_capture", { job_id: jobId, max_px: 256 });
+    expect(frames.result.ok).toBe(true);
+    expect(frames.images.length).toBe(frames.result.data.frames.length);
+    expect(frames.images.length).toBeGreaterThan(1);
+    expect(Buffer.from(frames.images[0]!.data, "base64").subarray(0, 2).toString("hex")).toBe(
+      "ffd8",
+    );
+    expect(existsSync(join(root, frames.result.data.frames[0].path))).toBe(true);
 
     expect((await call("POST", `/api/jobs/${jobId}/actions`, { action: "approve" })).ok).toBe(true);
     const done = await eventually(

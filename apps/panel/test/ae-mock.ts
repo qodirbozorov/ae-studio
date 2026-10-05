@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 /**
  * After Effects object model'ining test uchun soddalashtirilgan nusxasi (faqat panel oplari ishlatadigan qismi).
  * Indekslar AE'dagidek 1 dan boshlanadi; yangi layer comp'ning tepasiga (1-indeks) qo'shiladi.
@@ -261,6 +263,9 @@ export class AVItem extends Item {
   ) {
     super(name);
   }
+  get frameDuration(): number {
+    return this.frameRate > 0 ? 1 / this.frameRate : 0;
+  }
 }
 
 export class FootageItem extends AVItem {
@@ -342,6 +347,12 @@ export class Layer {
 }
 
 export class CompItem extends AVItem {
+  /** `saveFrameToPng` chaqirilgan vaqtlar. */
+  readonly savedFrames: number[] = [];
+  saveFrameToPng(time: number, file: MockFile): void {
+    this.savedFrames.push(time);
+    file.writePng(this.width, this.height);
+  }
   bgColor: number[] = [0, 0, 0];
   pixelAspect = 1;
   readonly layersList: Layer[] = [];
@@ -386,13 +397,32 @@ export interface MediaMeta {
   hasAudio: boolean;
 }
 
+/** 1×1 PNG (mock `saveFrameToPng` haqiqiy diskka yozganda). */
+const PNG_1X1 = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "base64",
+);
+
 export class MockFile {
   constructor(
     readonly fsName: string,
     private readonly fs: Map<string, Partial<MediaMeta>>,
+    /** true — fayllar haqiqiy diskka ham yoziladi (e2e: panel ffmpeg ularni o'qiydi). */
+    private readonly realDisk = false,
   ) {}
   get exists(): boolean {
     return this.fs.has(this.fsName);
+  }
+  get length(): number {
+    return this.fs.has(this.fsName) ? PNG_1X1.length : -1;
+  }
+  /** `saveFrameToPng` natijasi. */
+  writePng(width: number, height: number): void {
+    this.fs.set(this.fsName, { width, height });
+    if (this.realDisk) {
+      mkdirSync(dirname(this.fsName), { recursive: true });
+      writeFileSync(this.fsName, PNG_1X1);
+    }
   }
   get name(): string {
     return this.fsName.split("/").pop() ?? this.fsName;
@@ -453,6 +483,8 @@ export function createMockAE(
     files?: Record<string, Partial<MediaMeta>>;
     /** AE 24+ `app.fonts` (berilmasa — eski AE kabi yo'q). */
     fonts?: string[];
+    /** Kadrlar haqiqiy diskka ham yozilsin (e2e). */
+    realDisk?: boolean;
   } = {},
 ): MockAE {
   const files = new Map(Object.entries(options.files ?? {}));
@@ -552,8 +584,22 @@ export function createMockAE(
     }
   }
   const FileCtor = function (this: unknown, path: string) {
-    return new MockFile(path, files);
+    return new MockFile(path, files, options.realDisk === true);
   } as unknown as new (path: string) => MockFile;
+  const folders = new Set<string>();
+  const FolderCtor = function (this: unknown, path: string) {
+    return {
+      fsName: path,
+      get exists() {
+        return folders.has(path);
+      },
+      create() {
+        folders.add(path);
+        if (options.realDisk === true) mkdirSync(path, { recursive: true });
+        return true;
+      },
+    };
+  } as unknown as new (path: string) => { exists: boolean; create(): boolean };
   if (options.fonts !== undefined) {
     (app as unknown as { fonts: unknown }).fonts = {
       allFonts: options.fonts.map((familyName) => [{ familyName }]),
@@ -564,8 +610,9 @@ export function createMockAE(
     files,
     globals: {
       app,
-      $: { os: "Windows/10 (mock)" },
+      $: { os: "Windows/10 (mock)", sleep: () => undefined },
       File: FileCtor,
+      Folder: FolderCtor,
       ImportOptions,
       ImportAsType,
       ParagraphJustification,

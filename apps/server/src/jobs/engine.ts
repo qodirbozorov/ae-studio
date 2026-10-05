@@ -565,6 +565,31 @@ export class JobEngine {
     for (const listener of this.listeners) listener.update?.(job, progress);
   }
 
+  /** Tashqi modullar (MCP VERIFY, render) uchun job log'iga yozuv. */
+  async note(
+    jobId: string,
+    level: LogLevel,
+    type: string,
+    message: string,
+    data?: unknown,
+  ): Promise<void> {
+    const job = await this.get(jobId);
+    if (job !== null)
+      await this.event(job, level, type, message, data === undefined ? {} : { data });
+  }
+
+  /** PREFLIGHT'da hisoblangan VERIFY kalit vaqtlari (oxirgi `preflight.ok` hodisasidan). */
+  async keyTimes(jobId: string): Promise<number[]> {
+    const [row] = await this.ctx.db
+      .select({ data: jobEvents.data })
+      .from(jobEvents)
+      .where(and(eq(jobEvents.jobId, jobId), eq(jobEvents.type, "preflight.ok")))
+      .orderBy(desc(jobEvents.id))
+      .limit(1);
+    const times = (row?.data as { key_times?: unknown } | null)?.key_times;
+    return Array.isArray(times) ? times.filter((t): t is number => typeof t === "number") : [];
+  }
+
   private async event(
     job: JobRow,
     level: LogLevel,

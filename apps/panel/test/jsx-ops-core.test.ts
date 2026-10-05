@@ -454,3 +454,50 @@ describe("info (ae_info)", () => {
     });
   });
 });
+
+describe("frames.capture (VERIFY)", () => {
+  it("kadrlar papkaga yoziladi, vaqt comp ichiga siqiladi, mavjud fayl ustiga yozilmaydi", async () => {
+    const h = await loadJsx(ae());
+    const run = (op: string, id: string, params: object) =>
+      h.run(op as never, id, params as never, { root: ROOT });
+    run("comp.create", "aes.main", { name: "Main", w: 1080, h: 1920, fps: 25, dur: 4 });
+    const res = run("frames.capture", "verify.frames.1", {
+      comp: "aes.main",
+      times: [0.5, 99],
+      dir: "frames/job-1",
+    });
+    expect(res).toMatchObject({
+      ok: true,
+      data: {
+        info: {
+          comp: "Main",
+          files: [
+            { time: 0.5, path: "frames/job-1/frame_01.png" },
+            { time: 3.96, path: "frames/job-1/frame_02.png" },
+          ],
+        },
+      },
+    });
+    expect(h.ae.files.has(`${ROOT}/frames/job-1/frame_01.png`)).toBe(true);
+    expect(h.ae.app.undoGroups).toEqual(["aes:aes.main"]);
+
+    const again = run("frames.capture", "verify.frames.2", {
+      comp: "aes.main",
+      times: [1],
+      dir: "frames/job-1",
+    });
+    expect(again).toMatchObject({ ok: false, error: { code: "AE_BAD_PARAMS" } });
+    const missing = run("frames.capture", "verify.frames.3", {
+      comp: "yoq",
+      times: [1],
+      dir: "frames/x",
+    });
+    expect(missing).toMatchObject({ ok: false, error: { code: "AE_NOT_FOUND" } });
+    const outside = run("frames.capture", "verify.frames.4", {
+      comp: "aes.main",
+      times: [1],
+      dir: "../x",
+    });
+    expect(outside).toMatchObject({ ok: false, error: { code: "ASSET_OUTSIDE_ROOT" } });
+  });
+});

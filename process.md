@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 3 — Claude loop'i · jarayonda (5/12)
-- **Oxirgi bajarilgan:** P3.05 — qurish toollari (2026-10-05)
-- **Keyingi todo:** P3.06 — VERIFY: frames.capture, frames_capture, verify_approve/patch
+- **Faza:** 3 — Claude loop'i · jarayonda (6/12)
+- **Oxirgi bajarilgan:** P3.06 — VERIFY kadrlar va patch sikli (2026-10-05)
+- **Keyingi todo:** P3.07 — RENDER (aerender, presetlar, renders jadvali)
 - **Blokerlar:** 👤 AE kompyuterida: ZXP, kabinet kodi bilan ulanish, Live/Undo, AE'ni o'rtada yopib-ochish · 👤 RESEND_API_KEY (magic link hozir server logida)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -80,6 +80,7 @@
 | 2026-10-05 | P3.02 | /mcp stateless (har so'rovga yangi Server, JSON javob), low-level SDK Server + zod v4 toJSONSchema; tool tavsiflari ingliz tilida, xato hint'lari o'zbekcha | Railway bitta nusxa, sessiya holati kerak emas; tavsiflar model uchun aniqroq |
 | 2026-10-05 | P3.03 | Q10 yopildi: ae_info shriftlarni app.fonts (AE 24+) dan oladi, yo'q bo'lsa fonts=null + izoh | Eski AE'da API yo'q, xato emas |
 | 2026-10-05 | P3.03 | project_create faqat mavjud papkani ochadi (subpapkalarni yaratadi), ildiz papkani yaratmaydi | Claude xato yo'l bilan foydalanuvchi diskida keraksiz papka yaratmasligi uchun |
+| 2026-10-05 | P3.06 | Q4 yopildi: patch — yangi plan versiyasi + yangi .aep vNNN da to'liq qayta qurish (joyida tahrir emas) | Yopiq op to'plamida o'chirish yo'q; eski fayl saqlanadi; nest dublikati xavfi yo'q |
 
 ---
 
@@ -641,3 +642,37 @@
 
   Repo ✅.
 - **Keyingi:** P3.06 (VERIFY: kadrlar va patch sikli)
+
+### 2026-10-05 · P3.06 — VERIFY: kadrlar va patch sikli · ✅ (AE'da `saveFrameToPng` 👤)
+- **jsx `frames.capture` (`ops/frames.ts`):**
+  - Comp op_id bo'yicha topiladi; papka ish papkasi ichida yaratiladi (`Folder.create`).
+  - Har vaqt uchun `comp.saveFrameToPng`. Bu API hujjatlashtirilmagan va asinxron, shuning uchun fayl paydo bo'lishi va bo'sh bo'lmasligi `$.sleep` bilan 15 s gacha kutiladi; vaqt comp ichiga siqiladi.
+  - Mavjud fayl ustiga yozilmaydi (`AE_BAD_PARAMS`). Undo group ochilmaydi (loyiha o'zgarmaydi).
+- **MCP (`src/mcp/tools/verify.ts`):**
+  - **`frames_capture`:**
+    - faqat VERIFY yoki DONE holatida;
+    - vaqtlar default'da PREFLIGHT kalit vaqtlaridan (`engine.keyTimes`), 8 tagacha teng oraliqda;
+    - avval job'ning `.aep` fayli `project.open_or_create` bilan ochiladi (ochiq bo'lsa reused), so'ng `frames.capture` (comp `aes.main`, papka `frames/<job>-<stamp>`);
+    - har PNG `previewImages` orqali JPEG image content'ga aylanadi; job log'iga `verify.frames` yoziladi.
+  - **`verify_approve`:** RENDER → REPORT → DONE.
+  - **`verify_patch`:**
+    - to'liq spec yoki job planiga nisbatan JSON Patch (bittasi majburiy) va ixtiyoriy `reason` (log'ga);
+    - yangi plan versiyasi va yangi `.aep` vNNN; javobda `patches_left`;
+    - 4-patch `LOOP_PATCH_LIMIT` (hint: ask_user); noto'g'ri patch `SPEC_INVALID`, `patch_count` oshmaydi.
+  - **Q4 yopildi:** patch o'zgargan sahnani joyida tahrirlamaydi. Yangi versiya faylida to'liq qayta quriladi, eski `.aep` saqlanadi. Hech narsa o'chirilmaydi va op to'plami yopiq qoladi.
+  - Engine'ga ochiq `note()` va `keyTimes()` qo'shildi.
+- **Mock AE:** `Folder`, `$.sleep`, `File.length`, `CompItem.saveFrameToPng`, `frameDuration`; `realDisk` rejimi (e2e uchun PNG haqiqiy diskka yoziladi).
+- **Tekshiruv:**
+  - `jsx-ops-core`: `frames.capture` (yozish, siqish, qayta yozmaslik, `AE_NOT_FOUND`, `ASSET_OUTSIDE_ROOT`, undo yo'q).
+  - `mcp-verify.test.ts` 6 ta:
+    - `sampleTimes`;
+    - kalit vaqtlardagi kadrlar → rasmlar; job fayli ochiladi; log yoziladi; maxsus `times`;
+    - VERIFY bo'lmagan job → `JOB_BAD_ACTION`;
+    - approve → DONE;
+    - **3 ta patch o'tadi (v002/v003/v004), 4-chisi `LOOP_PATCH_LIMIT`** — todo'ning "Tayyor" sharti;
+    - noto'g'ri patch va spec+patch birga.
+  - `job.e2e`: haqiqiy agent, ES3 bundle (mock) va ffmpeg bilan `frames_capture` → diskda PNG → Claude'ga JPEG (FFD8).
+
+  Repo ✅.
+- **👤 AE'da:** `saveFrameToPng` haqiqiy AE'da PNG yozishi va kutish mantig'i tekshirilsin.
+- **Keyingi:** P3.07 (RENDER)
