@@ -1,10 +1,11 @@
-export { MAIN_COMP, compile, keyTimes } from "./compile";
+export { MAIN_COMP, compile, keyTimes, variantFrames } from "./compile";
 export type {
   CompileAsset,
   CompileAudio,
   CompileContext,
   CompileOutput,
   CompiledScene,
+  CompiledVariant,
 } from "./compile";
 export {
   VO_TAIL_S,

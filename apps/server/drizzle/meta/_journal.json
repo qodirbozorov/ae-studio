@@ -50,6 +50,13 @@
       "when": 1791197404256,
       "tag": "0006_pronunciation",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791206257231,
+      "tag": "0007_render_variants",
+      "breakpoints": true
     }
   ]
 }

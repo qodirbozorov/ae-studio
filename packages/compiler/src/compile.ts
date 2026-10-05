@@ -8,6 +8,7 @@
 import { fail, makeOp, ok } from "@aes/shared";
 import type {
   AeOpName,
+  Aspect,
   Brand,
   Layer,
   OpEnvelope,
@@ -23,7 +24,7 @@ import { animOps, transitionOps } from "./motion";
 import type { MotionOp } from "./motion";
 import { buildLook } from "./brand";
 import type { Look } from "./brand";
-import { brandTokens, expandTemplate } from "./template";
+import { aspectOf, brandTokens, expandTemplate } from "./template";
 import type { CompileTemplate, ExpandedTemplate, TokenValue } from "./template";
 import { planTiming, resolveAt, shiftWords, voiceSegments } from "./timing";
 import type { CaptionWord } from "@aes/shared";
@@ -78,12 +79,26 @@ export interface CompiledScene {
   comp: string;
 }
 
+/** Format varianti (§11.4.1): alohida asosiy comp, alohida render. */
+export interface CompiledVariant {
+  aspect: Aspect;
+  /** op_id prefiksi va fayl nomi qo'shimchasi: `16x9`. */
+  tag: string;
+  mainComp: string;
+  /** AE'dagi comp nomi va render fayli asosi: `<output.name>_<tag>`. */
+  name: string;
+  w: number;
+  h: number;
+}
+
 export interface CompileOutput {
   ops: OpEnvelope[];
   scenes: CompiledScene[];
   duration: number;
   /** Asosiy comp'ning op_id si (VERIFY va RENDER shunga murojaat qiladi). */
   mainComp: string;
+  /** Qo'shimcha formatlar (asosiy formatdan tashqari). */
+  variants: CompiledVariant[];
   /** VERIFY uchun kadr vaqtlari (§3). */
   keyTimes: number[];
   warnings: string[];
@@ -95,9 +110,14 @@ const SCENES_FOLDER = "Scenes";
 
 class OpList {
   readonly ops: OpEnvelope[] = [];
+  private readonly ids = new Set<string>();
+  has(opId: string): boolean {
+    return this.ids.has(opId);
+  }
   add<N extends AeOpName>(op: N, opId: string, params: OpParamsMap[N], sceneId?: string): string {
     const extra = sceneId === undefined ? {} : { scene_id: sceneId };
     this.ops.push(makeOp(op, opId, this.ops.length, params, extra) as OpEnvelope);
+    this.ids.add(opId);
     return opId;
   }
   motion(ops: MotionOp[], prefix: string, sceneId?: string): void {
@@ -123,6 +143,13 @@ function textStyle(style: TextStyle, frame: Frame, look: Look): TextStyleOp {
  * Matn `max_width` ga sig'masa paragraf qutisi (AE `addBoxText`, markazi `pos` da): eni `max_width`, balandligi
  * taxminiy qatorlar soni bo'yicha. Kenglik taxmini: belgi ≈ 0.55 × o'lcham (katta harf 0.65). Sig'sa — nuqtali matn.
  */
+/** Nuqtali matnning taxminiy eni (belgi ≈ 0.55 × o'lcham, katta harf 0.65). */
+export function textWidth(text: string, style: TextStyleOp, frame: Frame): number {
+  const size = style.size ?? Math.round(frame.h * 0.045);
+  const upper = style.all_caps === true || text === text.toUpperCase();
+  return text.length * size * (upper ? 0.65 : 0.55);
+}
+
 export function textBox(
   text: string,
   style: TextStyleOp,
@@ -130,12 +157,54 @@ export function textBox(
   frame: Frame,
 ): [number, number] | null {
   const size = style.size ?? Math.round(frame.h * 0.045);
-  const upper = style.all_caps === true || text === text.toUpperCase();
-  const estimate = text.length * size * (upper ? 0.65 : 0.55);
+  const estimate = textWidth(text, style, frame);
   const width = Math.round(maxWidth * frame.w);
   if (estimate <= width) return null;
   const lines = Math.ceil(estimate / width) + (text.includes("\n") ? 1 : 0);
   return [width, Math.round(lines * size * 1.3 + size * 0.4)];
+}
+
+/** Variant kadri: qisqa tomon asosiy formatniki, uzun tomon aspekt bo'yicha (juft son). */
+export function variantFrames(spec: VideoSpec): { aspect: Aspect; tag: string; frame: Frame }[] {
+  const base = { w: spec.format.w, h: spec.format.h };
+  const short = Math.min(base.w, base.h);
+  const long = Math.round((short * 16) / 9 / 2) * 2;
+  const out: { aspect: Aspect; tag: string; frame: Frame }[] = [];
+  for (const aspect of spec.variants) {
+    if (aspect === aspectOf(base)) continue;
+    const frame =
+      aspect === "9:16"
+        ? { w: short, h: long }
+        : aspect === "16:9"
+          ? { w: long, h: short }
+          : { w: short, h: short };
+    out.push({ aspect, tag: aspect.replace(":", "x"), frame });
+  }
+  return out;
+}
+
+/** Variant uchun piksel qiymatlari (shrift o'lchami, chiziq, radius) qisqa tomonlar nisbatida. */
+function scaleLayer(layer: Layer, k: number): Layer {
+  if (Math.abs(k - 1) < 1e-9) return layer;
+  if (layer.type === "text") {
+    const style = { ...layer.style };
+    if (style.size !== undefined) style.size = round(style.size * k);
+    if (style.stroke_width !== undefined) style.stroke_width = round(style.stroke_width * k);
+    return { ...layer, style };
+  }
+  if (layer.type === "shape") return { ...layer, radius: round(layer.radius * k) };
+  return layer;
+}
+
+/** Safe area (har tomondan 4%): matn markazi qutisi kadrdan chiqmaydigan qilib suriladi. */
+function safePos(pos: [number, number], width: number, frame: Frame): [number, number] {
+  const margin = 0.04;
+  const half = width / 2;
+  const minX = frame.w * margin + half;
+  const maxX = frame.w * (1 - margin) - half;
+  const x = minX <= maxX ? Math.min(Math.max(pos[0], minX), maxX) : frame.w / 2;
+  const y = Math.min(Math.max(pos[1], frame.h * margin), frame.h * (1 - margin));
+  return [round(x), round(y)];
 }
 
 function refKey(ref: string): string {
@@ -292,103 +361,124 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
       folder: SOURCE_FOLDER,
     });
   }
-  list.add("comp.create", MAIN_COMP, {
-    name: spec.output.name,
-    w: frame.w,
-    h: frame.h,
-    fps,
-    dur: duration,
-    bg: "#000000",
-  });
-
   // Manba audio (intervyu va h.k.) videoda qoladi: tozalanmagan bo'lsa media layer ovozi yoqiladi.
   const source = audioSpec?.source_audio;
   const keepSourceAudio =
     source !== undefined && source.use_in_video && ctx.audio?.source?.isolatedFile === undefined
       ? refKey(source.asset)
       : null;
+  const withSourceAudio = (layer: Layer): Layer =>
+    layer.type === "media" && keepSourceAudio !== null && refKey(layer.src) === keepSourceAudio
+      ? { ...layer, keep_audio: true }
+      : layer;
 
-  for (const [i, scene] of spec.scenes.entries()) {
-    const time = timing[i]!;
-    const expansion = expansions[i] ?? null;
-    const comp = list.add(
-      "comp.create",
-      time.comp,
-      {
-        name: `${String(i + 1).padStart(2, "0")}_${scene.id}`,
-        w: frame.w,
-        h: frame.h,
-        fps,
-        dur: time.duration,
-        bg: scene.bg ?? expansion?.bg ?? ctx.brand?.colors.background ?? "#000000",
-        folder: SCENES_FOLDER,
-      },
-      scene.id,
-    );
-    const withSourceAudio = (layer: Layer): Layer =>
-      layer.type === "media" && keepSourceAudio !== null && refKey(layer.src) === keepSourceAudio
-        ? { ...layer, keep_audio: true }
-        : layer;
-    if (expansion?.instantiate !== undefined) {
-      list.add(
-        "template.instantiate",
-        `${scene.id}.tpl`,
-        { ...expansion.instantiate, comp, start: 0, dur: time.duration },
+  // Asosiy format + variantlar (§11.4.1): har biri o'z asosiy comp'i va sahna comp'lari bilan.
+  const variants = variantFrames(spec);
+  const trees = [
+    { tag: null as string | null, frame, main: MAIN_COMP, name: spec.output.name, prefix: "" },
+    ...variants.map((v) => ({
+      tag: v.tag as string | null,
+      frame: v.frame,
+      main: `${MAIN_COMP}.${v.tag}`,
+      name: `${spec.output.name}_${v.tag}`,
+      prefix: `${v.tag}.`,
+    })),
+  ];
+  for (const tree of trees) {
+    const k = Math.min(tree.frame.w, tree.frame.h) / Math.min(frame.w, frame.h);
+    list.add("comp.create", tree.main, {
+      name: tree.name,
+      w: tree.frame.w,
+      h: tree.frame.h,
+      fps,
+      dur: duration,
+      bg: "#000000",
+    });
+    for (const [i, scene] of spec.scenes.entries()) {
+      const time = timing[i]!;
+      const expansion = expansions[i] ?? null;
+      if (tree.tag !== null && scene.template !== undefined) {
+        const manifest = ctx.templates?.[scene.template]?.manifest;
+        const aspect = aspectOf(tree.frame);
+        if (manifest !== undefined && !manifest.formats.includes(aspect)) {
+          warnings.push(
+            `${scene.id}: '${scene.template}' shabloni ${aspect} formatga mo'ljallanmagan`,
+          );
+        }
+      }
+      const comp = list.add(
+        "comp.create",
+        `${tree.prefix}${time.comp}`,
+        {
+          name: `${tree.tag === null ? "" : `${tree.tag}_`}${String(i + 1).padStart(2, "0")}_${scene.id}`,
+          w: tree.frame.w,
+          h: tree.frame.h,
+          fps,
+          dur: time.duration,
+          bg: scene.bg ?? expansion?.bg ?? ctx.brand?.colors.background ?? "#000000",
+          folder: tree.tag === null ? SCENES_FOLDER : `${SCENES_FOLDER} ${tree.tag}`,
+        },
         scene.id,
       );
-    }
-    // Shablon layerlari pastda, sahnaning o'z layerlari ustida.
-    for (const [j, layer] of (expansion?.layers ?? []).entries()) {
-      compileLayer(
-        list,
-        withSourceAudio(layer),
-        `${scene.id}.tpl.${layer.id ?? `l${j}`}`,
-        comp,
-        time,
+      if (expansion?.instantiate !== undefined) {
+        list.add(
+          "template.instantiate",
+          `${tree.prefix}${scene.id}.tpl`,
+          { ...expansion.instantiate, comp, start: 0, dur: time.duration },
+          scene.id,
+        );
+      }
+      // Shablon layerlari pastda, sahnaning o'z layerlari ustida.
+      const layers: [Layer, string][] = [
+        ...(expansion?.layers ?? []).map((layer, j): [Layer, string] => [
+          layer,
+          `${scene.id}.tpl.${layer.id ?? `l${j}`}`,
+        ]),
+        ...(scene.layers ?? []).map((layer, j): [Layer, string] => [
+          layer,
+          `${scene.id}.${layer.id ?? `l${j}`}`,
+        ]),
+      ];
+      for (const [layer, opId] of layers) {
+        compileLayer(
+          list,
+          scaleLayer(withSourceAudio(layer), k),
+          `${tree.prefix}${opId}`,
+          comp,
+          time,
+          scene.id,
+          tree.frame,
+          lctx,
+          warnings,
+        );
+      }
+      const nest = list.add(
+        "comp.nest",
+        `${tree.prefix}${scene.id}.nest`,
+        { child: comp, parent: tree.main, start: time.start, dur: time.duration, name: scene.id },
         scene.id,
-        frame,
-        lctx,
-        warnings,
       );
-    }
-    for (const [j, layer] of (scene.layers ?? []).entries()) {
-      compileLayer(
-        list,
-        withSourceAudio(layer),
-        `${scene.id}.${layer.id ?? `l${j}`}`,
-        comp,
-        time,
+      list.motion(
+        transitionOps(scene.transition_out, nest, time.start + time.duration, tree.frame),
+        nest,
         scene.id,
-        frame,
-        lctx,
-        warnings,
       );
+      // Oraliq saqlash: resume'da bajarilgan sahnalar diskda bo'ladi.
+      list.add("project.save", `${tree.prefix}${scene.id}.save`, save, scene.id);
     }
-    const nest = list.add(
-      "comp.nest",
-      `${scene.id}.nest`,
-      { child: comp, parent: MAIN_COMP, start: time.start, dur: time.duration, name: scene.id },
-      scene.id,
+
+    const audioWarnings = compileAudio(
+      list,
+      spec,
+      ctx,
+      timing,
+      planned.data.voOffset,
+      tree.frame,
+      duration,
+      { main: tree.main, prefix: tree.prefix },
     );
-    list.motion(
-      transitionOps(scene.transition_out, nest, time.start + time.duration, frame),
-      nest,
-      scene.id,
-    );
-    // Oraliq saqlash: resume'da bajarilgan sahnalar diskda bo'ladi.
-    list.add("project.save", `${scene.id}.save`, save, scene.id);
+    if (tree.tag === null) warnings.push(...audioWarnings);
   }
-
-  const audioWarnings = compileAudio(
-    list,
-    spec,
-    ctx,
-    timing,
-    planned.data.voOffset,
-    frame,
-    duration,
-  );
-  warnings.push(...audioWarnings);
 
   list.add("project.save", "aes.save", save);
 
@@ -397,8 +487,16 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
     scenes: timing,
     duration,
     mainComp: MAIN_COMP,
+    variants: variants.map((v) => ({
+      aspect: v.aspect,
+      tag: v.tag,
+      mainComp: `${MAIN_COMP}.${v.tag}`,
+      name: `${spec.output.name}_${v.tag}`,
+      w: v.frame.w,
+      h: v.frame.h,
+    })),
     keyTimes: keyTimes(timing, duration),
-    warnings,
+    warnings: [...new Set(warnings)],
   });
 }
 
@@ -465,9 +563,13 @@ function compileLayer(
       return;
     }
     case "text": {
-      const pos = toPixels(layer.pos, frame);
       const style = textStyle(layer.style, frame, ctx.look);
       const box = textBox(layer.text, style, layer.max_width, frame);
+      const pos = safePos(
+        toPixels(layer.pos, frame),
+        box?.[0] ?? textWidth(layer.text, style, frame),
+        frame,
+      );
       list.add(
         "layer.add_text",
         opId,
@@ -545,14 +647,16 @@ function compileAudio(
   voOffset: number,
   frame: Frame,
   duration: number,
+  target: { main: string; prefix: string },
 ): string[] {
   const warnings: string[] = [];
   const audio = spec.audio;
   if (audio === undefined) return warnings;
   const files = ctx.audio ?? {};
   const AUDIO_FOLDER = "Audio";
+  // Fayl importi variantlar uchun bitta (op_id takrorlanmaydi).
   const importFile = (opId: string, file: string) =>
-    list.add("item.import", opId, { file, folder: AUDIO_FOLDER });
+    list.has(opId) ? opId : list.add("item.import", opId, { file, folder: AUDIO_FOLDER });
 
   let voiceLayer: string | null = null;
   let voiceWords: CaptionWord[] = [];
@@ -568,8 +672,8 @@ function compileAudio(
     if (item === null) {
       warnings.push("Voiceover fayli yo'q (AUDIO bajarilmagan) — ovozsiz quriladi");
     } else {
-      voiceLayer = list.add("layer.add_audio", "aes.vo", {
-        comp: MAIN_COMP,
+      voiceLayer = list.add("layer.add_audio", `${target.prefix}aes.vo`, {
+        comp: target.main,
         item,
         start: voOffset,
         volume: 0,
@@ -587,8 +691,8 @@ function compileAudio(
     sourceWords = shiftWords(files.source?.words ?? [], offset);
     if (files.source?.isolatedFile !== undefined && source.use_in_video) {
       const item = importFile("audio.source", files.source.isolatedFile);
-      const layer = list.add("layer.add_audio", "aes.source", {
-        comp: MAIN_COMP,
+      const layer = list.add("layer.add_audio", `${target.prefix}aes.source`, {
+        comp: target.main,
         item,
         start: offset,
         volume: 0,
@@ -610,8 +714,8 @@ function compileAudio(
           : null;
     if (item === null) warnings.push("Musiqa fayli yo'q (AUDIO bajarilmagan)");
     else {
-      const layer = list.add("layer.add_audio", "aes.music", {
-        comp: MAIN_COMP,
+      const layer = list.add("layer.add_audio", `${target.prefix}aes.music`, {
+        comp: target.main,
         item,
         start: 0,
         dur: duration,
@@ -619,7 +723,7 @@ function compileAudio(
         name: "MUSIC",
       });
       if (music.duck_under === "voiceover" && voiceLayer !== null && voiceWords.length > 0) {
-        list.add("audio.duck", "aes.duck", {
+        list.add("audio.duck", `${target.prefix}aes.duck`, {
           music_layer: layer,
           voice_layer: voiceLayer,
           amount_db: music.duck_db,
@@ -647,8 +751,8 @@ function compileAudio(
       warnings.push(`SFX ${sfx.id} fayli yo'q`);
       continue;
     }
-    list.add("layer.add_audio", `aes.sfx.${sfx.id}`, {
-      comp: MAIN_COMP,
+    list.add("layer.add_audio", `${target.prefix}aes.sfx.${sfx.id}`, {
+      comp: target.main,
       item,
       start: Math.min(at, Math.max(0, duration - 0.05)),
       volume: sfx.volume_db,
@@ -662,8 +766,8 @@ function compileAudio(
     const words = captions.from === "voiceover" ? voiceWords : sourceWords;
     if (words.length === 0) warnings.push("Subtitr uchun so'z vaqtlari yo'q");
     else {
-      list.add("captions.build", "aes.captions", {
-        comp: MAIN_COMP,
+      list.add("captions.build", `${target.prefix}aes.captions`, {
+        comp: target.main,
         words: words.filter((w) => w.start < duration),
         style: captions.style ?? ctx.brand?.captions.style ?? "karaoke_bold",
         pos: toPixels(captions.pos, frame),

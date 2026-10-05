@@ -4,7 +4,7 @@
  * hech narsa o'chirilmaydi, op to'plami yopiq qoladi. Ko'pi bilan 3 patch, keyin LOOP_PATCH_LIMIT → ask_user.
  */
 import { MAIN_COMP } from "@aes/compiler";
-import { MAX_PATCHES, fail, makeOp, ok } from "@aes/shared";
+import { ASPECTS, MAX_PATCHES, fail, makeOp, ok } from "@aes/shared";
 import { z } from "zod";
 import { aepPath } from "../../jobs/engine";
 import { applyJsonPatch, jsonPatchSchema } from "../../lib/json-patch";
@@ -32,11 +32,13 @@ export const verifyTools = [
     name: "frames_capture",
     title: "Capture frames",
     description:
-      "Renders still frames of the built video (main composition) in After Effects and shows them to you as images. Default times = the plan's key moments (scene middles and transitions), max 8. Use during VERIFY to check the result against the brief before verify_approve / verify_patch.",
+      'Renders still frames of the built video (main composition) in After Effects and shows them to you as images. Default times = the plan\'s key moments (scene middles and transitions), max 8. Use during VERIFY to check the result against the brief before verify_approve / verify_patch. With spec.variants, pass variant (e.g. "16:9") to check that format too.',
     input: z.object({
       job_id: uuidArg("job_id"),
       times: z.array(z.number().min(0).max(36_000)).min(1).max(MAX_FRAMES).optional(),
       max_px: z.number().int().min(128).max(1280).default(768),
+      /** Format varianti (spec.variants dan, masalan "16:9"); berilmasa asosiy format. */
+      variant: z.enum(ASPECTS).optional(),
     }),
     annotations: { readOnlyHint: true, openWorldHint: false },
     async handler(ctx, input) {
@@ -54,6 +56,17 @@ export const verifyTools = [
       const deviceId = requireOnline(ctx, project.data);
       if (!deviceId.ok) return deviceId;
 
+      let comp = MAIN_COMP;
+      if (input.variant !== undefined) {
+        const variants = await ctx.engine.variants(job.data.id);
+        const found = variants.find((v) => v.aspect === input.variant);
+        if (found === undefined) {
+          return fail("SYS_BAD_REQUEST", `Bu job'da ${input.variant} varianti yo'q`, {
+            variants: variants.map((v) => v.aspect),
+          });
+        }
+        comp = found.mainComp;
+      }
       const times = input.times ?? sampleTimes(await ctx.engine.keyTimes(job.data.id), MAX_FRAMES);
       if (times.length === 0)
         return fail("SYS_BAD_REQUEST", "times bering (kalit vaqtlar topilmadi)");
@@ -70,7 +83,7 @@ export const verifyTools = [
       const dir = `frames/${job.data.id.slice(0, 8)}-${stamp}`;
       const captured = await ctx.app.hub.run(
         deviceId.data,
-        makeOp("frames.capture", `verify.frames.${stamp}`, 0, { comp: MAIN_COMP, times, dir }),
+        makeOp("frames.capture", `verify.frames.${stamp}`, 0, { comp, times, dir }),
         job.data.id,
       );
       if (!captured.ok) return captured;

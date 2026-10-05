@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (4/14)
-- **Oxirgi bajarilgan:** P5.04 — Brand kit (2026-10-05)
-- **Keyingi todo:** P5.05 — Format variantlari
+- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (5/14)
+- **Oxirgi bajarilgan:** P5.05 — Format variantlari (2026-10-05)
+- **Keyingi todo:** P5.06 — Panel Shablonlar ekrani
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -99,6 +99,7 @@
 | 2026-10-05 | P5.02 | template_save ikki xil: recipe (Spec sahnasidan, AE'siz) va aep (qurilgan .aep panel orqali storage'ga) | recipe AE'siz qayta yaratiladi va formatlarga moslashadi; aep dizayner ishlovi kerak bo'lganda |
 | 2026-10-05 | P5.03 | preview.gif o'rniga panel galereyasi manifestdan sxematik ko'rinish chizadi; gif ixtiyoriy | gif uchun haqiqiy AE render kerak (👤), galereya esa doim ishlashi kerak |
 | 2026-10-05 | P5.04 | Spec brand default 'default' saqlanmagan bo'lsa brand'siz quriladi | mavjud Spec'lar va snapshot'lar o'zgarmaydi; brand ixtiyoriy qatlam |
+| 2026-10-05 | P5.05 | Variantlar bitta .aep ichida alohida asosiy comp'lar (aes.main.<tag>), footage importi umumiy | bitta build/VERIFY, har format alohida render va gate; asosiy format oplari o'zgarmaydi |
 
 ---
 
@@ -1262,3 +1263,28 @@ To'liq to'plam: 418 test o'tdi. `build.e2e` dagi layer nomi kutilmasi yangilandi
 To'liq to'plam: 467 o'tdi. Typecheck, lint, prettier toza.
 
 **👤:** haqiqiy AE 24+ da `app.fonts` PostScript nomlari.
+
+### P5.05 — Format variantlari (2026-10-05)
+
+**Nima qilindi:**
+- **Compiler** — `spec.variants` (masalan `["1:1", "16:9"]`):
+  - Har variant uchun alohida daraxt quriladi: asosiy comp `aes.main.<tag>` (nomi `<output.name>_<tag>`), sahna comp'lari `<tag>_NN_<sahna>`, `Scenes <tag>` papkasi, op_id'lar `<tag>.` prefiksi bilan.
+  - Asosiy format oplari variantlar qo'shilganda ham aynan o'zgarishsiz qoladi (snapshot va test tasdiqlaydi).
+  - Variant kadri: qisqa tomon asosiy formatdagidek, uzun tomon aspektga qarab (juft son). 1080×1920 dan → 1080×1080 va 1920×1080.
+  - Joylashuv nisbiy (`toPixels`), media `fit` kadrga qarab hisoblanadi. Piksel qiymatlari (shrift, chiziq, radius) qisqa tomonlar nisbatida masshtablanadi.
+  - **Safe area** (har tomondan 4%): matn markazi qutisi kadr ichida qoladigan qilib suriladi (asosiy formatda ham).
+  - Audio (voiceover, musiqa + ducking, SFX, subtitr) har variant asosiy comp'ida qayta qo'yiladi. Fayl importi bitta.
+  - Shablon variant formatiga mo'ljallanmagan bo'lsa ogohlantirish.
+  - `CompileOutput.variants`.
+- **Engine RENDER:**
+  - asosiy format va har variant alohida render qilinadi (`out/<nom>_<tag>_v001.mp4`), har biri ±1 kadr gate'idan o'tadi;
+  - `renders` jadvaliga `variant` va `aep_version` ustunlari qo'shildi (migratsiya `0007_render_variants`);
+  - xato yoki uzilishdan keyin faqat qolgan variantlar render qilinadi;
+  - `render_start` (qayta render) hammasini qayta render qiladi.
+- **MCP `frames_capture`:** yangi `variant` parametri — VERIFY'da har formatni ko'rish uchun.
+
+**Testlar:**
+- compiler `variants.test` (4): kadrlar; asosiy oplar o'zgarmasligi; variant comp, nest va importlar; nisbiy joylashuv; safe area; audio.
+- server `render.test` (+2): 3 ta render ketma-ketligi va qatorlari, `frames_capture` variant comp'ida va noma'lum variant, qayta render; variant xatosi → BLOCKED → resume'da faqat qolgani.
+
+To'liq to'plam: 473 test o'tdi. Typecheck, lint, prettier toza.

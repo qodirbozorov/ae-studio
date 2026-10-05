@@ -8,7 +8,7 @@
  */
 import { createHash, randomUUID } from "node:crypto";
 import { MAIN_COMP, compile, planTiming } from "@aes/compiler";
-import type { CompileAsset, CompileAudio } from "@aes/compiler";
+import type { CompileAsset, CompileAudio, CompiledVariant } from "@aes/compiler";
 import {
   MAX_PATCHES,
   audioUsesEleven,
@@ -614,6 +614,18 @@ export class JobEngine {
   }
 
   /** PREFLIGHT'da hisoblangan VERIFY kalit vaqtlari (oxirgi `preflight.ok` hodisasidan). */
+  /** PREFLIGHT natijasidagi format variantlari (§11.4.1). */
+  async variants(jobId: string): Promise<CompiledVariant[]> {
+    const [row] = await this.ctx.db
+      .select({ data: jobEvents.data })
+      .from(jobEvents)
+      .where(and(eq(jobEvents.jobId, jobId), eq(jobEvents.type, "preflight.ok")))
+      .orderBy(desc(jobEvents.id))
+      .limit(1);
+    const variants = (row?.data as { variants?: unknown } | null)?.variants;
+    return Array.isArray(variants) ? (variants as CompiledVariant[]) : [];
+  }
+
   async keyTimes(jobId: string): Promise<number[]> {
     const [row] = await this.ctx.db
       .select({ data: jobEvents.data })
@@ -865,6 +877,7 @@ export class JobEngine {
           aep: projectPath,
           duration: compiled.data.duration,
           key_times: compiled.data.keyTimes,
+          variants: compiled.data.variants,
           warnings: compiled.data.warnings,
         },
       },
@@ -1327,12 +1340,21 @@ export class JobEngine {
     if (!this.ctx.hub.isOnline(job.deviceId)) {
       return { kind: "wait_agent", reason: "RENDER: panel ulanmagan" };
     }
-    const result = await this.render(job);
-    if (!result.ok) {
-      if (result.error.code === "ENV_AGENT_OFFLINE") {
-        return { kind: "wait_agent", reason: "RENDER: panel uzildi" };
+    // Asosiy format va har variant alohida render qilinadi (§11.4.1); bajarilganlari qayta qilinmaydi.
+    const done = new Set(
+      (await this.rendersOf(job.id))
+        .filter((r) => r.status === "done" && r.aepVersion === job.aepVersion)
+        .map((r) => r.variant ?? ""),
+    );
+    for (const variant of [null, ...(await this.variants(job.id))]) {
+      if (done.has(variant?.tag ?? "")) continue;
+      const result = await this.render(job, undefined, variant ?? undefined);
+      if (!result.ok) {
+        if (result.error.code === "ENV_AGENT_OFFLINE") {
+          return { kind: "wait_agent", reason: "RENDER: panel uzildi" };
+        }
+        return { kind: "block", error: result.error };
       }
-      return { kind: "block", error: result.error };
     }
     const current = await this.get(job.id);
     if (current === null || current.state !== "RENDER") return { kind: "stale" };
@@ -1362,6 +1384,7 @@ export class JobEngine {
   async render(
     job: JobRow,
     presetOverride?: OutputPreset,
+    variant?: CompiledVariant,
   ): Promise<Result<typeof renders.$inferSelect>> {
     const project = await this.project(job.projectId);
     const plan = await this.plan(job.projectId, job.planVersion);
@@ -1373,12 +1396,15 @@ export class JobEngine {
     const preset = presetOverride ?? spec.data.output.preset;
     const fps = spec.data.format.fps;
     const expected = await this.expectedDuration(job, spec.data);
-    const outBase = `out/${fileBase(spec.data.output.name)}_v${pad3(job.aepVersion)}`;
+    const name = variant?.name ?? spec.data.output.name;
+    const outBase = `out/${fileBase(name)}_v${pad3(job.aepVersion)}`;
     const [row] = await this.ctx.db
       .insert(renders)
       .values({
         jobId: job.id,
         preset,
+        variant: variant?.tag ?? null,
+        aepVersion: job.aepVersion,
         localPath: `${outBase}.mp4`,
         status: "running",
         createdAt: this.ctx.now(),
@@ -1403,7 +1429,7 @@ export class JobEngine {
         request_id: randomUUID(),
         job_id: job.id,
         project_path: aepPath(project, job.aepVersion),
-        comp: { op_id: MAIN_COMP, name: spec.data.output.name },
+        comp: { op_id: variant?.mainComp ?? MAIN_COMP, name },
         out_base: outBase,
         preset,
         fps,
@@ -1460,7 +1486,14 @@ export class JobEngine {
     if (running !== undefined) {
       return fail("JOB_BAD_ACTION", "Bu job uchun render allaqachon ketmoqda");
     }
-    const task: Promise<unknown> = this.render(job, preset).catch((error: unknown) =>
+    // Asosiy format va barcha variantlar ketma-ket (birinchi xatoda to'xtaydi).
+    const variants = await this.variants(job.id);
+    const task: Promise<unknown> = (async () => {
+      for (const variant of [undefined, ...variants]) {
+        const res = await this.render(job, preset, variant);
+        if (!res.ok) return;
+      }
+    })().catch((error: unknown) =>
       this.log.error({ err: error, job: job.id }, "qayta render xatosi"),
     );
     this.background.add(task);

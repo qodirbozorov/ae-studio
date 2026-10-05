@@ -185,3 +185,67 @@ describe("MCP render_presets / render_start", () => {
     );
   });
 });
+
+describe("format variantlari (P5.05)", () => {
+  it("asosiy format va har variant alohida render; frames_capture variant comp'ida; qayta render hammasini", async () => {
+    await s.call("plan_write", {
+      project_id: projectId,
+      spec: { ...THREE_SCENES, variants: ["1:1", "16:9"] },
+    });
+    const id = (await s.call("build_start", { project_id: projectId })).result.data.id;
+    await t.app.jobs.idle();
+    const requests: { comp: string; out: string }[] = [];
+    agent.onRender = (m) => {
+      requests.push({ comp: m.comp.op_id, out: m.out_base });
+      return "ok";
+    };
+    const frames = await s.call("frames_capture", { job_id: id, variant: "16:9", times: [1] });
+    expect(frames.result.ok, JSON.stringify(frames.result)).toBe(true);
+    expect(
+      (await s.call("frames_capture", { job_id: id, variant: "9:16", times: [1] })).result.error
+        .details.variants,
+    ).toEqual(["1:1", "16:9"]);
+
+    await s.call("verify_approve", { job_id: id });
+    expect(await status(id)).toMatchObject({ state: "DONE", outcome: "success" });
+    expect(requests).toEqual([
+      { comp: "aes.main", out: "out/reel_v1_v001" },
+      { comp: "aes.main.1x1", out: "out/reel_v1_1x1_v001" },
+      { comp: "aes.main.16x9", out: "out/reel_v1_16x9_v001" },
+    ]);
+    const rows = await t.db.db.select().from(renders).where(eq(renders.jobId, id));
+    expect(rows.map((r) => [r.variant, r.status, r.aepVersion]).sort()).toEqual(
+      [
+        [null, "done", 1],
+        ["16x9", "done", 1],
+        ["1x1", "done", 1],
+      ].sort(),
+    );
+
+    requests.length = 0;
+    expect((await s.call("render_start", { job_id: id })).result.ok).toBe(true);
+    await t.app.jobs.idle();
+    expect(requests.map((r) => r.comp)).toEqual(["aes.main", "aes.main.1x1", "aes.main.16x9"]);
+  });
+
+  it("variant render xatosi → BLOCKED; resume'da faqat qolgani render qilinadi", async () => {
+    await s.call("plan_write", {
+      project_id: projectId,
+      spec: { ...THREE_SCENES, variants: ["16:9"] },
+    });
+    const id = (await s.call("build_start", { project_id: projectId })).result.data.id;
+    await t.app.jobs.idle();
+    const comps: string[] = [];
+    agent.onRender = (m) => {
+      comps.push(m.comp.op_id);
+      return m.comp.op_id === "aes.main.16x9" && comps.length === 2
+        ? makeError("RENDER_FAILED", "disk to'la")
+        : "ok";
+    };
+    await s.call("verify_approve", { job_id: id });
+    expect(await status(id)).toMatchObject({ state: "BLOCKED", error: { code: "RENDER_FAILED" } });
+    await s.call("job_resume", { job_id: id });
+    expect(await status(id)).toMatchObject({ state: "DONE", outcome: "success" });
+    expect(comps).toEqual(["aes.main", "aes.main.16x9", "aes.main.16x9"]);
+  });
+});

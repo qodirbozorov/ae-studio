@@ -385,6 +385,10 @@ export const renders = pgTable(
       .notNull()
       .references(() => jobs.id, { onDelete: "cascade" }),
     preset: text("preset").notNull(),
+    /** Format varianti tegi (`16x9`); null — asosiy format (§11.4.1). */
+    variant: text("variant"),
+    /** Qaysi `.aep` versiyasi render qilingan (patch'dan keyin eski renderlar hisobga olinmaydi). */
+    aepVersion: integer("aep_version"),
     /** Ish papkasiga nisbiy (`out/<nom>_vNNN.mp4`); render tugaguncha — rejalashtirilgan asos. */
     localPath: text("local_path").notNull(),
     durationMs: integer("duration_ms"),
