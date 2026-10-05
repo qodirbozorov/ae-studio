@@ -10,14 +10,14 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · jarayonda (10/14)
-- **Oxirgi bajarilgan:** P2.10 — compiler Spec → oplist (2026-10-05)
-- **Keyingi todo:** P2.11 — job state machine (CHECK → … → REPORT, BLOCKED, WAITING_AGENT)
-- **Blokerlar:** 👤 Railway'da servislar yaratishga tasdiq · 👤 AE kompyuterida ZXP sinovi · git remote URL yo'q (push qilinmagan)
+- **Faza:** 2 — Yadro · jarayonda (10/14); Faza 1 kod qismi to'liq
+- **Oxirgi bajarilgan:** P1.08 — Railway deploy (2026-10-05)
+- **Keyingi todo:** P2.11 — job state machine
+- **Blokerlar:** 👤 AE kompyuterida ZXP sinovi · 👤 RESEND_API_KEY (magic link xati hozir server logida) · git remote URL yo'q (push qilinmagan)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
 - **Bash tool eslatmasi:** shu sessiyada PATH yangilanmagan, har buyruq oldidan: `export PATH="/c/Users/991106847/AppData/Local/Programs/nodejs:/c/Users/991106847/AppData/Local/Programs/ffmpeg/bin:$PATH"`
-- **Muhim yo'llar / URL'lar:** Node `%LOCALAPPDATA%\Programs\nodejs` · ffmpeg `%LOCALAPPDATA%\Programs\ffmpeg\bin` · Railway URL hali yo'q
+- **Muhim yo'llar / URL'lar:** Node `%LOCALAPPDATA%\Programs\nodejs` · ffmpeg `%LOCALAPPDATA%\Programs\ffmpeg\bin` · Railway: https://server-production-9c75.up.railway.app (loyiha ae-studio, servislar server/Postgres/Redis, volume /data)
 
 ---
 
@@ -65,6 +65,8 @@
 | 2026-10-05 | P2.08 | LGPL ffmpeg'da libx264 yo'q; H.264 uchun libopenh264 yoki h264_mf (Windows) bor | P3.07 render: AE o'z H.264 chiqishi yoki ffmpeg+openh264 |
 | 2026-10-05 | P2.10 | Build versiya fayliga (`<nom>_vNNN.aep`) yoziladi, har sahnadan keyin saqlanadi; patch'da avval yangi versiya | Resume'da saqlangan joydan davom etadi; ustiga yozish yo'q (§2.10) |
 | 2026-10-05 | P2.10 | Matn layerlari hozircha nuqtali matn (`max_width` qutisi keyinroq) | AE box text o'lchami va joylashuvi vizual tekshiruvsiz xavfli; VERIFY (Faza 3) bilan sozlanadi |
+| 2026-10-05 | P1.08 | Migratsiya Railway preDeploy o'rniga root `start` skriptida (migrate && index); railway.json repo ildizida | Railpack railway.json deploy buyruqlarini qo'llamadi; migratsiya idempotent |
+| 2026-10-05 | P1.08 | S3 berilguncha storage Railway volume'da (/data/storage) | Qayta deployda fayllar o'chmasligi uchun |
 
 ---
 
@@ -324,3 +326,23 @@
 - **Tekshiruv:** compiler 13 ta test (sxemaga moslik, havola tartibi, vaqtlar, piksel joylashuvi, animatsiya va o'tishlar, kalit vaqtlar, snapshot, determinizm, bitta sahnadagi o'zgarish faqat o'sha opni o'zgartirishi, xatolar). `build.e2e.test.ts` 3 ta: compiler → haqiqiy ES3 bundle → mock AE; 3 sahnali video to'liq quriladi; to'liq qayta yuborish → 0 ta yangi element; o'rtada uzilgan build qolganini dublikatsiz tugatadi. **P2.14 gate'ining (3 sahnali video + resume) kod qismi qamrab olindi.** Repo 240/240 · typecheck · lint · prettier ✅.
 - **Qarz:** matn hozircha nuqtali (paragraf qutisi `max_width` VERIFY bilan vizual sinovdan keyin, Faza 3).
 - **Keyingi:** P2.11 (job state machine)
+
+### 2026-10-05 · P1.08 — Railway deploy · ✅
+- **Qilindi (Railway CLI, foydalanuvchi ruxsati bilan):**
+  - Loyiha `ae-studio` (id `71a8f12c-d2d7-424c-9b06-942b6ef8a2d6`, env `production`) yaratildi. Servislar: `server`, `Postgres`, `Redis`.
+  - `server` o'zgaruvchilari:
+    - ulanishlar: `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `REDIS_URL=${{Redis.REDIS_URL}}`;
+    - muhit: `NODE_ENV=production`, `PUBLIC_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}`, `LOG_LEVEL=info`;
+    - kalitlar: tasodifiy `MASTER_KEY` (32 bayt base64) va `JWT_SIGNING_KEY`;
+    - storage: `STORAGE_DIR=/data/storage`.
+  - Domen: https://server-production-9c75.up.railway.app.
+  - Volume: `server-volume`, `/data` ga ulangan. S3 berilguncha lokal storage qayta deployda o'chmaydi.
+  - `railway.json` repo ildiziga ko'chirildi. Root `package.json` ga `start` qo'shildi: `node apps/server/dist/migrate.js && node apps/server/dist/index.js`.
+- **Topilma:** Railpack `railway.json` dagi `startCommand`, `buildCommand` va `preDeployCommand` ni qo'llamadi:
+  - birinchi build "No start command detected" bilan yiqildi;
+  - keyingi deployda migratsiya bajarilmadi (`relation "oauth_tokens" does not exist`).
+
+  Shu sababli migratsiya `start` skriptiga ko'chirildi. Migratsiya idempotent, shuning uchun har ishga tushishda bajarilishi xavfsiz. Railpack root'da `pnpm build` ni ishlatadi (barcha paketlar, shu jumladan panel).
+- **Tekshiruv:** `GET /health` → `{"status":"ok","db":"ok","redis":"ok"}`. `GET /` → 200 (kabinet). `POST /api/auth/magic-link` → `sent: true`, ya'ni DB'ga yozish ishlaydi. Xatlar hozircha server logiga chiqadi, chunki `RESEND_API_KEY` yo'q.
+- **Qoldi (👤):** `RESEND_API_KEY` va `MAIL_FROM` (haqiqiy xat uchun); R2 yoki Railway bucket kalitlari (ixtiyoriy, hozir volume).
+- **Keyingi:** P2.11

@@ -75,7 +75,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: lokal `pnpm dev` da `/health` 200 qaytaradi.
 - [x] **P1.07 — DB sxema va migratsiyalar.** Drizzle: §5 dagi **barcha 17 jadval** (indekslar, FK, `jobs.state` enum), `pnpm db:migrate`; testlarda PGlite (Docker shart emas).
   - Tayyor: migratsiya bo'sh DB'da va PGlite'da o'tadi; asosiy CRUD testlari bor.
-- [ ] **P1.08 — Railway deploy.** 👤 tasdiq bilan, CLI orqali: loyiha, `server` + Postgres + Redis servislari, env o'zgaruvchilar, deploy paytida migratsiya.
+- [x] **P1.08 — Railway deploy.** 👤 tasdiq bilan, CLI orqali: loyiha, `server` + Postgres + Redis servislari, env o'zgaruvchilar, deploy paytida migratsiya.
   - Tayyor: `https://<app>.up.railway.app/health` → `{ db: ok, redis: ok }`.
 - [x] **P1.09 — Panel skeleti (Bolt CEP).** `apps/panel`: React + Vite + TS, `cep.config.ts` (id, AE host diapazoni, `--enable-nodejs`, `--mixed-context`), build target CEP ichidagi Chromium/Node'ga mos, pnpm workspace'ga ulangan, `extensions` papkasiga dev symlink.
   - Tayyor: 👤 AE → Window → Extensions → AE Studio ochiladi, hot reload ishlaydi.
