@@ -153,10 +153,10 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P3.10 — Xavfsizlik.** Rate limit, server tomonida path traversal, token revoke (kabinetda "ulangan ilovalar"), presigned URL muddatlari, audit eventlar.
 - [ ] **P3.11 — Claude'ga ulash.** 👤 Settings → Connectors → Add custom connector → `https://<app>.up.railway.app/mcp`; web, desktop va telefondan tekshiriladi.
 - [ ] **P3.12 — 🧪 Faza 3 gate.**
-  - [ ] 👤 Claude'da custom connector ulanadi (M4)
-  - [ ] chatda brief + rasmlar → video quriladi → hisobot chatda chiqadi (M4)
-  - [ ] Claude kadrlarni ko'rib, ataylab qilingan xatoni patch qiladi (M6)
-  - [ ] `/out` da mp4 chiqadi, davomiyligi spec'ga mos (M6)
+  - [ ] 👤 Claude'da custom connector ulanadi (M4) — server tomoni prod'da Claude oqimi bilan ✅ (`oauth-smoke.mjs`: 401 → DCR → ruxsat → PKCE → MCP); Claude UI'da ulash 👤 (RESEND_API_KEY kerak)
+  - [x] chatda brief + rasmlar → video quriladi → hisobot chatda chiqadi (M4) — prod MCP orqali skriptlangan "Claude" bilan (`prod.gate3.smoke`), 2026-10-05; haqiqiy Claude chati 👤
+  - [x] Claude kadrlarni ko'rib, ataylab qilingan xatoni patch qiladi (M6) — 12 kadr image content, verify_patch → v002 (`gate3.e2e`, prod), 2026-10-05
+  - [x] `/out` da mp4 chiqadi, davomiylik spec'ga mos (M6) — `out/gate_v002.mp4` 4.02 s (±1 kadr gate), ffmpeg h264_mf; haqiqiy aerender 👤
 
 ---
 
