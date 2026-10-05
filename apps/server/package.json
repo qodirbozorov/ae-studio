@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@aes/shared": "workspace:*",
+    "@fastify/websocket": "^11.3.3",
     "drizzle-orm": "^0.45.3",
     "fastify": "^5.12.5",
     "ioredis": "^6.0.0",
@@ -24,7 +25,9 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "@electric-sql/pglite-socket": "0.2.11",
+    "@types/ws": "^8.18.2",
     "drizzle-kit": "^0.31.11",
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "ws": "^8.22.0"
   }
 }

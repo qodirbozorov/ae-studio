@@ -101,3 +101,14 @@ describe("script literal", () => {
     expect(script).toContain(".runOp(");
   });
 });
+
+describe("qayta ulanish kechikishi (backoff + jitter)", () => {
+  it("eksponensial o'sadi, maksimumdan oshmaydi, ±20% jitter", async () => {
+    const { reconnectDelay } = await import("../src/agent/ws-client");
+    expect(reconnectDelay(0, 1000, 30_000, 0.5)).toBe(1000);
+    expect(reconnectDelay(3, 1000, 30_000, 0.5)).toBe(8000);
+    expect(reconnectDelay(10, 1000, 30_000, 0.5)).toBe(30_000);
+    expect(reconnectDelay(0, 1000, 30_000, 0)).toBe(800);
+    expect(reconnectDelay(0, 1000, 30_000, 1)).toBe(1200);
+  });
+});

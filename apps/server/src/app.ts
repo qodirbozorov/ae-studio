@@ -1,10 +1,12 @@
 import { fail } from "@aes/shared";
+import websocket from "@fastify/websocket";
 import Fastify from "fastify";
 import type { FastifyError, FastifyInstance } from "fastify";
 import type { Db } from "./db/client";
 import type { Env } from "./env";
 import { registerHealth } from "./health";
 import type { RedisLike } from "./redis";
+import { registerDevAgent } from "./ws/dev-agent";
 
 export interface AppDeps {
   env: Env;
@@ -38,7 +40,14 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     reply.code(500).send(fail("SYS_INTERNAL"));
   });
 
+  await app.register(websocket, { options: { maxPayload: 16 * 1024 * 1024 } });
+
   registerHealth(app, deps);
+
+  // P1.13: faqat DEV_AGENT_TOKEN berilganda (P2.05 da device flow bilan almashtiriladi).
+  if (deps.env.DEV_AGENT_TOKEN !== undefined) {
+    await registerDevAgent(app, deps.env.DEV_AGENT_TOKEN);
+  }
 
   return app;
 }

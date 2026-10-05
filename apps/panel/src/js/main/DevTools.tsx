@@ -6,8 +6,7 @@ let seq = 0;
 
 /** Faza 1 sinov tugmalari: oplarni serverdan mustaqil to'g'ridan-to'g'ri AE'ga yuboradi. */
 export function DevTools({ agent }: { agent: Agent }) {
-  const run = (op: Parameters<typeof agent.runner.submit>[0]) =>
-    void agent.runner.submit(op, "dev");
+  const run = (op: Parameters<typeof agent.runner.submit>[0]) => void agent.runner.submit(op);
 
   return (
     <section className="dev">

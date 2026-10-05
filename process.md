@@ -10,11 +10,11 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 1 — Poydevor · jarayonda (11/14, P1.08 kutmoqda)
-- **Oxirgi bajarilgan:** P1.12 — birinchi 4 op + AE smoke skripti (2026-10-05)
-- **Keyingi todo:** P1.13 — dev WS (server /ws/agent ↔ panel agent)
+- **Faza:** 1 — Poydevor · 12/14 (P1.08 👤 tasdiq kutmoqda, P1.14 gate)
+- **Oxirgi bajarilgan:** P1.13 — dev WS server ↔ panel agent (2026-10-05)
+- **Keyingi todo:** P1.08 Railway deploy (👤 tasdiq) → P1.14 gate
 - **Blokerlar:** git remote yo'q (push uchun repo URL kerak) · P1.08 Railway uchun tasdiq kerak
-- **Ochiq qarorlar:** Q1–Q5, Q7–Q10 (phases §9). Yopilgan: Q6 (zod v4)
+- **Ochiq qarorlar:** Q2–Q5, Q7–Q10 (phases §9). Yopilgan: Q1 (ws paketi + Authorization header), Q6 (zod v4)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
 - **Bash tool eslatmasi:** shu sessiyada PATH yangilanmagan, har buyruq oldidan: `export PATH="/c/Users/991106847/AppData/Local/Programs/nodejs:/c/Users/991106847/AppData/Local/Programs/ffmpeg/bin:$PATH"`
 - **Muhim yo'llar / URL'lar:** Node `%LOCALAPPDATA%\Programs\nodejs` · ffmpeg `%LOCALAPPDATA%\Programs\ffmpeg\bin` · Railway URL hali yo'q
@@ -54,6 +54,7 @@
 | 2026-10-05 | P1.09 | Panel toolchain Bolt CEP 2.2.3 da sinalgan versiyalarda: Vite 6, plugin-react 4, Babel 7 (monorepo qolgan qismi Vite 8/TS 6) | vite-cep-plugin Vite ≤7 ni qo'llaydi; ES3 pipeline Babel 7 bilan sinalgan |
 | 2026-10-05 | P1.09 | Agent (Node) alohida esbuild bundle (dist/cep/agent/agent.cjs), UI uni CEP Node require bilan yuklaydi; CSInterface vendor qilinmaydi | `ws` va Node API brauzer bundle'iga aralashmaydi; agent Node'da test qilinadi |
 | 2026-10-05 | P1.09 | vitest maxWorkers: 1 | Dev kompyuterda xotira kam, parallel worker'lar crash beradi |
+| 2026-10-05 | P1.13 | **Q1 yopildi:** panel WS — CEP Node'dagi sof-JS `ws` paketi, `Authorization: Bearer` header bilan (agent.cjs ichiga bundle qilinadi) | Brauzer WebSocket header qo'ya olmaydi; e2e test va bundle sinovidan o'tdi |
 
 ---
 
@@ -174,3 +175,11 @@
 - **Tekshiruv:** `jsx-ops.test.ts` 11 ta test, haqiqiy bundle mock AE'da (yaratish, iz, idempotentlik, cover/contain/stretch masshtablari, xato kodlari, istisnodan keyin undo/dialog yopilishi). Smoke skript ES3 parser'dan o'tadi va mock AE'da "HAMMASI OK" chiqaradi. Repo 159/159 · typecheck · lint · prettier ✅.
 - **Topilgan va tuzatilgan:** Prettier `.jsx` ga trailing comma qo'shgan edi (ES3 sintaksis xatosi), shuning uchun `.jsx` uchun `trailingComma: none`. ES3 testi buni ushladi.
 - **Keyingi:** P1.13
+
+### 2026-10-05 · P1.13 — Dev WS · ✅ (Railway'da sinash P1.08 dan keyin)
+- **Qilindi:**
+  - **Server:** `@fastify/websocket`; `src/ws/dev-agent.ts` (`DevAgentHub`): `/ws/agent` Bearer `DEV_AGENT_TOKEN` bilan (timing-safe taqqoslash). `hello` → `hello_ack`; 10 s `ping`, 30 s javobsiz → uzish. `op.done/failed` op_id bo'yicha kutayotgan so'rovga beriladi. `POST /dev/op` (konvert zod bilan tekshiriladi → `op.run` → natija; panel yo'q bo'lsa 503 `ENV_AGENT_OFFLINE`; timeout `AE_TIMEOUT`). `GET /dev/agent`. Faqat `DEV_AGENT_TOKEN` berilganda yoqiladi.
+  - **Agent:** `ws-client.ts`, sof-JS `ws` + `Authorization` header (**Q1 amalda yopildi**). `hello` (qurilma, AE versiyasi, ish papkasi, bajarilayotgan op), `pong`, `op.run`/`ops.batch` → runner, runner eventlari → `op.started/done/failed`. Uzilsa backoff + ±20% jitter (1 s → 30 s); 401 → log + qayta urinish.
+  - **UI:** `Connection` (URL + token, localStorage), 🟢/🔴 Server indikatori.
+- **Tekshiruv:** `dev-ws.e2e.test.ts` (haqiqiy Fastify port + haqiqiy `ws` + haqiqiy jsx bundle mock AE'da): `POST /dev/op` → AE'da comp va matn yaratiladi → javob; AE xatosi tasniflangan holda qaytadi; panel yo'q → 503; noto'g'ri token → 401 (HTTP va WS); server o'chib qayta yonsa agent o'zi qayta ulanadi. Build qilingan `agent.cjs` (536 KB, `ws` ichida) oddiy Node'da haqiqiy server jarayoniga ulandi va `/dev/op` → 200. Repo 164/164 · typecheck · lint · prettier ✅.
+- **Keyingi:** P1.14 (gate). P1.08 Railway 👤 tasdiq kutmoqda.

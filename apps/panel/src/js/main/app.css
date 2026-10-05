@@ -136,3 +136,24 @@ button:hover {
 .log-empty {
   color: var(--muted);
 }
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+input {
+  padding: 5px 8px;
+  color: var(--text);
+  background: #1b1b1b;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+  user-select: text;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
