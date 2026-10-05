@@ -246,6 +246,8 @@ export const panelMessageSchema = z.discriminatedUnion("type", [
     storage_key: storageKeySchema,
     sha256: sha256Schema,
     size: z.number().int().min(0),
+    /** `audio.extract.request` javobida: manba davomiyligi (soniya). */
+    duration_s: z.number().min(0).nullable().optional(),
   }),
   z.strictObject({
     type: z.literal("file.saved"),

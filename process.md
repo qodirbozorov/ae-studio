@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 4 — ElevenLabs · jarayonda (3/15)
-- **Oxirgi bajarilgan:** P4.03 — audio_task va navbat (2026-10-05)
-- **Keyingi todo:** P4.04 — panel audio ajratish (audio-in)
+- **Faza:** 4 — ElevenLabs · jarayonda (4/15)
+- **Oxirgi bajarilgan:** P4.04 — panel audio ajratish (2026-10-05)
+- **Keyingi todo:** P4.05 — TTS, ovozlar, narx (MCP toollari)
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -88,6 +88,7 @@
 | 2026-10-05 | P4.01 | Q7 yopildi: o'zbekcha TTS — eleven_v4 (default), STT — scribe_v2 | Rasmiy models sahifasi: uzb faqat v4/v4_turbo; Scribe 'Good' tier |
 | 2026-10-05 | P4.03 | BullMQ worker o'rniga server ichidagi Postgres asosidagi navbat (recover bilan) | Railway bitta nusxa, Postgres yagona haqiqat manbai, Redis'siz test; keyin kerak bo'lsa alohida worker'ga ajratiladi |
 | 2026-10-05 | P4.03 | ElevenLabs natijalari storage'da (audio-out/<sha256>), panelga file.download bilan audio/<kind>_<sha12>.<ext> ga yetkaziladi | Foydalanuvchi talabi: EL fayllari serverda saqlanadi, panelga olib kelinadi; tarkibga bog'liq nom — ustiga yozmaslik |
+| 2026-10-05 | P4.04 | audio-in yuklash: resumable multipart o'rniga bitta pre-signed PUT + 3 urinish (oldin mono Opus 32k ga siqiladi) | ~15 MB/soat; S3 bitta PUT 5 GB gacha; soddaroq va lokal storage bilan ham ishlaydi |
 
 ---
 
@@ -936,3 +937,22 @@
 
   Repo 369 ✅.
 - **Keyingi:** P4.04 (panel: audio ajratish → `audio-in`)
+
+### 2026-10-05 · P4.04 — Panel: audio ajratish · ✅
+- **Panel (`agent/extract.ts`):** `audio.extract.request` qabul qilinganda:
+  1. Yo'l `resolveInsideRoot` bilan tekshiriladi; fayl bo'lmasa `ASSET_MISSING`.
+  2. ffprobe: ovoz yo'q → `ASSET_UNSUPPORTED`.
+  3. ffmpeg: `-vn`, mono, ixtiyoriy sample rate. Formatlar: opus (libopus 32 kbit/s, `.ogg`), wav (pcm_s16le), mp3 (libmp3lame 96 kbit/s).
+  4. Pre-signed PUT, 3 marta qayta urinish → `file.uploaded` (sha256, hajm, `duration_s`). Vaqtinchalik fayllar o'chiriladi.
+- **"Resumable multipart" o'rniga:** bitta PUT + 3 urinish. Ovoz oldin mono Opus'ga siqiladi (~15 MB/soat), shuning uchun bitta so'rov yetarli. Qarorlar jurnaliga yozildi.
+- **Server (`audio/inputs.ts` → `extractInput`):**
+  - panel online va yo'l loyiha ichida ekani tekshiriladi;
+  - `audio-in/in<uuid>.<ext>` pre-signed PUT → panel → storage'da borligi tasdiqlanadi → `InputRef` (`name`, `storage_key`, `sha256`, `duration_s`).
+  - `sha256` audio vazifa kesh kalitiga kiradi (bir xil manba → qayta generatsiya yo'q).
+- **Shared:** `file.uploaded.duration_s`.
+- **Tekshiruv:** `audio-extract.e2e.test.ts` (haqiqiy server, agent va ffmpeg):
+  - `Clip 01.mp4` → `audio-in/…ogg` (OggS sarlavha), sha256 storage'dagi baytlarga mos, davomiylik ~2 s;
+  - ovozsiz `.mov` → `ASSET_UNSUPPORTED`; `../secret.mp4` → `ASSET_OUTSIDE_ROOT`; wav formati.
+
+  Repo ✅.
+- **Keyingi:** P4.05 (TTS, ovozlar, narx toollari)

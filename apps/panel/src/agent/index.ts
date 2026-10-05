@@ -11,6 +11,7 @@ import { clearCredentials, loadCredentials, saveCredentials } from "./credential
 import type { Credentials } from "./credentials";
 import { FfmpegError, checkBinaries, probe, resolveBinaries } from "./ffmpeg";
 import { TransferError } from "./files";
+import { extractAudio } from "./extract";
 import { makePreviews } from "./preview";
 import { RenderError, renderJob } from "./render";
 import { uploadFile } from "./files";
@@ -319,6 +320,28 @@ export function createAgent(options: AgentOptions): Agent {
         })
         .finally(() => {
           rendering = false;
+        });
+    });
+    next.onMessage((message) => {
+      if (message.type !== "audio.extract.request") return;
+      if (root === "") {
+        next.send({
+          type: "request.failed",
+          request_id: message.request_id,
+          error: makeError("ENV_NO_FOLDER", "Ish papkasi tanlanmagan"),
+        });
+        return;
+      }
+      log.add({ level: "info", message: `🎧 Ovoz ajratilmoqda: ${message.local_path}` });
+      extractAudio(root, resolveBinaries(settings.ffmpeg_dir), message)
+        .then((res) => next.send({ type: "file.uploaded", request_id: message.request_id, ...res }))
+        .catch((error: unknown) => {
+          const aes =
+            error instanceof FfmpegError || error instanceof TransferError
+              ? error.error
+              : makeError("SYS_INTERNAL", error instanceof Error ? error.message : String(error));
+          log.add({ level: "warn", message: `🎧 ${message.local_path}: ${aes.code}` });
+          next.send({ type: "request.failed", request_id: message.request_id, error: aes });
         });
     });
     next.onMessage((message) => {
