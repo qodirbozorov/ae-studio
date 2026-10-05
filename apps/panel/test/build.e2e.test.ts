@@ -74,8 +74,9 @@ describe("3 sahnali video: plan.json → compiler → AE", () => {
     expect(hookNest.transform("ADBE Position").keys.map((k) => k.time)).toEqual([2.7, 3]);
 
     const point = byName(h, "02_point");
+    // id'li layer AE'da id nomi bilan (P5.02: aep shablon slotlari shu nom bo'yicha).
     expect(point.layersList.map((l) => l.name)).toEqual([
-      "Ko'p odam buni bilmaydi",
+      "caption",
       "Shape Layer 1",
       "photo_02.jpg",
     ]);

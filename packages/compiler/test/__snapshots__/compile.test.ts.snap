@@ -122,6 +122,7 @@ exports[`compile — determinizm va barqaror op_id > bir xil kirish → bir xil 
     "op_id": "hook.title",
     "params": {
       "comp": "hook.comp",
+      "name": "title",
       "pos": [
         540,
         960,
@@ -311,6 +312,7 @@ exports[`compile — determinizm va barqaror op_id > bir xil kirish → bir xil 
     "op_id": "point.caption",
     "params": {
       "comp": "point.comp",
+      "name": "caption",
       "pos": [
         540,
         1497.6,

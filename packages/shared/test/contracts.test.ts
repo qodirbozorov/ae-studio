@@ -252,6 +252,12 @@ const SERVER_MESSAGES: Record<string, unknown> = {
     mono: true,
     upload: { url: "https://s3.example.com/b", storage_key: "u/1/p/2/audio-in/b.opus" },
   },
+  "file.upload.request": {
+    type: "file.upload.request",
+    request_id: "r9",
+    local_path: "reel_v002.aep",
+    upload: { url: "https://s3.example.com/t", storage_key: "u/1/templates/t.aep" },
+  },
   "file.download": {
     type: "file.download",
     request_id: "r3",

@@ -141,3 +141,31 @@ describe("file.download: versiyalar ustiga yozilmaydi (P2.13)", () => {
     expect(readFileSync(join(root, ".aestudio", "plan.v001.json"), "utf8")).toBe("PLAN-2");
   });
 });
+
+describe("WS: file.upload.request → file.uploaded (P5.02)", () => {
+  it("ish papkasidagi faylni storage'ga yuklaydi; yo'q fayl va papkadan tashqari yo'l rad etiladi", async () => {
+    const s = await start();
+    t = s.app;
+    const root = mkdtempSync(join(tmpdir(), "aes-root-"));
+    writeFileSync(join(root, "reel_v001.aep"), "AEP BYTES");
+    const p = await pairedAgent(s.app, s.base, undefined, root);
+    agent = p.agent;
+    const key = "u/user1/templates/t1.aep";
+    const upload = { url: await s.app.app.storage.presignPut(key), storage_key: key };
+    const ask = (local_path: string) =>
+      s.app.app.hub.request(
+        p.credentials.device_id,
+        { type: "file.upload.request", request_id: `r-${local_path}`, local_path, upload },
+        10_000,
+      );
+
+    const ok = await ask("reel_v001.aep");
+    expect(ok).toMatchObject({
+      ok: true,
+      data: { type: "file.uploaded", storage_key: key, sha256: sha("AEP BYTES"), size: 9 },
+    });
+    expect((await s.app.app.storage.getBytes(key))?.toString()).toBe("AEP BYTES");
+    expect(await ask("yoq.aep")).toMatchObject({ ok: false, error: { code: "ASSET_MISSING" } });
+    expect(await ask("../tashqarida.aep")).toMatchObject({ ok: false });
+  });
+});

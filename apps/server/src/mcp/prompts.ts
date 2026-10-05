@@ -90,6 +90,34 @@ export function dubPrompt(args: Record<string, string>): GetPromptResult {
   return { description: "AE Studio: dublyaj", messages: [text(steps.join("\n"))] };
 }
 
+export function fromTemplatePrompt(args: Record<string, string>): GetPromptResult {
+  const template = (args.template ?? "").trim();
+  const content = (args.content ?? "").trim();
+  const format = (args.format ?? "").trim();
+  const steps = [
+    `AE Studio shabloni asosida After Effects'da video tayyorla.`,
+    ``,
+    template === ""
+      ? `Shablon: templates_list bilan ro'yxatni ko'rsat (sarlavha, formatlar, slotlar) va foydalanuvchi bilan tanla.`
+      : `Shablon: ${template} (template_get bilan slotlarini o'qi).`,
+    `Mazmun: ${content === "" ? "(foydalanuvchidan slotlar uchun matn va fayllarni so'ra)" : content}`,
+    format === "" ? `` : `Format: ${format}.`,
+    ``,
+    `Qadamlar:`,
+    `1. env_check → loyiha (project_list yoki project_create) → assets_scan → assets_list. Media slotlariga faqat status=ok asset:<key> qo'y.`,
+    `2. template_get: majburiy slotlar (required), max_chars, davomiylik oralig'i. Matnlarni chegaraga sig'dir, qisqa va o'qiladigan qil.`,
+    `3. template_apply (mode "new" — yangi video; "append" — mavjud planga sahna qo'shish). Bir nechta shablonli sahna bo'lsa har biri uchun template_apply (append). Ovoz/musiqa kerak bo'lsa plan_patch bilan audio qo'sh (/new-reel dagi kabi).`,
+    `4. preflight (ready=true bo'lguncha tuzat) → build_start → job_status → VERIFY'da frames_capture: matn sig'ishi, kesilish, kontrast. Muammo bo'lsa verify_patch (slot matnini qisqartirish, dur), aks holda verify_approve.`,
+    `5. Render tugagach report_get: MP4 yo'lini ko'rsat. Ko'p variant (masalan CSV'dan) kerak bo'lsa batch_start ni taklif qil.`,
+    ``,
+    `Yaxshi chiqqan sahnani keyin qayta ishlatish uchun template_save taklif qil. Foydalanuvchi bilan uning tilida (odatda o'zbekcha) gaplash.`,
+  ].filter((line, i, all) => !(line === "" && all[i - 1] === ""));
+  return {
+    description: "AE Studio: shablondan video",
+    messages: [text(steps.join("\n"))],
+  };
+}
+
 export const PROMPTS: PromptDef[] = [
   {
     name: "new-reel",
@@ -128,5 +156,16 @@ export const PROMPTS: PromptDef[] = [
       { name: "target_lang", description: "Maqsad tili (masalan en, ru)", required: true },
     ],
     render: dubPrompt,
+  },
+  {
+    name: "from-template",
+    title: "Shablondan video",
+    description: "Tayyor shablonni (hook, lower third, CTA …) slotlarini to'ldirib video qilish.",
+    arguments: [
+      { name: "template", description: "Shablon slug'i (bo'sh — ro'yxatdan tanlanadi)" },
+      { name: "content", description: "Matnlar va fayllar haqida qisqacha" },
+      { name: "format", description: "9:16, 1:1 yoki 16:9" },
+    ],
+    render: fromTemplatePrompt,
   },
 ];

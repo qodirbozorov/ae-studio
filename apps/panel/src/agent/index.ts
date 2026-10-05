@@ -3,7 +3,7 @@
  * va CEP `evalScript` ni beradi. Agent brauzer API'siga bog'liq emas — Node'da test qilinadi.
  */
 import os from "node:os";
-import { makeError, makeOp } from "@aes/shared";
+import { makeError, makeOp, resolveInsideRoot } from "@aes/shared";
 import type { AesError, ServerMessage } from "@aes/shared";
 import { createAeBridge } from "./ae-bridge";
 import type { AeBridge, EvalScript } from "./ae-bridge";
@@ -335,6 +335,45 @@ export function createAgent(options: AgentOptions): Agent {
         })
         .finally(() => {
           rendering = false;
+        });
+    });
+    next.onMessage((message) => {
+      if (message.type !== "file.upload.request") return;
+      const fail = (error: ReturnType<typeof makeError>) =>
+        next.send({ type: "request.failed", request_id: message.request_id, error });
+      if (root === "") {
+        fail(makeError("ENV_NO_FOLDER", "Ish papkasi tanlanmagan"));
+        return;
+      }
+      const file = resolveInsideRoot(root, message.local_path);
+      if (!file.ok) {
+        fail(file.error);
+        return;
+      }
+      log.add({ level: "info", message: `⬆️ Yuklanmoqda: ${message.local_path}` });
+      uploadFile(message.upload.url, file.data, message.content_type)
+        .then((res) =>
+          next.send({
+            type: "file.uploaded",
+            request_id: message.request_id,
+            storage_key: message.upload.storage_key,
+            ...res,
+          }),
+        )
+        .catch((error: unknown) => {
+          const missing = (error as { code?: string }).code === "ENOENT";
+          fail(
+            error instanceof TransferError
+              ? error.error
+              : makeError(
+                  missing ? "ASSET_MISSING" : "SYS_INTERNAL",
+                  missing
+                    ? `${message.local_path} topilmadi`
+                    : error instanceof Error
+                      ? error.message
+                      : String(error),
+                ),
+          );
         });
     });
     next.onMessage((message) => {

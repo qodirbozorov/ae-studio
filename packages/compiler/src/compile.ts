@@ -376,6 +376,8 @@ function compileLayer(
     Math.max(0.01, Math.min(layer.dur ?? time.duration - start, time.duration - start)),
   );
   const timingParams = layer.dur === undefined ? { start } : { start, dur };
+  // Barqaror id'li layer AE'da shu nom bilan (aep shablon slotlari va qo'lda tahrir uchun).
+  const named = layer.id === undefined ? {} : { name: layer.id };
 
   switch (layer.type) {
     case "media": {
@@ -385,6 +387,7 @@ function compileLayer(
         comp,
         item: `asset.${asset.key}`,
         ...timingParams,
+        ...named,
         fit: layer.fit,
         pos,
       };
@@ -411,7 +414,14 @@ function compileLayer(
       list.add(
         "layer.add_text",
         opId,
-        { comp, text: layer.text, ...timingParams, style: textStyle(layer.style, frame), pos },
+        {
+          comp,
+          text: layer.text,
+          ...timingParams,
+          ...named,
+          style: textStyle(layer.style, frame),
+          pos,
+        },
         sceneId,
       );
       list.motion(
@@ -430,6 +440,7 @@ function compileLayer(
         size: [round(layer.size.w * frame.w), round(layer.size.h * frame.h)],
         pos,
         ...timingParams,
+        ...named,
       };
       if (layer.radius > 0) params.radius = layer.radius;
       if (layer.opacity !== 100) params.opacity = layer.opacity;

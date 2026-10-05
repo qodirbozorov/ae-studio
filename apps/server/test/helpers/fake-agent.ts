@@ -66,6 +66,8 @@ export class FakeAgent {
   readonly extractions: string[] = [];
   /** Preview so'ralgan yo'llar. */
   readonly previews: string[] = [];
+  /** `file.upload.request` so'ralgan yo'llar. */
+  readonly uploads: string[] = [];
   /** `project.open` (MCP project_create): loyihani ro'yxatdan o'tkazadi. */
   onProjectOpen:
     ((root: string) => Promise<{ id: string; name: string; root_path: string }>) | null = null;
@@ -199,6 +201,31 @@ export class FakeAgent {
           sha256: createHash("sha256").update(audio).digest("hex"),
           size: audio.length,
           duration_s: 2,
+        },
+        socket,
+      );
+    } else if (message.type === "file.upload.request") {
+      this.uploads.push(message.local_path);
+      if (this.storage === null) {
+        this.deliver(
+          {
+            type: "request.failed",
+            request_id: message.request_id,
+            error: makeError("SYS_INTERNAL", "soxta agentda storage yo'q"),
+          },
+          socket,
+        );
+        return;
+      }
+      const data = Buffer.from(`mock file: ${message.local_path}`);
+      await this.storage.putBytes(message.upload.storage_key, data, message.content_type);
+      this.deliver(
+        {
+          type: "file.uploaded",
+          request_id: message.request_id,
+          storage_key: message.upload.storage_key,
+          sha256: createHash("sha256").update(data).digest("hex"),
+          size: data.length,
         },
         socket,
       );

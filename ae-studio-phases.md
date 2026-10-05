@@ -191,7 +191,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 **Maqsad:** qayta ishlatiladigan dizayn tizimi va tayyor mahsulot sifatida yetkazib berish.
 
 - [x] **P5.01 — Shablon tizimi (§11.2).** `templates/<slug>/` (`template.aep` + `template.json` + `preview.gif`), `templates` jadvali, `template.instantiate` op. Slotlar: text → layer nomi, media → placeholder `fit`, color → Essential Graphics; `duration.stretch: time_remap`. Compiler'da `scene.template` → op.
-- [ ] **P5.02 — Shablon toollari va prompt.** `templates_list`, `template_get`, `template_apply`, `template_save` (joriy comp'dan yangi shablon); MCP prompt `/from-template`.
+- [x] **P5.02 — Shablon toollari va prompt.** `templates_list`, `template_get`, `template_apply`, `template_save` (joriy comp'dan yangi shablon); MCP prompt `/from-template`.
 - [ ] **P5.03 — Boshlang'ich kutubxona.** hook_title, lower_third, cta_outro, product_showcase, testimonial, top3_list; subtitr stillari (karaoke, bold pop, minimal); transitionlar (`.ffx` yoki op asosida). Imkon qadar qayta yaratsa bo'ladigan "template builder" jsx skriptlari bilan; `preview.gif` = aerender + ffmpeg. 👤 dizaynni ko'rib chiqish.
   - Tayyor: kamida 5 ta shablon (M7), har biri manifestdagi formatlarda sinalgan.
 - [ ] **P5.04 — Brand kit (§11.3).** `brands/` + `brands` jadvali, `brands_list`, `brand_save`. Compiler qo'llaydi: ranglar, shriftlar (+ fallback; PREFLIGHT'da `AE_FONT_MISSING`), logo, subtitr stili, default ovoz va musiqa uslubi.

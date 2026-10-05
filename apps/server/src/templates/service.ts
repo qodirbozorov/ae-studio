@@ -31,8 +31,14 @@ export function templateLocalPath(slug: string, version: number): string {
   return `templates/${slug}_v${version}.aep`;
 }
 
-export function templateStorageKey(userId: string, sha256: string, ext: string): string {
-  return `u/${userId}/templates/${sha256}.${ext}`;
+export function templateStorageKey(userId: string, id: string, ext: string): string {
+  return `u/${userId}/templates/${id}.${ext}`;
+}
+
+export interface StoredFile {
+  storage_key: string;
+  sha256: string;
+  size: number;
 }
 
 export class TemplateService {
@@ -171,6 +177,33 @@ export class TemplateService {
       files.push(template.file);
     }
     return ok({ files });
+  }
+
+  /** Ish papkasidagi faylni (qurilgan `.aep`, preview) panel orqali storage'ga yuklaydi. */
+  async uploadFromPanel(
+    deviceId: string,
+    userId: string,
+    localPath: string,
+    ext: string,
+    contentType = "application/octet-stream",
+  ): Promise<Result<StoredFile>> {
+    const key = templateStorageKey(userId, randomUUID(), ext);
+    const reply = await this.ctx.hub.request(
+      deviceId,
+      {
+        type: "file.upload.request",
+        request_id: randomUUID(),
+        local_path: localPath,
+        content_type: contentType,
+        upload: { url: await this.ctx.storage.presignPut(key, { contentType }), storage_key: key },
+      },
+      DOWNLOAD_TIMEOUT_MS,
+    );
+    if (!reply.ok) return reply;
+    if (reply.data.type !== "file.uploaded") {
+      return fail("SYS_INTERNAL", `Kutilmagan javob: ${reply.data.type}`);
+    }
+    return ok({ storage_key: key, sha256: reply.data.sha256, size: reply.data.size });
   }
 
   /** Preview (gif/png) uchun vaqtinchalik havola. */

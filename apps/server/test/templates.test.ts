@@ -202,3 +202,179 @@ describe("shablonli build", () => {
     expect(status.logs.map((l: { type: string }) => l.type)).toContain("preflight.templates");
   });
 });
+
+describe("shablon MCP toollari (P5.02)", () => {
+  it("templates_list / template_get: slotlar, filtr, namuna sahna", async () => {
+    const list = (await s.call("templates_list", { format: "16:9" })).result.data;
+    const hook = list.find((e: { slug: string }) => e.slug === "hook_title");
+    expect(hook).toMatchObject({
+      source: "recipe",
+      origin: "builtin",
+      slots: {
+        title: { type: "text", required: true, max_chars: 40 },
+        kicker: { required: false },
+      },
+    });
+    const got = (await s.call("template_get", { slug: "hook_title" })).result.data;
+    expect(got.example_scene).toEqual({
+      id: "s1",
+      dur: 4,
+      template: "hook_title",
+      slots: { title: "<Sarlavha>", bg: "asset:<key>" },
+    });
+    expect((await s.call("template_get", { slug: "yoq" })).result.error.code).toBe(
+      "SPEC_UNKNOWN_TEMPLATE",
+    );
+  });
+
+  it("template_apply: new → append → slot xatosi", async () => {
+    const created = await s.call("template_apply", {
+      project_id: projectId,
+      slug: "hook_title",
+      mode: "new",
+      format: "1:1",
+      slots: { title: "Birinchi", bg: "asset:clip_01" },
+      output_name: "kvadrat",
+    });
+    expect(created.result.data).toMatchObject({
+      plan_version: 1,
+      scene_id: "hook_title_1",
+      format: { w: 1080, h: 1080, fps: 30 },
+    });
+    const appended = await s.call("template_apply", {
+      project_id: projectId,
+      slug: "hook_title",
+      slots: { title: "Ikkinchi", bg: "asset:clip_01" },
+      dur: 2,
+    });
+    expect(appended.result.data).toMatchObject({
+      plan_version: 2,
+      scene_id: "hook_title_2",
+      scenes: ["hook_title_1", "hook_title_2"],
+    });
+    const bad = await s.call("template_apply", {
+      project_id: projectId,
+      slug: "hook_title",
+      slots: { title: "x".repeat(41), bg: "asset:clip_01" },
+    });
+    expect(bad.result.error).toMatchObject({ code: "SPEC_INVALID" });
+    const pre = await s.call("preflight", { project_id: projectId });
+    expect(pre.result.data).toMatchObject({ ready: true, plan_version: 2 });
+  });
+
+  it("template_save recipe: sahnadan shablon → qayta ishlatish", async () => {
+    await s.call("plan_write", {
+      project_id: projectId,
+      spec: {
+        version: 1,
+        format: { w: 1080, h: 1920, fps: 30 },
+        scenes: [
+          {
+            id: "promo",
+            dur: 3,
+            bg: "#101820",
+            layers: [
+              { id: "photo", type: "media", src: "asset:clip_01", anim: "fade_in" },
+              { id: "headline", type: "text", text: "Yangi mahsulot", anim: "pop" },
+              { type: "shape", kind: "rect", color: "#FFCC00", size: { w: 0.5, h: 0.01 } },
+            ],
+          },
+        ],
+      },
+    });
+    const saved = await s.call("template_save", {
+      project_id: projectId,
+      scene_id: "promo",
+      slug: "my_promo",
+      title: "Mening promo",
+    });
+    expect(saved.result.data).toMatchObject({
+      slug: "my_promo",
+      origin: "user",
+      version: 1,
+      source: "recipe",
+      formats: ["9:16"],
+      duration: { min: 1.5, max: 6 },
+      slots: {
+        photo: { type: "media", required: false, default: "asset:clip_01" },
+        headline: { type: "text", default: "Yangi mahsulot" },
+      },
+    });
+    const applied = await s.call("template_apply", {
+      project_id: projectId,
+      slug: "my_promo",
+      mode: "new",
+      slots: { headline: "Chegirma" },
+    });
+    expect(applied.result.ok).toBe(true);
+    const { id, status } = await runJob(
+      (await t.app.jobs.plan(projectId, applied.result.data.plan_version))!.spec,
+    );
+    expect(status.state).toBe("VERIFY");
+    const rows = await t.db.db.select().from(ops).where(eq(ops.jobId, id));
+    expect(rows.find((r) => r.opId === "my_promo_1.tpl.headline")!.params).toMatchObject({
+      text: "Chegirma",
+      name: "headline",
+    });
+    expect(rows.find((r) => r.opId === "my_promo_1.comp")!.params).toMatchObject({
+      bg: "#101820",
+    });
+  });
+
+  it("template_save aep: qurilgan .aep panel orqali storage'ga → keyingi build'da yuklanadi", async () => {
+    const spec = {
+      version: 1,
+      format: { w: 1080, h: 1920, fps: 30 },
+      output: { name: "src" },
+      scenes: [
+        {
+          id: "intro",
+          dur: 3,
+          layers: [{ id: "title", type: "text", text: "Salom" }],
+        },
+      ],
+    };
+    const early = await s.call("template_save", {
+      project_id: projectId,
+      scene_id: "intro",
+      slug: "intro_aep",
+      source: "aep",
+    });
+    expect(early.result.error.message).toMatch(/job_id/);
+    const { id } = await runJob(spec);
+    const saved = await s.call("template_save", {
+      project_id: projectId,
+      scene_id: "intro",
+      slug: "intro_aep",
+      source: "aep",
+      job_id: id,
+    });
+    expect(saved.result.data).toMatchObject({ source: "aep", slots: { title: { type: "text" } } });
+    expect(agent.uploads).toEqual(["reel_v001.aep"]);
+    const entry = (await t.app.templates.get(userId, "intro_aep"))!;
+    expect(entry.manifest).toMatchObject({
+      comp: "01_intro",
+      slots: { title: { layer: "title" } },
+    });
+
+    await s.call("job_cancel", { job_id: id });
+    await t.app.jobs.idle();
+    const next = await runJob({
+      ...spec,
+      scenes: [{ id: "s1", dur: 5, template: "intro_aep", slots: { title: "Yangi" } }],
+    });
+    expect(next.status.state).toBe("VERIFY");
+    expect(agent.files.get("templates/intro_aep_v1.aep")).toBe(entry.manifest.files!.aep!.sha256);
+  });
+
+  it("/from-template prompt", async () => {
+    const got = await s.rpc("prompts/get", {
+      name: "from-template",
+      arguments: { template: "hook_title", content: "Chegirma 30%" },
+    });
+    const text = got.messages[0].content.text as string;
+    expect(text).toContain("hook_title");
+    expect(text).toContain("template_apply");
+    expect(text).toContain("Chegirma 30%");
+  });
+});

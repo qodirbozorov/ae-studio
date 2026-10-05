@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (1/14)
-- **Oxirgi bajarilgan:** P5.01 — Shablon tizimi (2026-10-05)
-- **Keyingi todo:** P5.02 — Shablon toollari va prompt
+- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (2/14)
+- **Oxirgi bajarilgan:** P5.02 — Shablon toollari va /from-template (2026-10-05)
+- **Keyingi todo:** P5.03 — Boshlang'ich kutubxona
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -96,6 +96,7 @@
 | 2026-10-05 | P4.11 | karaoke = so'zlar navbat bilan paydo bo'ladi (Source Text hold keyframe'lari), rangli so'z ajratish emas | ES3/AE 22 da belgi diapazoni uslublari yo'q; ishonchli va AE versiyalarida bir xil |
 | 2026-10-05 | P4.15 | Kvota gate'i keshlangan vazifalarni ham baholashga qo'shadi | oddiy va xavfsiz: kam qoldiqda foydalanuvchidan so'raladi; keyin optimallashtirish mumkin |
 | 2026-10-05 | P5.01 | Shablon ikki xil: aep (template.instantiate) va recipe (compiler layerlarga yoyadi) | .aep dizayn faylini bu yerda yaratib bo'lmaydi — boshlang'ich kutubxona qayta yaratsa bo'ladigan recipe; aep yo'li template_save va dizaynerlar uchun |
+| 2026-10-05 | P5.02 | template_save ikki xil: recipe (Spec sahnasidan, AE'siz) va aep (qurilgan .aep panel orqali storage'ga) | recipe AE'siz qayta yaratiladi va formatlarga moslashadi; aep dizayner ishlovi kerak bo'lganda |
 
 ---
 
@@ -1182,3 +1183,27 @@
 **Testlar:** compiler `template.test` (6), panel `jsx-template.test` (3), server `templates.test` (5). To'liq to'plam 411 o'tdi. `gate3` og'ir yuk ostida bir marta timing sabab yiqildi, alohida o'tdi. Typecheck, lint, prettier, panel build toza.
 
 **👤:** haqiqiy AE'da `.aep` shablon importi va Essential Graphics rangi.
+
+### P5.02 — Shablon toollari va prompt (2026-10-05)
+
+**Nima qilindi:**
+- **MCP toollar** (`apps/server/src/mcp/tools/templates.ts`):
+  - `templates_list` — format/tag filtri; slot turi, majburiyligi, default, `max_chars`; `preview_url`.
+  - `template_get` — to'liq manifest, `has_aep`, `example_scene` (Spec'ga tayyor sahna).
+  - `template_apply` — slotlarni darhol tekshiradi va yangi plan versiyasini yozadi:
+    - `mode: new` — shablon formatida yangi Spec;
+    - `mode: append` — oxirgi planga sahna qo'shadi (shu `scene_id` bo'lsa almashtiradi).
+  - `template_save` — plan sahnasidan shablon (slug bor bo'lsa yangi versiya):
+    - `recipe` (default): sahna layerlari retseptga aylanadi; `id`li matn/media layerlar slot bo'ladi, default — joriy qiymat;
+    - `aep`: VERIFY yoki undan keyingi holatdagi job'ning `.aep` fayli panel orqali storage'ga yuklanadi; comp `NN_<sahna>`, slotlar layer nomi bo'yicha.
+- **WS `file.upload.request`** (server → panel). Panel ish papkasidagi faylni pre-signed PUT bilan yuklaydi va `file.uploaded` qaytaradi. Papkadan tashqari yo'l va yo'q fayl rad etiladi.
+- **Compiler:** `id`li layer AE'da shu nom bilan yaratiladi (aep shablon slotlari va qo'lda tahrir uchun). Snapshot'ga 2 ta `name` qo'shildi, boshqa farq yo'q.
+- **Umumiy yordamchilar** (`templates/apply.ts`): `templateSummary`, `exampleScene`, `applyTemplate`, `recipeFromScene`, `aepManifestFromScene` — panel ekrani (P5.06) va batch (P5.07) ham ishlatadi.
+- **MCP prompt `/from-template`.**
+
+**Testlar:**
+- server `templates.test`: +6 — list/get, apply new/append/xato, recipe save → apply → build, aep save → upload → keyingi build'da yetkazish, prompt;
+- panel `files.e2e`: `file.upload.request` haqiqiy agent bilan;
+- `mcp.test`: prompt ro'yxati va tool prefikslari yangilandi.
+
+To'liq to'plam: 418 test o'tdi. `build.e2e` dagi layer nomi kutilmasi yangilandi. Typecheck, lint, prettier toza.

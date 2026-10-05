@@ -78,6 +78,14 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
     upload: uploadTargetSchema,
   }),
   z.strictObject({
+    /** Ish papkasidagi faylni storage'ga yuklash (masalan `template_save`: qurilgan `.aep`) → `file.uploaded`. */
+    type: z.literal("file.upload.request"),
+    request_id: idSchema,
+    local_path: relPathSchema,
+    content_type: z.string().min(1).max(128).optional(),
+    upload: uploadTargetSchema,
+  }),
+  z.strictObject({
     type: z.literal("file.download"),
     request_id: idSchema,
     url: z.url(),

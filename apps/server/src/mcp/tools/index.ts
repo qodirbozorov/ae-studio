@@ -12,6 +12,7 @@ import { projectTools } from "./projects";
 import { renderTools } from "./render";
 import { reportTools } from "./report";
 import { specTools } from "./spec";
+import { templateTools } from "./templates";
 import { verifyTools } from "./verify";
 
 export const TOOLS: readonly ToolDef[] = [
@@ -26,6 +27,7 @@ export const TOOLS: readonly ToolDef[] = [
   ...elevenGenerateTools,
   ...elevenAnalyzeTools,
   ...elevenTransformTools,
+  ...templateTools,
   ...reportTools,
   ...specTools,
 ];
