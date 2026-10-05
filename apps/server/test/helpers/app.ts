@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app";
+import type { AppDeps } from "../../src/app";
 import { MemoryMailer } from "../../src/auth/mailer";
 import { loadEnv } from "../../src/env";
 import { createTestDb } from "./db";
@@ -20,6 +21,7 @@ export interface TestApp {
 export async function createTestApp(
   env: Record<string, string> = {},
   db?: TestDb,
+  extra: Pick<AppDeps, "oauthFetcher"> = {},
 ): Promise<TestApp> {
   const testDb = db ?? (await createTestDb());
   const mailer = new MemoryMailer();
@@ -43,6 +45,7 @@ export async function createTestApp(
     redis: { ping: async () => "PONG", quit: async () => "OK" },
     mailer,
     now: () => clock.now,
+    ...extra,
   });
   return {
     app,

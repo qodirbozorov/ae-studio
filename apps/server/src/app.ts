@@ -12,6 +12,8 @@ import type { AppContext } from "./context";
 import type { Db } from "./db/client";
 import { registerDeviceRoutes } from "./devices/routes";
 import type { Env } from "./env";
+import type { MetadataFetcher } from "./oauth/clients";
+import { registerOAuthRoutes } from "./oauth/routes";
 import { registerProjectRoutes } from "./projects/routes";
 import { registerHealth } from "./health";
 import { JobEngine } from "./jobs/engine";
@@ -42,6 +44,8 @@ export interface AppDeps {
   now?: () => Date;
   /** Berilmasa env bo'yicha (S3 yoki lokal). */
   storage?: Storage;
+  /** OAuth CIMD hujjatlarini olish (testlar uchun). */
+  oauthFetcher?: MetadataFetcher;
 }
 
 /** Fastify ilovasini yig'adi (tinglamaydi): testlar `app.inject()` bilan chaqiradi. */
@@ -93,6 +97,14 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   };
 
   await app.register(cookie);
+  // OAuth token/revoke va ruxsat formasi (RFC 6749: application/x-www-form-urlencoded).
+  app.addContentTypeParser(
+    "application/x-www-form-urlencoded",
+    { parseAs: "string", bodyLimit: 64 * 1024 },
+    (_request, body, done) => {
+      done(null, Object.fromEntries(new URLSearchParams(body as string)));
+    },
+  );
   await app.register(websocket, { options: { maxPayload: 16 * 1024 * 1024 } });
 
   app.decorateRequest("user", null);
@@ -104,6 +116,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   if (storage instanceof LocalStorage) await storage.register(app);
   registerHealth(app, deps);
   registerAuthRoutes(app, ctx);
+  registerOAuthRoutes(
+    app,
+    ctx,
+    deps.oauthFetcher === undefined ? {} : { fetcher: deps.oauthFetcher },
+  );
   registerDeviceRoutes(app, ctx);
   registerAgentSocket(app, ctx, hub);
   registerProjectRoutes(app, ctx);

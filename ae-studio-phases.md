@@ -138,7 +138,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 
 **Maqsad:** Claude (web/desktop/telefon) custom connector orqali butun loopni boshqaradi.
 
-- [ ] **P3.01 — OAuth 2.1 server (§4.1).** `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`, dynamic client registration, `/oauth/authorize` (kabinet sessiyasi + ruxsat ekrani), `/oauth/token` (PKCE S256 majburiy, refresh rotation), revoke. `/mcp` 401 qaytarganda `WWW-Authenticate` + resource metadata beriladi. MCP authorization spec'ning joriy talablari (DCR / Client ID Metadata Document) va Claude callback URL'lari rasmiy hujjatdan tekshiriladi.
+- [x] **P3.01 — OAuth 2.1 server (§4.1).** `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`, dynamic client registration, `/oauth/authorize` (kabinet sessiyasi + ruxsat ekrani), `/oauth/token` (PKCE S256 majburiy, refresh rotation), revoke. `/mcp` 401 qaytarganda `WWW-Authenticate` + resource metadata beriladi. MCP authorization spec'ning joriy talablari (DCR / Client ID Metadata Document) va Claude callback URL'lari rasmiy hujjatdan tekshiriladi.
   - Tayyor: test klient bilan to'liq DCR + PKCE oqimi o'tadi.
 - [ ] **P3.02 — `/mcp` (Streamable HTTP).** `@modelcontextprotocol/sdk`, token → `user_id`, user bo'yicha rate limit, yagona javob formati, zod'dan JSON Schema `inputSchema`, MCP `instructions` (Claude uchun loop qoidalari).
   - Tayyor: MCP Inspector bilan ulanib, tool chaqirib bo'ladi.

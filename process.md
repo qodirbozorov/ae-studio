@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · kod qismi to'liq (14/14), AE bandlari 👤 · Faza 3 navbatda
-- **Oxirgi bajarilgan:** P2.14 — Faza 2 gate: kod va prod qismi ✅ (2026-10-05)
-- **Keyingi todo:** Faza 3 — P3.01 (ae-studio-phases.md dagi birinchi [ ] todo)
+- **Faza:** 3 — Claude loop'i · jarayonda (1/12)
+- **Oxirgi bajarilgan:** P3.01 — OAuth 2.1 server (2026-10-05)
+- **Keyingi todo:** P3.02 — /mcp (Streamable HTTP)
 - **Blokerlar:** 👤 AE kompyuterida: ZXP, kabinet kodi bilan ulanish, Live/Undo, AE'ni o'rtada yopib-ochish · 👤 RESEND_API_KEY (magic link hozir server logida)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -76,6 +76,7 @@
 | 2026-10-05 | P2.13 | Lokal hisobot nusxasi .aestudio/report.vNNN.md (aep versiyasi bo'yicha), yagona report.md emas | Hech bir fayl ustiga yozilmaydi (§2.10) |
 | 2026-10-05 | P2.13 | file.download default'da mavjud faylni boshqa tarkib bilan almashtirmaydi (overwrite flag'i); plan/report storage'da docs/<sha256> | Versiyalar himoyasi panel tomonida ham; content-addressed — takroriy yuklash yo'q |
 | 2026-10-05 | P2.14 | Faza 2 gate'ining kod va prod qismi production smoke testi (prod.smoke.test.ts, mock AE) bilan yopildi; haqiqiy AE bandlari 👤 qoldi | Bu kompyuterda AE yo'q (foydalanuvchi qarori) |
+| 2026-10-05 | P3.01 | OAuth: DCR + CIMD ikkalasi; opaque tokenlar (access 1 soat, refresh 30 kun, rotation + reuse'da oila bekor); ruxsat ekrani server HTML | MCP spec 2025-11-25 (CIMD SHOULD, DCR MAY) va Claude hujjati (ikkalasini ham qo'llaydi) |
 
 ---
 
@@ -484,3 +485,54 @@
   - Live ekrani va Undo last;
   - AE'ni o'rtada yopib-ochish.
 - **Keyingi:** Faza 3 — P3.01
+
+### 2026-10-05 · P3.01 — OAuth 2.1 server · ✅
+- **Manbalar:**
+  - MCP authorization spec 2025-11-25 (modelcontextprotocol.io);
+  - Claude connector auth hujjati (claude.com/docs/connectors/building/authentication):
+    - callback `https://claude.ai/api/mcp/auth_callback`;
+    - Claude Code — loopback redirect, port ixtiyoriy;
+    - CIMD faqat `client_id_metadata_document_supported` va `none` auth usuli birga bo'lsa ishlatiladi, aks holda DCR;
+    - token endpoint form-urlencoded;
+    - refresh rotation, xatoda `invalid_grant`;
+    - `offline_access` scope.
+- **Qilindi (`src/oauth/`):**
+  - **Metadata:**
+    - `/.well-known/oauth-protected-resource` va `…/mcp`: `resource` = `<PUBLIC_URL>/mcp`, `scopes_supported` = `[mcp]`.
+    - `/.well-known/oauth-authorization-server`: S256, `none` + client_secret_post/basic, `client_id_metadata_document_supported`, `registration_endpoint`, `revocation_endpoint`.
+  - **DCR (`POST /oauth/register`):**
+    - redirect faqat https yoki http loopback, fragmentsiz;
+    - grant'lar authorization_code va refresh_token;
+    - confidential klientga sir beriladi (DB'da sha256);
+    - IP bo'yicha rate limit.
+  - **CIMD:**
+    - `client_id` — https URL; hujjat olinadi, `client_id` URL'ga aynan teng bo'lishi shart;
+    - redirect'lar tekshiriladi, 5 daqiqa kesh, `oauth_clients` ga yoziladi;
+    - SSRF himoyasi: ichki IP rad etiladi, redirect'siz, 5 s, 64 KB.
+  - **`/oauth/authorize`:**
+    - klient yoki redirect noto'g'ri bo'lsa foydalanuvchiga xato sahifasi chiqadi (begona manzilga redirect yo'q);
+    - qolgan xatolar `redirect_uri?error=…&state&iss` bilan qaytadi;
+    - PKCE S256 majburiy; `resource` (RFC 8707) kanonik ko'rinishda solishtiriladi;
+    - sessiya yo'q bo'lsa `/login?next=…` ga yuboriladi (kabinet SPA `/login` ni qo'llaydi, `next` 4000 belgigacha);
+    - ruxsat ekrani: ilova nomi, qaytish host'i, faqat loopback bo'lsa ogohlantirish, CSRF (sessiya HMAC), `X-Frame-Options: DENY`, CSP.
+  - **`/oauth/token`:**
+    - authorization_code: kod bir martalik va 10 daqiqa; redirect_uri, PKCE va resource tekshiriladi;
+    - refresh_token: rotation; eski refresh qayta ishlatilsa user va klientning barcha tokenlari bekor qilinadi;
+    - access token 1 soat, refresh 30 kun; `Cache-Control: no-store`.
+  - **`/oauth/revoke` (RFC 7009);** kabinetda `GET /api/oauth/connections` va `POST /api/oauth/connections/revoke` ("ulangan ilovalar" API'si).
+  - **`/mcp` uchun:** `authenticateBearer` (faqat shu resource uchun berilgan access token) va `bearerChallenge`.
+  - **DB:** migratsiya `0002_oauth_clients` — `kind`, `token_endpoint_auth_method`, `secret_hash`, `updated_at`.
+  - **`lib/rate-limit.ts`:** sirpanuvchi oyna limiter.
+- **Tekshiruv:** `oauth.test.ts` 14 ta:
+  - metadata;
+  - to'liq DCR + PKCE oqimi (sessiyasiz → login `next`);
+  - ruxsat sahifasi (HTML escape, host, email), deny, soxta CSRF → 403;
+  - kod bir martalik, noto'g'ri verifier va resource;
+  - refresh rotation va oilani bekor qilish; access 1 soatdan keyin eskiradi;
+  - PKCE va redirect qoidalari; DCR validatsiyasi; confidential klient (Basic);
+  - revoke va "ulangan ilovalar";
+  - CIMD: loopback port'siz, Claude Code kabi; noto'g'ri yoki yo'q hujjat;
+  - SSRF.
+
+  Repo 287 ✅.
+- **Keyingi:** P3.02 (`/mcp`)

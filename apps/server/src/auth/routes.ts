@@ -20,7 +20,7 @@ const emailSchema = z.strictObject({
   next: z
     .string()
     .regex(/^\/[^/\\]/)
-    .max(500)
+    .max(4000)
     .optional(),
 });
 

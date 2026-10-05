@@ -91,11 +91,18 @@ export const devices = pgTable(
 // ---------------------------------------------------------------- OAuth (§4)
 
 export const oauthClients = pgTable("oauth_clients", {
-  /** `client_id` (dynamic client registration). */
+  /** `client_id`: DCR'da tasodifiy, CIMD'da metadata hujjati URL'i. */
   id: text("id").primaryKey(),
   clientName: text("client_name"),
   redirectUris: jsonb("redirect_uris").$type<string[]>().notNull(),
+  /** `dcr` (RFC 7591) yoki `cimd` (Client ID Metadata Document). */
+  kind: text("kind").notNull().default("dcr"),
+  /** `none` (public) | `client_secret_post` | `client_secret_basic`. */
+  tokenEndpointAuthMethod: text("token_endpoint_auth_method").notNull().default("none"),
+  /** Confidential klient siri: faqat sha256. */
+  secretHash: text("secret_hash"),
   createdAt: createdAt(),
+  updatedAt: updatedAt(),
 });
 
 export const oauthTokens = pgTable(
