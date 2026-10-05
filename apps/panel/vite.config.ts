@@ -7,6 +7,7 @@ import { defineConfig } from "vite";
 import type { Plugin } from "vite";
 import { cep, runAction } from "vite-cep-plugin";
 import type { CepOptions } from "vite-cep-plugin";
+import { buildAgent, watchAgent } from "./agent.build";
 import cepConfig from "./cep.config";
 import { buildJsx, watchJsx } from "./vite.es.config";
 
@@ -16,6 +17,7 @@ const devDist = "dist";
 const cepDist = "cep";
 const outDir = path.join(panelDir, devDist, cepDist);
 const jsxOut = path.join(outDir, "jsx", "index.js");
+const agentOut = path.join(outDir, "agent", "agent.cjs");
 
 const isProduction = process.env.NODE_ENV === "production";
 const isMetaPackage = process.env.ZIP_PACKAGE === "true";
@@ -45,19 +47,20 @@ const cepOptions: CepOptions = {
 if (action) runAction(cepOptions, action);
 
 /**
- * ExtendScript bundle Vite build'idan oldin (buildStart) tayyorlanadi: ZXP imzolash
- * (vite-cep-plugin writeBundle) paytida `jsx/index.js` allaqachon mavjud bo'lishi shart.
+ * ExtendScript (jsx) va Node agent bundle'lari Vite build'idan oldin (buildStart) tayyorlanadi:
+ * ZXP imzolash (vite-cep-plugin writeBundle) paytida ular allaqachon `dist/cep` da bo'lishi shart.
  */
-function extendscript(): Plugin {
+function nativeBundles(): Plugin {
   return {
-    name: "aes-extendscript",
+    name: "aes-native-bundles",
     async buildStart() {
       if (this.meta.watchMode) {
         watchJsx(jsxOut, () => console.log("[jsx] qayta build qilindi"));
+        await watchAgent(agentOut);
         return;
       }
       rmSync(outDir, { recursive: true, force: true });
-      await buildJsx(jsxOut, sourcemap);
+      await Promise.all([buildJsx(jsxOut, sourcemap), buildAgent(agentOut, sourcemap)]);
     },
   };
 }
@@ -92,7 +95,7 @@ function removeBuildSymlink(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [extendscript(), react(), cep(cepOptions), removeBuildSymlink()],
+  plugins: [nativeBundles(), react(), cep(cepOptions), removeBuildSymlink()],
   root,
   clearScreen: false,
   server: { port: cepConfig.port },

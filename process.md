@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 1 — Poydevor · jarayonda (9/14, P1.08 kutmoqda)
-- **Oxirgi bajarilgan:** P1.10 — ExtendScript runtime (2026-10-05)
-- **Keyingi todo:** P1.11 — panel op runner + live log (agent)
+- **Faza:** 1 — Poydevor · jarayonda (10/14, P1.08 kutmoqda)
+- **Oxirgi bajarilgan:** P1.11 — panel agent: op runner + live log (2026-10-05)
+- **Keyingi todo:** P1.12 — birinchi 4 op (comp.create, layer.add_text, item.import, layer.add_media)
 - **Blokerlar:** git remote yo'q (push uchun repo URL kerak) · P1.08 Railway uchun tasdiq kerak
 - **Ochiq qarorlar:** Q1–Q5, Q7–Q10 (phases §9). Yopilgan: Q6 (zod v4)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -150,3 +150,15 @@
 - **Test infratuzilmasi:** `test/ae-mock.ts`: AE object model mock'i (project/items/CompItem/layers/TextDocument/ImportOptions/File, undo/dialog hisoblagichlari). `test/jsx-harness.ts`: bundle JSON'siz vm'da yuklanadi.
 - **Tekshiruv:** panel 11/11 ✅ (ping, yomon JSON, noma'lum op, eski AE). Test topdi: Babel `_typeof` helper'i `Symbol.iterator` ni bundle'ga qo'shgan edi, shuning uchun `transform-typeof-symbol` o'chirildi. jsx typecheck (ES3) · lint · prettier ✅.
 - **Keyingi:** P1.11
+
+### 2026-10-05 · P1.11 — Panel op runner va live log · ✅
+- **Qilindi:** `src/agent/` (CEP ichidagi Node agenti, brauzer API'siga bog'liq emas):
+  - `ae-bridge.ts`: `$[NS].runOp(json)` skripti, ES3-xavfsiz satr literal (U+2028/2029 escape), `timeout_ms` → `AE_TIMEOUT`. jsx yuklanmagan bo'lsa `$.evalFile` bilan yuklab, bir marta qayta urinadi. `EvalScript error.` va yaroqsiz javob → `AE_SCRIPT_ERROR`.
+  - `op-runner.ts`: qat'iy ketma-ket navbat; AE'ga yuborishdan oldin zod konvert tekshiruvi va fayl yo'llari (`OP_PATH_PARAMS` → `resolveInsideRoot`); `op.started/done/failed` eventlari; `current()` (resume uchun).
+  - `log.ts`: halqa bufer + obunachilar (⏳/✅/❌).
+  - `createAgent()`.
+  - `agent.build.ts`: esbuild → `dist/cep/agent/agent.cjs` (node15, minify, 485 KB). Vite `buildStart` da jsx bilan parallel build qilinadi.
+  - `shared/paths.ts`: muhitdan mustaqil path traversal himoyasi (panel + server).
+  - UI: `lib/agent.ts` (CEP Node `require`), `LiveLog`, `DevTools` (Ping / Comp yaratish / Matn qo'shish).
+- **Tekshiruv:** agent testlari haqiqiy jsx bundle bilan mock-AE vm'da: ping oqimi + log + eventlar; yaroqsiz konvert va yo'l AE'ga yuborilmaydi; timeout; ketma-ketlik; jsx avtomatik yuklanishi; istisnolar. `agent.cjs` oddiy Node'da `require` qilinib, op bajarildi. Repo 146/146 · typecheck (UI + agent@node16 + jsx@ES3) · lint · prettier ✅.
+- **Keyingi:** P1.12

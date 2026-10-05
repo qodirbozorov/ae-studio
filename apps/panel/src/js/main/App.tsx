@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import pkg from "../../../package.json";
+import { getAgent } from "../lib/agent";
 import { hostEnvironment, isCep, panelBackground } from "../lib/cep";
+import { DevTools } from "./DevTools";
+import { LiveLog } from "./LiveLog";
 
 type Status = "ok" | "off" | "unknown";
 
@@ -12,6 +15,7 @@ function Dot({ status }: { status: Status }) {
 export function App() {
   const [background, setBackground] = useState<string | null>(null);
   const host = hostEnvironment();
+  const agent = getAgent();
 
   useEffect(() => {
     setBackground(panelBackground());
@@ -38,6 +42,15 @@ export function App() {
           <Dot status="unknown" /> ElevenLabs
         </div>
       </section>
+
+      {agent === null ? (
+        <p className="hint">Agent yuklanmadi: panel After Effects ichida ochilishi kerak.</p>
+      ) : (
+        <>
+          <DevTools agent={agent} />
+          <LiveLog store={agent.log} />
+        </>
+      )}
     </main>
   );
 }

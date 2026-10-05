@@ -10,7 +10,7 @@
     "zxp": "cross-env NODE_ENV=production ZXP_PACKAGE=true vite build --watch false",
     "symlink": "cross-env BOLT_ACTION=symlink vite",
     "delsymlink": "cross-env BOLT_ACTION=delsymlink vite",
-    "typecheck": "tsc -p tsconfig.json && tsc -p src/jsx/tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json && tsc -p src/agent/tsconfig.json && tsc -p src/jsx/tsconfig.json"
   },
   "dependencies": {
     "@aes/shared": "workspace:*",
@@ -30,6 +30,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "acorn": "^8.18.0",
     "cross-env": "^10.1.0",
+    "esbuild": "^0.28.2",
     "rollup": "^4.64.0",
     "types-for-adobe": "^7.2.6",
     "vite": "~6.4.3",

@@ -15,20 +15,48 @@ export function jsxCode(): Promise<string> {
 
 export interface Harness {
   ae: MockAE;
+  /** CEP `evalScript` kabi: natija satr, ExtendScript istisnosida "EvalScript error.". */
+  evalScript(script: string): Promise<string>;
   run<N extends AeOpName>(op: N, opId: string, params: OpParamsMap[N], ctx?: AeContext): AeResponse;
   raw(json: string): string;
 }
 
 /** Bundle'ni ExtendScript'ga o'xshash vm'da (JSON'siz) mock AE bilan ishga tushiradi. */
-export async function loadJsx(ae: MockAE = createMockAE()): Promise<Harness> {
+export async function loadJsx(
+  ae: MockAE = createMockAE(),
+  options: { preload?: boolean } = {},
+): Promise<Harness> {
+  const code = await jsxCode();
   const context = vm.createContext({ ...ae.globals });
   vm.runInContext("delete this.JSON;", context);
-  vm.runInContext(await jsxCode(), context);
+  // `$.evalFile(path)` — panel jsx'ni shu bilan yuklaydi.
+  (context.$ as Record<string, unknown>).evalFile = () => vm.runInContext(code, context);
+  const evalScript = async (script: string) => {
+    try {
+      return String(vm.runInContext(script, context));
+    } catch {
+      return "EvalScript error.";
+    }
+  };
+  if (options.preload === false) {
+    return {
+      ae,
+      evalScript,
+      raw: () => {
+        throw new Error("jsx yuklanmagan");
+      },
+      run: () => {
+        throw new Error("jsx yuklanmagan");
+      },
+    };
+  }
+  vm.runInContext(code, context);
   const api = (context.$ as Record<string, { runOp(json: string): string }>)[NS];
   if (api === undefined) throw new Error("$[NS] ro'yxatdan o'tmadi");
   const raw = (json: string) => api.runOp(json);
   return {
     ae,
+    evalScript,
     raw,
     run(op, opId, params, ctx = { root: "D:/Projects/reel" }) {
       const request = { op: { op_id: opId, seq: 0, op, params, timeout_ms: 30_000 }, ctx };

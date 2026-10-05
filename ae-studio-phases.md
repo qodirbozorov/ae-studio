@@ -81,7 +81,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: 👤 AE → Window → Extensions → AE Studio ochiladi, hot reload ishlaydi.
 - [x] **P1.10 — ExtendScript runtime (§10.3).** `src/jsx`: TS → ES3 build, `json2` polyfill, `runOp(json)` dispatcher (`beginUndoGroup(op_id)`, `beginSuppressDialogs`, `try/catch`, natija doim JSON string), AE versiya tekshiruvi (`AE_VERSION`), `ping` op, `op_id` izi (layer/item comment) va `findByOpId`.
   - Tayyor: `runOp('ping')` AE versiyasi va loyiha yo'lini qaytaradi; xatoda `AE_SCRIPT_ERROR` JSON keladi.
-- [ ] **P1.11 — Panel op runner va live log.** `evalScript` uchun promise wrapper, `timeout_ms` o'tsa `AE_TIMEOUT`, ketma-ket navbat (bitta evalScript = bitta op), live log komponenti (⏳ → ✅/❌), dev tugmalar.
+- [x] **P1.11 — Panel op runner va live log.** `evalScript` uchun promise wrapper, `timeout_ms` o'tsa `AE_TIMEOUT`, ketma-ket navbat (bitta evalScript = bitta op), live log komponenti (⏳ → ✅/❌), dev tugmalar.
   - Tayyor: tugmalar bosilganda ping va op natijalari logda chiqadi.
 - [ ] **P1.12 — Birinchi 4 op.** `comp.create`, `layer.add_text`, `item.import`, `layer.add_media`. Idempotent: izi bor bo'lsa mavjud element qaytariladi. Fayl yo'li faqat ish papkasi ichida bo'lishi mumkin (path traversal tekshiruvi).
   - Tayyor: bitta op ikki marta yuborilsa dublikat paydo bo'lmaydi; AE smoke-test skripti bor.
