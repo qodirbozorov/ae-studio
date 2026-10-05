@@ -99,6 +99,27 @@ export function aepPath(project: Pick<ProjectRow, "name">, version: number): str
   return `${fileBase(project.name)}_v${pad3(version)}.aep`;
 }
 
+/** Loyiha assetlari compiler kontekstiga (PREFLIGHT va MCP `preflight`). */
+export async function compileAssets(
+  db: EngineContext["db"],
+  projectId: string,
+): Promise<Record<string, CompileAsset>> {
+  const rows = await db.select().from(assets).where(eq(assets.projectId, projectId));
+  const map: Record<string, CompileAsset> = {};
+  for (const row of rows) {
+    const meta = row.meta as Record<string, unknown>;
+    const num = (key: string) => (typeof meta[key] === "number" ? (meta[key] as number) : null);
+    map[row.key] = {
+      key: row.key,
+      local_path: row.localPath,
+      kind: row.kind,
+      status: row.status,
+      meta: { width: num("width"), height: num("height"), duration: num("duration") },
+    };
+  }
+  return map;
+}
+
 function isUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   for (let depth = 0; depth < 4 && current !== null && typeof current === "object"; depth++) {
@@ -680,20 +701,7 @@ export class JobEngine {
     const spec = parseSpec(plan.spec);
     if (!spec.ok) return { kind: "block", error: spec.error };
 
-    const rows = await this.ctx.db.select().from(assets).where(eq(assets.projectId, project.id));
-    const assetMap: Record<string, CompileAsset> = {};
-    for (const row of rows) {
-      const meta = row.meta as Record<string, unknown>;
-      const num = (key: string) => (typeof meta[key] === "number" ? (meta[key] as number) : null);
-      assetMap[row.key] = {
-        key: row.key,
-        local_path: row.localPath,
-        kind: row.kind,
-        status: row.status,
-        meta: { width: num("width"), height: num("height"), duration: num("duration") },
-      };
-    }
-
+    const assetMap = await compileAssets(this.ctx.db, project.id);
     const version = job.aepVersion ?? (await this.nextAepVersion(project.id));
     const projectPath = aepPath(project, version);
     const compiled = compile(spec.data, { assets: assetMap, projectPath, version });
@@ -973,7 +981,7 @@ export class JobEngine {
   }
 
   /** Loyihadagi keyingi `.aep` versiyasi: avvalgi joblar ajratganlaridan katta (hech biri ustiga yozilmaydi). */
-  private async nextAepVersion(projectId: string): Promise<number> {
+  async nextAepVersion(projectId: string): Promise<number> {
     const [row] = await this.ctx.db
       .select({ version: max(jobs.aepVersion) })
       .from(jobs)

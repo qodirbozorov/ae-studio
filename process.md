@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 3 — Claude loop'i · jarayonda (4/12)
-- **Oxirgi bajarilgan:** P3.04 — fayl toollari (2026-10-05)
-- **Keyingi todo:** P3.05 — qurish toollari (preflight, build_start, job_*)
+- **Faza:** 3 — Claude loop'i · jarayonda (5/12)
+- **Oxirgi bajarilgan:** P3.05 — qurish toollari (2026-10-05)
+- **Keyingi todo:** P3.06 — VERIFY: frames.capture, frames_capture, verify_approve/patch
 - **Blokerlar:** 👤 AE kompyuterida: ZXP, kabinet kodi bilan ulanish, Live/Undo, AE'ni o'rtada yopib-ochish · 👤 RESEND_API_KEY (magic link hozir server logida)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -617,3 +617,27 @@
 
   Repo 310 ✅.
 - **Keyingi:** P3.05 (qurish toollari)
+
+### 2026-10-05 · P3.05 — Qurish toollari · ✅
+- **MCP (`src/mcp/tools/build.ts`):**
+  - **`preflight`:** AE'ga tegmaydi. Plan joriy assetlar bilan compile qilinadi. Qaytaradi:
+    - `missing[]`: `asset:<key>` + sabab (unknown, corrupt, missing, unsupported);
+    - compile xatosi; op soni, sahnalar, umumiy davomiylik;
+    - VERIFY uchun `key_times`, ogohlantirishlar;
+    - quriladigan `.aep` yo'li (keyingi vNNN) va vaqt bahosi.
+  - **`build_start`:** job yaratadi va darhol `job_id` qaytaradi. `dry_run` rejimi (§11.4.2) faqat compile qiladi: op'lar turi bo'yicha, vaqt bahosi, `credits: 0` (audio Faza 4). `JOB_ACTIVE` himoyasi saqlanadi.
+  - **`job_status`:** holat, `prev_state`, pauza, progress (done/total/%), xato, patch soni, `.aep` yo'li, oxirgi N log (debug'siz) va `next_step` maslahati (holatga qarab: VERIFY → frames_capture…, BLOCKED → hint + job_resume…, WAITING_AGENT → panelni ochish).
+  - **`job_resume`:** BLOCKED → retry, pauza → resume, WAITING_AGENT → tushuntirish (`ENV_AGENT_OFFLINE`).
+  - **`job_cancel`:** qurilgan qism o'chirilmaydi, hisobot `cancelled`.
+  - **`job_list`:** loyiha bo'yicha yoki hammasi.
+  - **`ownJob`:** begona job ko'rinmaydi.
+- **Engine:** `compileAssets()` umumiy yordamchi sifatida ajratildi; `nextAepVersion` ochiq qilindi.
+- **Tekshiruv:** `mcp-build.test.ts` 5 ta:
+  - preflight: unknown/corrupt `missing[]`, so'ng ready (`aep_path`, `key_times`, baho);
+  - `dry_run` job yaratmaydi; plan yo'q → `SYS_NOT_FOUND`;
+  - `build_start` → VERIFY (100%, `next_step`), ikkinchi → `JOB_ACTIVE`, `job_list`, cancel → DONE;
+  - WAITING_AGENT'da resume tushuntiradi; BLOCKED → `job_resume` → VERIFY;
+  - begona user hech narsa ko'rmaydi.
+
+  Repo ✅.
+- **Keyingi:** P3.06 (VERIFY: kadrlar va patch sikli)
