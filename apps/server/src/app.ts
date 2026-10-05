@@ -11,6 +11,7 @@ import type { AppContext } from "./context";
 import type { Db } from "./db/client";
 import { registerDeviceRoutes } from "./devices/routes";
 import type { Env } from "./env";
+import { registerProjectRoutes } from "./projects/routes";
 import { registerHealth } from "./health";
 import type { RedisLike } from "./redis";
 import { LocalStorage, createStorage } from "./storage";
@@ -100,6 +101,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerAuthRoutes(app, ctx);
   registerDeviceRoutes(app, ctx);
   registerAgentSocket(app, ctx, hub);
+  registerProjectRoutes(app, ctx);
   app.addHook("onClose", async () => hub.close());
 
   return app;

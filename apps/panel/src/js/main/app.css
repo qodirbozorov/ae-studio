@@ -172,3 +172,25 @@ button:disabled {
 .error-text {
   color: var(--error);
 }
+
+select {
+  padding: 5px 8px;
+  color: var(--text);
+  background: #1b1b1b;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.recent {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link-button {
+  padding: 0;
+  color: var(--accent);
+  background: none;
+  border: 0;
+}

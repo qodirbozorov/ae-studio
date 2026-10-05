@@ -8,6 +8,7 @@ import { createAeBridge } from "./ae-bridge";
 import type { AeBridge, EvalScript } from "./ae-bridge";
 import { clearCredentials, loadCredentials, saveCredentials } from "./credentials";
 import type { Credentials } from "./credentials";
+import { getJson, postJson } from "./http";
 import { LogStore } from "./log";
 import { createOpRunner } from "./op-runner";
 import type { OpRunner } from "./op-runner";
@@ -19,6 +20,8 @@ import {
   requestDeviceCode,
 } from "./pairing";
 import type { DeviceCode, PollOptions } from "./pairing";
+import { loadSettings, prepareProjectFolder, saveSettings } from "./workspace";
+import type { PanelSettings, ProjectInfo } from "./workspace";
 import { createWsClient } from "./ws-client";
 import type { WsClient } from "./ws-client";
 
@@ -63,14 +66,21 @@ export interface Agent {
   connectSaved(): WsClient | null;
   /** Ulanishni uzadi va tokenni o'chiradi. */
   logout(): void;
-  /** Past darajali ulanish (dev token, testlar). */
+  /** Ish papkasini tayyorlaydi (ichki papkalar), serverda loyiha sifatida ro'yxatdan o'tkazadi va faollashtiradi. */
+  openProject(root: string): Promise<ProjectInfo>;
+  /** Shu qurilmaning oxirgi loyihalari (serverdan). */
+  recentProjects(): Promise<ProjectInfo[]>;
+  currentProject(): ProjectInfo | null;
+  settings(): PanelSettings;
+  updateSettings(next: Partial<PanelSettings>): PanelSettings;
+  /** Past darajali ulanish (testlar). */
   connect(server: ServerConnection): WsClient;
   disconnect(): void;
   connection(): WsClient | null;
 }
 
-export function deviceInfo(): { name: string; os: string } {
-  return { name: os.hostname(), os: `${os.type()} ${os.release()}` };
+export function deviceInfo(name?: string | null): { name: string; os: string } {
+  return { name: name ?? os.hostname(), os: `${os.type()} ${os.release()}` };
 }
 
 export function createAgent(options: AgentOptions): Agent {
@@ -82,6 +92,13 @@ export function createAgent(options: AgentOptions): Agent {
   const runner = createOpRunner({ bridge, log, getRoot: () => root });
   let client: WsClient | null = null;
   let account = loadCredentials(dataDir);
+  let settings = loadSettings(dataDir);
+  let project: ProjectInfo | null = null;
+
+  function authHeaders(): Record<string, string> {
+    if (account === null) throw new Error("Panel serverga ulanmagan");
+    return { authorization: `Bearer ${account.token}` };
+  }
 
   let aeVersion: string | null = null;
 
@@ -122,7 +139,7 @@ export function createAgent(options: AgentOptions): Agent {
     return connect({
       url: agentSocketUrl(credentials.server_url),
       token: credentials.token,
-      device: deviceInfo(),
+      device: deviceInfo(settings.device_name),
       panelVersion,
     });
   }
@@ -139,7 +156,7 @@ export function createAgent(options: AgentOptions): Agent {
     pair(serverUrl) {
       const signal = { cancelled: false };
       const base = normalizeServerUrl(serverUrl);
-      const code = requestDeviceCode(base, deviceInfo());
+      const code = requestDeviceCode(base, deviceInfo(settings.device_name));
       const done = code.then(async (deviceCode) => {
         log.add({
           level: "info",
@@ -178,6 +195,38 @@ export function createAgent(options: AgentOptions): Agent {
       clearCredentials(dataDir);
       account = null;
     },
+    async openProject(folder) {
+      const prepared = prepareProjectFolder(folder);
+      const res = await postJson<{ ok: boolean; data?: ProjectInfo; error?: { message?: string } }>(
+        `${account?.server_url ?? ""}/api/agent/projects`,
+        { root_path: prepared },
+        { headers: authHeaders() },
+      );
+      if (!res.body.ok || res.body.data === undefined) {
+        throw new Error(
+          res.body.error?.message ?? `Loyiha ro'yxatdan o'tmadi (HTTP ${res.status})`,
+        );
+      }
+      project = res.body.data;
+      root = prepared;
+      log.add({ level: "info", message: `📁 Ish papkasi: ${prepared}` });
+      return project;
+    },
+    async recentProjects() {
+      if (account === null) return [];
+      const res = await getJson<{ ok: boolean; data?: ProjectInfo[] }>(
+        `${account.server_url}/api/agent/projects`,
+        { headers: authHeaders() },
+      );
+      return res.body.ok ? (res.body.data ?? []) : [];
+    },
+    currentProject: () => project,
+    settings: () => settings,
+    updateSettings(next) {
+      settings = { ...settings, ...next };
+      saveSettings(dataDir, settings);
+      return settings;
+    },
     connect,
     disconnect() {
       client?.stop();
@@ -193,4 +242,5 @@ export type { EvalScript } from "./ae-bridge";
 export type { LogEntry } from "./log";
 export type { OpOutcome, RunnerEvent } from "./op-runner";
 export type { DeviceCode } from "./pairing";
+export type { PanelSettings, ProjectInfo } from "./workspace";
 export type { ConnectionStatus, WsClient } from "./ws-client";

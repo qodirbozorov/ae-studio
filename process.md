@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · jarayonda (6/14)
-- **Oxirgi bajarilgan:** P2.06 — storage (S3/lokal), panel upload/download sha256 (2026-10-05)
-- **Keyingi todo:** P2.07 — ish papkasi + sozlamalar (projects)
+- **Faza:** 2 — Yadro · jarayonda (7/14)
+- **Oxirgi bajarilgan:** P2.07 — ish papkasi, loyihalar API, sozlamalar (2026-10-05)
+- **Keyingi todo:** P2.08 — ffmpeg wrapper + INGEST (assets)
 - **Blokerlar:** 👤 Railway'da servislar yaratishga tasdiq · 👤 AE kompyuterida ZXP sinovi · git remote URL yo'q (push qilinmagan)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -264,3 +264,14 @@
 - **Tekshiruv:** `storage.test.ts` 7 ta (kalitlar; imzolangan PUT/GET; buzilgan, boshqa metod va muddati o'tgan imzo → 403; JSON route'lar ta'sirlanmagan; S3 presign formati tarmoqsiz). `files.e2e.test.ts` 3 ta (300 KB upload; download + sha256; mos kelmasa aynan 3 urinish va `.part` qolmaydi; WS `file.download` → fayl ish papkasida, `..` → `ASSET_OUTSIDE_ROOT`, noto'g'ri hash → `ASSET_CORRUPT`). Repo 193/193 · typecheck · lint · prettier ✅.
 - **Qarz:** "resumable multipart upload" (katta audio, §16) P4.04 da.
 - **Keyingi:** P2.07
+
+### 2026-10-05 · P2.07 — Ish papkasi va Sozlamalar · ✅ (AE'da ko'rish 👤)
+- **Qilindi:**
+  - **Server:** `src/projects/routes.ts`:
+    - `POST /api/agent/projects` (device token; bir qurilmadagi bir papka = bitta loyiha; nom papka nomidan olinadi; absolyut bo'lmagan yoki `..` li yo'l → `ENV_NO_FOLDER`).
+    - `GET /api/agent/projects` (oxirgi 20 ta), `GET /api/projects` (kabinet).
+    - `normalizeRootPath` (Windows `\` va disk ildizi), `resolveProjectPath`: server tomoni path guard, `shared/paths` bilan (§4.4).
+  - **Agent:** `workspace.ts`: `prepareProjectFolder` (`source/audio/frames/out/logs/.aestudio`), `settings.json` (qurilma nomi, log darajasi). `openProject`, `recentProjects`, `currentProject`, `settings/updateSettings`; qurilma nomi device flow va `hello` da ishlatiladi. `http.ts`: `getJson`, header'lar.
+  - **UI:** `Workspace` (CEP papka dialogi, oxirgi loyihalar), `Settings`; live log darajasi bo'yicha filtrlanadi.
+- **Tekshiruv:** `projects.test.ts` 3 ta, `workspace.e2e.test.ts` 2 ta (haqiqiy server + juftlangan agent: papkalar yaratiladi, server loyihasi yoziladi, takror ochilsa o'sha loyiha, yo'q papka → xato, sozlamalar yangi agentda o'qiladi). Papkadan tashqari yo'l ikkala tomonda rad etiladi: panel P2.06/P1.12, server shu yerda. Repo 198/198 · typecheck · lint · prettier ✅.
+- **Keyingi:** P2.08 (ffmpeg wrapper + INGEST)

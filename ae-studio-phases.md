@@ -111,7 +111,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: tarmoq uzilishi testida panel avtomatik qayta ulanadi va job davom etadi.
 - [x] **P2.06 — Storage (§4.4, §6).** ❓ 👤 Cloudflare R2 yoki Railway bucket (Q3). S3 klient, pre-signed PUT/GET (15 daqiqa), kalit sxemasi `u/<user>/p/<project>/{thumbs|frames|audio-in|audio-out}/<hash>.<ext>`. Panelda upload/download + sha256 tekshiruvi (3 qayta urinish, keyin `ASSET_CORRUPT`); `file.download` / `file.uploaded` / `file.saved`.
   - Tayyor: buzilgan fayl qayta yuklab olinadi, 3 urinishdan keyin `ASSET_CORRUPT` qaytadi.
-- [ ] **P2.07 — Ish papkasi va Sozlamalar.** Papka tanlash, `/source /audio /frames /out /logs /.aestudio` yaratish, oxirgi loyihalar (`projects`). Path traversal guard `shared` da turadi va panel bilan serverda ishlatiladi. Sozlamalar ekrani: qurilma nomi, chiqish, log darajasi. `ae.state` xabari.
+- [x] **P2.07 — Ish papkasi va Sozlamalar.** Papka tanlash, `/source /audio /frames /out /logs /.aestudio` yaratish, oxirgi loyihalar (`projects`). Path traversal guard `shared` da turadi va panel bilan serverda ishlatiladi. Sozlamalar ekrani: qurilma nomi, chiqish, log darajasi. `ae.state` xabari.
   - Tayyor: papkadan tashqaridagi yo'l ikkala tomonda ham rad etiladi (test).
 - [ ] **P2.08 — ffmpeg wrapper va INGEST.** `child_process.spawn` + timeout + kill. ffprobe metadata, rasm thumbnail / video kadrlari (≤1280px JPG) storage'ga yuklanadi; `asset.scanned` → `assets` jadvali; katta fayllar uchun tez hash strategiyasi.
   - Tayyor: aralash papka (video, rasm, audio, buzuq fayl) to'g'ri skanerlanadi.

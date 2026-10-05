@@ -20,8 +20,16 @@ function time(ts: number): string {
 }
 
 /** Live log: ⏳ → ✅ / ❌ (§11.1 "Live"). */
-export function LiveLog({ store }: { store: LogStore }) {
-  const entries = useLog(store);
+const RANK = { debug: 0, info: 1, warn: 2, error: 3 } as const;
+
+export function LiveLog({
+  store,
+  minLevel = "info",
+}: {
+  store: LogStore;
+  minLevel?: keyof typeof RANK;
+}) {
+  const entries = useLog(store).filter((entry) => RANK[entry.level] >= RANK[minLevel]);
   const bottom = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
