@@ -68,8 +68,13 @@ export function evalScript(script: string): Promise<string> {
 
 /** Extension papkasining OS yo'li (`file:///C:/...` → `C:/...`, `file:///Users/...` → `/Users/...`). */
 export function extensionPath(): string | null {
+  return systemPath("extension");
+}
+
+/** CEP tizim yo'llari: `extension`, `userData` (ilova ma'lumotlari) ... OS yo'li sifatida. */
+export function systemPath(type: "extension" | "userData"): string | null {
   if (!isCep()) return null;
-  const raw = decodeURI(adobe().getSystemPath("extension"));
+  const raw = decodeURI(adobe().getSystemPath(type));
   return /^file:\/\/\/[A-Za-z]:/.test(raw)
     ? raw.slice("file:///".length)
     : raw.replace(/^file:\/\//, "");

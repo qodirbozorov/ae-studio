@@ -9,7 +9,9 @@ import WebSocket from "ws";
 import type { LogStore } from "./log";
 import type { OpRunner, RunnerEvent } from "./op-runner";
 
-export type ConnectionStatus = "idle" | "connecting" | "connected" | "disconnected";
+/** `unauthorized`: server tokenni rad etdi (qurilma bekor qilingan) — qayta ulanish to'xtaydi. */
+export type ConnectionStatus =
+  "idle" | "connecting" | "connected" | "disconnected" | "unauthorized";
 
 export interface WsClientOptions {
   url: string;
@@ -157,7 +159,12 @@ export function createWsClient(options: WsClientOptions): WsClient {
         level: "error",
         message: `Server ulanishni rad etdi (HTTP ${response.statusCode})`,
       });
-      // Tinglovchi bo'lsa `ws` ulanishni o'zi yopmaydi: yopamiz → `close` → qayta ulanish.
+      if (response.statusCode === 401) {
+        // Token yaroqsiz yoki qurilma bekor qilingan: qayta urinish ma'nosiz — yangi juftlash kerak.
+        stopped = true;
+        setStatus("unauthorized");
+      }
+      // Tinglovchi bo'lsa `ws` ulanishni o'zi yopmaydi: yopamiz → `close` → (kerak bo'lsa) qayta ulanish.
       ws.terminate();
     });
     ws.on("error", () => {
@@ -165,6 +172,7 @@ export function createWsClient(options: WsClientOptions): WsClient {
     });
     ws.on("close", () => {
       if (socket === ws) socket = null;
+      if (current === "unauthorized") return;
       setStatus("disconnected");
       scheduleReconnect();
     });

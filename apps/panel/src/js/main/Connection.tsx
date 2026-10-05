@@ -1,34 +1,21 @@
 import { useEffect, useState } from "react";
-import pkg from "../../../package.json";
-import type { Agent, ConnectionStatus } from "../../agent";
-import { nodeRequire } from "../lib/cep";
+import type { Agent, ConnectionStatus, DeviceCode } from "../../agent";
+import { openUrl } from "../lib/cep";
 
-const STORAGE_KEY = "aes.dev.connection";
+const SERVER_KEY = "aes.server_url";
 
-interface Saved {
-  url: string;
-  token: string;
-}
-
-function load(): Saved {
+function savedServer(): string {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw !== null) return JSON.parse(raw) as Saved;
+    return localStorage.getItem(SERVER_KEY) ?? "";
   } catch {
-    // localStorage bo'lmasligi mumkin
+    return "";
   }
-  return { url: "ws://localhost:3000/ws/agent", token: "" };
 }
 
-function deviceInfo(): { name: string; os: string } {
-  const os = nodeRequire<{ hostname(): string; platform(): string; release(): string }>("os");
-  if (os === null) return { name: "browser", os: navigator.platform };
-  return { name: os.hostname(), os: `${os.platform()} ${os.release()}` };
-}
-
+/** Ulanish holatini kuzatadi (agent ulanishni almashtirsa ham). */
 export function useConnectionStatus(agent: Agent): ConnectionStatus {
-  const [status, setStatus] = useState<ConnectionStatus>(agent.connection()?.status() ?? "idle");
   const [client, setClient] = useState(agent.connection());
+  const [status, setStatus] = useState<ConnectionStatus>(client?.status() ?? "idle");
   useEffect(() => {
     const timer = setInterval(() => setClient(agent.connection()), 500);
     return () => clearInterval(timer);
@@ -44,41 +31,137 @@ export function useConnectionStatus(agent: Agent): ConnectionStatus {
   return status;
 }
 
-/** Faza 1 dev ulanishi: server URL + DEV_AGENT_TOKEN (P2.04 da device kod bilan almashtiriladi). */
-export function Connection({ agent, status }: { agent: Agent; status: ConnectionStatus }) {
-  const [saved, setSaved] = useState<Saved>(load);
+type Stage =
+  | { kind: "form"; error?: string }
+  | { kind: "code"; code: DeviceCode; cancel: () => void }
+  | { kind: "account" };
 
-  const connect = () => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-    } catch {
-      // saqlab bo'lmasa ham ulanaveramiz
+/** "Ulanish" ekrani (§11.1.1): device kod (§4.2) yoki saqlangan hisob. */
+export function Connection({ agent, status }: { agent: Agent; status: ConnectionStatus }) {
+  const [server, setServer] = useState(savedServer);
+  const [stage, setStage] = useState<Stage>(() =>
+    agent.account() === null ? { kind: "form" } : { kind: "account" },
+  );
+
+  // Panel ochilganda saqlangan hisob bilan avtomatik ulanish.
+  useEffect(() => {
+    if (agent.account() !== null && agent.connection() === null) agent.connectSaved();
+  }, [agent]);
+
+  // Server qurilmani rad etsa (kabinetda bekor qilingan) — formaga qaytish.
+  useEffect(() => {
+    if (status === "unauthorized" && agent.account() === null) {
+      setStage({ kind: "form", error: "Qurilma bekor qilingan. Qaytadan ulang." });
     }
-    agent.connect({ ...saved, device: deviceInfo(), panelVersion: pkg.version });
+  }, [status, agent]);
+
+  const start = () => {
+    try {
+      localStorage.setItem(SERVER_KEY, server);
+    } catch {
+      // saqlab bo'lmasa ham davom etamiz
+    }
+    let pairing: ReturnType<Agent["pair"]>;
+    try {
+      pairing = agent.pair(server);
+    } catch (error) {
+      setStage({ kind: "form", error: error instanceof Error ? error.message : String(error) });
+      return;
+    }
+    pairing.code.then(
+      (code) => {
+        setStage({ kind: "code", code, cancel: pairing.cancel });
+        openUrl(code.verification_uri_complete);
+      },
+      (error: unknown) =>
+        setStage({ kind: "form", error: error instanceof Error ? error.message : String(error) }),
+    );
+    pairing.done.then(
+      () => setStage({ kind: "account" }),
+      (error: unknown) =>
+        setStage({ kind: "form", error: error instanceof Error ? error.message : String(error) }),
+    );
   };
+
+  if (stage.kind === "account") {
+    const account = agent.account();
+    return (
+      <section className="dev">
+        <h2>Ulanish</h2>
+        <p className="hint">
+          {account?.server_url} · {statusText(status)}
+        </p>
+        <div className="buttons">
+          <button
+            onClick={() => {
+              agent.logout();
+              setStage({ kind: "form" });
+            }}
+          >
+            Chiqish
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (stage.kind === "code") {
+    return (
+      <section className="dev">
+        <h2>Ulanish</h2>
+        <p className="hint">Web kabinetda shu kodni tasdiqlang:</p>
+        <div className="user-code">{stage.code.user_code}</div>
+        <div className="buttons">
+          <button onClick={() => openUrl(stage.code.verification_uri_complete)}>
+            Brauzerda ochish
+          </button>
+          <button
+            onClick={() => {
+              stage.cancel();
+              setStage({ kind: "form" });
+            }}
+          >
+            Bekor qilish
+          </button>
+        </div>
+        <p className="hint">
+          Tasdiq kutilmoqda… (kod {Math.round(stage.code.expires_in / 60)} daqiqa amal qiladi)
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section className="dev">
-      <h2>Server (dev)</h2>
+      <h2>Ulanish</h2>
       <div className="form">
         <input
-          value={saved.url}
-          onChange={(e) => setSaved({ ...saved, url: e.target.value })}
-          placeholder="wss://<app>.up.railway.app/ws/agent"
-        />
-        <input
-          type="password"
-          value={saved.token}
-          onChange={(e) => setSaved({ ...saved, token: e.target.value })}
-          placeholder="DEV_AGENT_TOKEN"
+          value={server}
+          onChange={(e) => setServer(e.target.value)}
+          placeholder="https://<app>.up.railway.app"
         />
         <div className="buttons">
-          <button onClick={connect}>Ulanish</button>
-          <button onClick={() => agent.disconnect()} disabled={status === "idle"}>
-            Uzish
+          <button onClick={start} disabled={server.trim() === ""}>
+            Kod olish
           </button>
         </div>
+        {stage.error ? <p className="hint error-text">{stage.error}</p> : null}
       </div>
     </section>
   );
+}
+
+function statusText(status: ConnectionStatus): string {
+  switch (status) {
+    case "connected":
+      return "ulangan";
+    case "connecting":
+      return "ulanmoqda…";
+    case "disconnected":
+      return "aloqa yo'q, qayta ulanmoqda";
+    case "unauthorized":
+      return "rad etildi";
+    default:
+      return "ulanmagan";
+  }
 }

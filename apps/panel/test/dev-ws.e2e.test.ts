@@ -151,7 +151,8 @@ describe("dev WS: server ↔ panel agent ↔ ExtendScript", () => {
       device: { name: "T", os: "win" },
       panelVersion: "0.1.0",
     });
-    await waitFor(agent, "disconnected");
+    // 401 → qayta urinish to'xtaydi (yangi juftlash kerak).
+    await waitFor(agent, "unauthorized");
     expect(agent.log.list().some((e) => e.message.includes("HTTP 401"))).toBe(true);
     client.stop();
 

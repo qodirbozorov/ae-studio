@@ -157,3 +157,18 @@ button:disabled {
   opacity: 0.5;
   cursor: default;
 }
+
+.user-code {
+  margin: 4px 0 8px;
+  font:
+    700 28px/1.2 Consolas,
+    "SF Mono",
+    monospace;
+  letter-spacing: 0.2em;
+  color: var(--text);
+  user-select: text;
+}
+
+.error-text {
+  color: var(--error);
+}

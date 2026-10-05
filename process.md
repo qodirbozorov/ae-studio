@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · jarayonda (3/14)
-- **Oxirgi bajarilgan:** P2.02 — web kabinet + SPA static (2026-10-05)
-- **Keyingi todo:** P2.04 — panel Ulanish ekrani + credentials (device flow)
+- **Faza:** 2 — Yadro · jarayonda (4/14)
+- **Oxirgi bajarilgan:** P2.04 — panel ulanish ekrani + shifrlangan credentials (2026-10-05)
+- **Keyingi todo:** P2.05 — production WSS (device token, heartbeat, WAITING_AGENT asosi)
 - **Blokerlar:** 👤 Railway'da servislar yaratishga tasdiq · 👤 AE kompyuterida ZXP sinovi · git remote URL yo'q (push qilinmagan)
 - **Ochiq qarorlar:** Q3–Q5, Q7–Q10. Yopilgan: Q1, Q2 (magic link), Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -230,3 +230,10 @@
 - **Topilgan va tuzatilgan:** haqiqiy jarayon bilan smoke-test (dev-db PGlite socket + tsx server + curl) qilinganda `/oauth/device/code` postgres.js drayverida 500 berdi: raw `sql` ichidagi `Date` parametri serializatsiya qilinmaydi. PGlite testlari buni ko'rmagan. `gt()` bilan tuzatildi va `createWireTestDb()` qo'shildi (PGlite wire-server + haqiqiy postgres.js). `pg-driver.test.ts` login va device flow'ni production drayveri bilan sinaydi. Xatoni qaytarib tekshirildi, test uni ushlaydi.
 - **Tekshiruv:** jonli smoke: kabinet `/` → HTML; magic link (logdan) → 303 → cookie → `/api/me` → `test@example.com`. Testlar: `web.test.ts` 3 ta, `pg-driver.test.ts` 1 ta. Repo 179/179 · typecheck · lint · prettier ✅. Web build 224 KB.
 - **Keyingi:** P2.04
+
+### 2026-10-05 · P2.04 — Panel: Ulanish ekrani va credentials · ✅ (AE'da ko'rish 👤)
+- **Qilindi:**
+  - **agent:** `pairing.ts`: device flow klienti — kod olish, poll, `slow_down` +5 s, denied/expired/cancelled → `PairingError`; `normalizeServerUrl`; `agentSocketUrl` (https → wss). `http.ts`: `node:https` ustidagi JSON POST, chunki CEP Node 15 da `fetch` yo'q. `credentials.ts`: `<userData>/.aestudio/credentials`, AES-256-GCM; kalit = scrypt(hostname | OS user | home | platform), native modulsiz. `createAgent`: `account()`, `pair()`, `connectSaved()`, `logout()`. WS 401 → `unauthorized` holati: qayta urinish to'xtaydi va saqlangan token o'chiriladi (qurilma kabinetda bekor qilingan holat).
+  - **UI:** `Connection.tsx`: hisob bo'lsa avtomatik ulanadi; bo'lmasa server URL → katta kod → brauzer avtomatik ochiladi → tasdiq kutiladi → ulanadi; chiqish va bekor qilish. Token CEP `userData` papkasida.
+- **Tekshiruv:** `pairing.test.ts` 5 ta (shifr fayli tokenni ochiq saqlamaydi; boshqa mashina yoki buzilgan fayl ochilmaydi; haqiqiy Fastify serveri bilan to'liq juftlash va kabinet API orqali tasdiq; rad etish; bekor qilish). dev-ws e2e 401 → `unauthorized` ga yangilandi. Panel 43/43 · typecheck · lint · build ✅.
+- **Keyingi:** P2.05

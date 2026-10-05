@@ -105,7 +105,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: kabinet Railway'da ochiladi.
 - [x] **P2.03 — Device flow (§4.2, RFC 8628).** `POST /oauth/device/code` (6 belgili `user_code`), `POST /oauth/device/token` poll (`authorization_pending`, `slow_down`, `expired_token`, `access_denied`), `device_token` (hash holida saqlanadi, uzoq muddatli, bekor qilinadi), `devices` jadvali.
   - Tayyor: to'liq oqim bo'yicha integratsiya testi bor.
-- [ ] **P2.04 — Panel: Ulanish ekrani va credentials.** Kodni ko'rsatish, brauzerni ochish, poll. Token `.aestudio/credentials` ga AES bilan yoziladi (kalit mashinaga bog'liq, Node `crypto`, native modulsiz). Holat indikatorlari: 🟢 Server · 🟢 AE.
+- [x] **P2.04 — Panel: Ulanish ekrani va credentials.** Kodni ko'rsatish, brauzerni ochish, poll. Token `.aestudio/credentials` ga AES bilan yoziladi (kalit mashinaga bog'liq, Node `crypto`, native modulsiz). Holat indikatorlari: 🟢 Server · 🟢 AE.
   - Tayyor: 👤 panel kod orqali ulanadi; AE qayta ochilganda qayta login so'ramaydi.
 - [ ] **P2.05 — Production WSS.** ❓ Brauzer `WebSocket` `Authorization` header qo'ya olmaydi (Q1). Tavsiya: CEP Node'da sof-JS `ws` paketi (header bilan, §4.2 ga mos). Heartbeat 10 s; 30 s javob bo'lmasa qurilma offline, joblar `WAITING_AGENT` ga o'tadi. Panel backoff + jitter bilan qayta ulanadi; `hello` kelganda tugallanmagan job davom etadi. Dev token o'chiriladi.
   - Tayyor: tarmoq uzilishi testida panel avtomatik qayta ulanadi va job davom etadi.
