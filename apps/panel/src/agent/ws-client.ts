@@ -37,6 +37,10 @@ export interface WsClientOptions {
 export interface WsClient {
   start(): void;
   stop(): void;
+  /** Ixtiyoriy panel xabarini yuboradi (ulanmagan bo'lsa false). */
+  send(message: PanelMessage): boolean;
+  /** Server xabarlariga obuna (agent modullari: INGEST va h.k.). */
+  onMessage(listener: (message: ServerMessage) => void): () => void;
   /** AE holatini serverga yuboradi (`ae.state`). */
   reportAeState(state: {
     ae_version: string | null;
@@ -75,9 +79,11 @@ export function createWsClient(options: WsClientOptions): WsClient {
     for (const listener of statusListeners) listener(status);
   };
 
-  const send = (message: PanelMessage) => {
-    if (socket !== null && socket.readyState === WebSocket.OPEN)
-      socket.send(encodeMessage(message));
+  const messageListeners = new Set<(message: ServerMessage) => void>();
+  const send = (message: PanelMessage): boolean => {
+    if (socket === null || socket.readyState !== WebSocket.OPEN) return false;
+    socket.send(encodeMessage(message));
+    return true;
   };
 
   // Runner eventlari serverga (faqat server yuborgan oplar uchun job_id bor).
@@ -190,8 +196,10 @@ export function createWsClient(options: WsClientOptions): WsClient {
     });
     ws.on("message", (data) => {
       const parsed = parseServerMessage(data.toString());
-      if (parsed.ok) handle(parsed.data);
-      else log.add({ level: "warn", message: "Server xabari noto'g'ri", data: parsed.error });
+      if (parsed.ok) {
+        handle(parsed.data);
+        for (const listener of messageListeners) listener(parsed.data);
+      } else log.add({ level: "warn", message: "Server xabari noto'g'ri", data: parsed.error });
     });
     ws.on("unexpected-response", (_request, response) => {
       log.add({
@@ -231,6 +239,11 @@ export function createWsClient(options: WsClientOptions): WsClient {
       socket?.close(1000, "Panel to'xtatdi");
       socket = null;
       setStatus("idle");
+    },
+    send,
+    onMessage(listener) {
+      messageListeners.add(listener);
+      return () => messageListeners.delete(listener);
     },
     reportAeState(state) {
       send({ type: "ae.state", ...state });

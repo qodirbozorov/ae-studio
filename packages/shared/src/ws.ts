@@ -83,6 +83,12 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
     dest: relPathSchema,
     size: z.number().int().min(0).optional(),
   }),
+  z.strictObject({
+    /** §10.2 ga qo'shimcha: INGEST — panel `source/` ni skanerlaydi va `asset.scanned` yuboradi. */
+    type: z.literal("assets.scan"),
+    request_id: idSchema,
+    project_root: z.string().min(1).max(1024),
+  }),
   z.strictObject({ type: z.literal("job.pause"), job_id: idSchema }),
   z.strictObject({ type: z.literal("job.cancel"), job_id: idSchema }),
   z.strictObject({

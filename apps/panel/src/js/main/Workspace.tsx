@@ -14,6 +14,7 @@ export function Workspace({ agent, connected }: { agent: Agent; connected: boole
   const [current, setCurrent] = useState<ProjectInfo | null>(agent.currentProject());
   const [recent, setRecent] = useState<ProjectInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
     if (connected) void agent.recentProjects().then(setRecent, () => setRecent([]));
@@ -44,6 +45,19 @@ export function Workspace({ agent, connected }: { agent: Agent; connected: boole
       <div className="buttons">
         <button disabled={!connected} onClick={() => void open(chooseFolder())}>
           Papka tanlash
+        </button>
+        <button
+          disabled={!connected || current === null || scanning}
+          onClick={() => {
+            setScanning(true);
+            setError(null);
+            agent
+              .scanAssets()
+              .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+              .finally(() => setScanning(false));
+          }}
+        >
+          {scanning ? "Skanerlanmoqda…" : "Skanerlash"}
         </button>
       </div>
       {recent.length > 0 ? (

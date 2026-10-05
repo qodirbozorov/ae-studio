@@ -238,6 +238,7 @@ const SERVER_MESSAGES: Record<string, unknown> = {
     sha256: "a".repeat(64),
     dest: "audio/vo.mp3",
   },
+  "assets.scan": { type: "assets.scan", request_id: "r9", project_root: "D:/Projects/reel" },
   "job.pause": { type: "job.pause", job_id: "job-1" },
   "job.cancel": { type: "job.cancel", job_id: "job-1" },
   "job.update": {

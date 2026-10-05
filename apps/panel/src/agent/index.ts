@@ -3,12 +3,17 @@
  * va CEP `evalScript` ni beradi. Agent brauzer API'siga bog'liq emas — Node'da test qilinadi.
  */
 import os from "node:os";
-import { makeOp } from "@aes/shared";
+import { makeError, makeOp } from "@aes/shared";
+import type { AesError } from "@aes/shared";
 import { createAeBridge } from "./ae-bridge";
 import type { AeBridge, EvalScript } from "./ae-bridge";
 import { clearCredentials, loadCredentials, saveCredentials } from "./credentials";
 import type { Credentials } from "./credentials";
+import { resolveBinaries } from "./ffmpeg";
+import { uploadFile } from "./files";
 import { getJson, postJson } from "./http";
+import { scanSource } from "./ingest";
+import type { ScannedAsset } from "./ingest";
 import { LogStore } from "./log";
 import { createOpRunner } from "./op-runner";
 import type { OpRunner } from "./op-runner";
@@ -71,6 +76,8 @@ export interface Agent {
   /** Shu qurilmaning oxirgi loyihalari (serverdan). */
   recentProjects(): Promise<ProjectInfo[]>;
   currentProject(): ProjectInfo | null;
+  /** INGEST: `source/` ni skanerlaydi, thumbnail'larni yuklaydi, serverga `asset.scanned` yuboradi. */
+  scanAssets(requestId?: string): Promise<ScannedAsset[]>;
   settings(): PanelSettings;
   updateSettings(next: Partial<PanelSettings>): PanelSettings;
   /** Past darajali ulanish (testlar). */
@@ -113,6 +120,44 @@ export function createAgent(options: AgentOptions): Agent {
     target.reportAeState({ ae_version: aeVersion, project_path: projectPath, busy: false });
   }
 
+  async function uploadThumb(file: string, hash: string): Promise<string | null> {
+    if (account === null || project === null) return null;
+    const res = await postJson<{ ok: boolean; data?: { url: string; storage_key: string } }>(
+      `${account.server_url}/api/agent/projects/${project.id}/uploads`,
+      { kind: "thumbs", hash, ext: "jpg" },
+      { headers: authHeaders() },
+    );
+    if (!res.body.ok || res.body.data === undefined) return null;
+    await uploadFile(res.body.data.url, file, "image/jpeg");
+    return res.body.data.storage_key;
+  }
+
+  async function scanAssets(requestId?: string): Promise<ScannedAsset[]> {
+    if (project === null || root === "") {
+      throw Object.assign(new Error("Ish papkasi tanlanmagan"), {
+        aes: makeError("ENV_NO_FOLDER", "Ish papkasi tanlanmagan"),
+      });
+    }
+    log.add({ level: "info", message: "🔎 source/ skanerlanmoqda…" });
+    const found = await scanSource({
+      root,
+      bins: resolveBinaries(settings.ffmpeg_dir),
+      uploadThumb,
+    });
+    const broken = found.filter((a) => a.error !== undefined).length;
+    log.add({
+      level: broken > 0 ? "warn" : "info",
+      message: `📦 ${found.length} ta fayl${broken > 0 ? `, ${broken} tasi xato` : ""}`,
+    });
+    client?.send({
+      type: "asset.scanned",
+      ...(requestId !== undefined ? { request_id: requestId } : {}),
+      project_root: root,
+      assets: found,
+    });
+    return found;
+  }
+
   function connect(server: ServerConnection): WsClient {
     client?.stop();
     const next = createWsClient({
@@ -123,6 +168,29 @@ export function createAgent(options: AgentOptions): Agent {
       aeVersion: () => aeVersion,
     });
     client = next;
+    next.onMessage((message) => {
+      if (message.type !== "assets.scan") return;
+      if (message.project_root !== root) {
+        next.send({
+          type: "request.failed",
+          request_id: message.request_id,
+          error: makeError("ENV_NO_FOLDER", `Panelda boshqa papka ochiq: ${root || "(yo'q)"}`),
+        });
+        return;
+      }
+      scanAssets(message.request_id).catch((error: unknown) => {
+        const aes =
+          (error as { aes?: AesError; error?: AesError }).aes ??
+          (error as { error?: AesError }).error;
+        next.send({
+          type: "request.failed",
+          request_id: message.request_id,
+          error:
+            aes ??
+            makeError("SYS_INTERNAL", error instanceof Error ? error.message : String(error)),
+        });
+      });
+    });
     next.onStatus((status) => {
       if (status === "connected") void reportAeState(next);
       if (status === "unauthorized" && account !== null && server.token === account.token) {
@@ -221,6 +289,7 @@ export function createAgent(options: AgentOptions): Agent {
       return res.body.ok ? (res.body.data ?? []) : [];
     },
     currentProject: () => project,
+    scanAssets,
     settings: () => settings,
     updateSettings(next) {
       settings = { ...settings, ...next };
@@ -243,4 +312,5 @@ export type { LogEntry } from "./log";
 export type { OpOutcome, RunnerEvent } from "./op-runner";
 export type { DeviceCode } from "./pairing";
 export type { PanelSettings, ProjectInfo } from "./workspace";
+export type { ScannedAsset } from "./ingest";
 export type { ConnectionStatus, WsClient } from "./ws-client";

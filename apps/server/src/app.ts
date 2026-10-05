@@ -3,6 +3,7 @@ import cookie from "@fastify/cookie";
 import websocket from "@fastify/websocket";
 import Fastify from "fastify";
 import type { FastifyError, FastifyInstance } from "fastify";
+import { registerAssetRoutes } from "./assets/routes";
 import { ConsoleMailer, ResendMailer } from "./auth/mailer";
 import type { Mailer } from "./auth/mailer";
 import { registerAuthRoutes } from "./auth/routes";
@@ -102,6 +103,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerDeviceRoutes(app, ctx);
   registerAgentSocket(app, ctx, hub);
   registerProjectRoutes(app, ctx);
+  registerAssetRoutes(app, ctx);
   app.addHook("onClose", async () => hub.close());
 
   return app;

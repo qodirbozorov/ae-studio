@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · jarayonda (7/14)
-- **Oxirgi bajarilgan:** P2.07 — ish papkasi, loyihalar API, sozlamalar (2026-10-05)
-- **Keyingi todo:** P2.08 — ffmpeg wrapper + INGEST (assets)
+- **Faza:** 2 — Yadro · jarayonda (8/14)
+- **Oxirgi bajarilgan:** P2.08 — ffmpeg wrapper + INGEST (2026-10-05)
+- **Keyingi todo:** P2.09 — qolgan yadro oplar (project.*, comp.nest, shape, audio, keyframes, expression, fx)
 - **Blokerlar:** 👤 Railway'da servislar yaratishga tasdiq · 👤 AE kompyuterida ZXP sinovi · git remote URL yo'q (push qilinmagan)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -61,6 +61,8 @@
 | 2026-10-05 | P2.02 | DB oqimlari testlarida production drayveri ham sinaladi: `createWireTestDb()` (PGlite socket + postgres.js) | PGlite drayveri postgres.js xatolarini (Date param) yashirgani aniqlandi |
 | 2026-10-05 | P2.05 | Dev token rejimi (DEV_AGENT_TOKEN, /dev/op) olib tashlandi; o'rniga sessiya bilan himoyalangan POST /api/devices/:id/ops | Rejada 'dev token o'chiriladi'; diagnostika uchun egasi o'z qurilmasiga op yubora oladi |
 | 2026-10-05 | P2.06 | Storage: S3-mos interfeys (R2/Railway bucket — env bilan) + lokal drayver (HMAC imzoli /storage/*) dev/test uchun | Q3 kodga ta'sir qilmaydi; bulutsiz to'liq upload/download e2e testlari |
+| 2026-10-05 | P2.08 | WS'ga `assets.scan` (server → panel) qo'shildi | §10.2 da INGEST'ni boshlovchi xabar yo'q edi; natija `asset.scanned` bilan keladi |
+| 2026-10-05 | P2.08 | LGPL ffmpeg'da libx264 yo'q; H.264 uchun libopenh264 yoki h264_mf (Windows) bor | P3.07 render: AE o'z H.264 chiqishi yoki ffmpeg+openh264 |
 
 ---
 
@@ -275,3 +277,15 @@
   - **UI:** `Workspace` (CEP papka dialogi, oxirgi loyihalar), `Settings`; live log darajasi bo'yicha filtrlanadi.
 - **Tekshiruv:** `projects.test.ts` 3 ta, `workspace.e2e.test.ts` 2 ta (haqiqiy server + juftlangan agent: papkalar yaratiladi, server loyihasi yoziladi, takror ochilsa o'sha loyiha, yo'q papka → xato, sozlamalar yangi agentda o'qiladi). Papkadan tashqari yo'l ikkala tomonda rad etiladi: panel P2.06/P1.12, server shu yerda. Repo 198/198 · typecheck · lint · prettier ✅.
 - **Keyingi:** P2.08 (ffmpeg wrapper + INGEST)
+
+### 2026-10-05 · P2.08 — ffmpeg wrapper va INGEST · ✅
+- **Qilindi:**
+  - **Agent:**
+    - `ffmpeg.ts`: `spawn` + timeout + kill; binar yo'q bo'lsa `ENV_FFMPEG_MISSING`. `probe` (davomiylik, o'lcham, fps, kodeklar, audio; o'qilmasa `ASSET_CORRUPT`). `thumbnail` (≤1280px JPG, video uchun 10% joydagi kadr).
+    - `ingest.ts`: `source/` rekursiv (yashirin fayllar chiqarib tashlanadi); tur kengaytma bo'yicha; slug kalit (`Clip 01.mp4` → `clip_01`, takrorlar `_2`); ordinal tartib, shuning uchun kalitlar mashinaga bog'liq emas. Tez hash: ≤8 MB to'liq, kattalari uchun hajm + boshi va oxiridan 1 MB. Buzuq fayl skanerlashni to'xtatmaydi (`error`), ffmpeg yo'q bo'lsa butun skan to'xtaydi.
+    - `scanAssets()`: thumbnail → presigned upload → `asset.scanned`. WS `assets.scan` (faqat ochiq papka uchun, aks holda `request.failed ENV_NO_FOLDER`). Sozlama `ffmpeg_dir`. UI "Skanerlash" tugmasi.
+  - **Server:** `src/assets/routes.ts`: `asset.scanned` → `assets` upsert (`ok/corrupt/unsupported`; skanda yo'qlari `missing`); `POST /api/agent/projects/:id/uploads` (thumbs/frames/audio-in presign); assetlar ro'yxati (agent va kabinet); `POST /api/projects/:id/scan` → `assets.scan` (ulanmagan bo'lsa 503).
+  - **Shared:** WS'ga `assets.scan` (server → panel) qo'shildi.
+- **Tekshiruv:** haqiqiy ffmpeg (LGPL build) bilan yaratilgan test media'da (1920×1080 video + audio, 640×360 .mov, png, wav, buzuq mp4, txt, yashirin fayl): `ingest.test.ts` 8 ta; `ingest.e2e.test.ts` 2 ta (kabinet → server → panel → ffmpeg → thumbnail storage'da → DB; o'chirilgan fayl → `missing`; boshqa papka ochiq → `ENV_NO_FOLDER`; ulanmagan → 503). Repo 209/209 · typecheck · lint · prettier · panel build ✅.
+- **Topilma:** LGPL ffmpeg'da `libx264` yo'q, lekin `libopenh264`, `h264_mf` va apparat encoder'lar bor (P3.07 render qarori uchun).
+- **Keyingi:** P2.09 (qolgan yadro oplar)

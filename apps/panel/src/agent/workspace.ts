@@ -31,9 +31,11 @@ export type LogLevelSetting = "debug" | "info" | "warn" | "error";
 export interface PanelSettings {
   device_name: string | null;
   log_level: LogLevelSetting;
+  /** ffmpeg/ffprobe papkasi; null — PATH (P5.10 da ZXP ichidagi binarlar). */
+  ffmpeg_dir: string | null;
 }
 
-const DEFAULT_SETTINGS: PanelSettings = { device_name: null, log_level: "info" };
+const DEFAULT_SETTINGS: PanelSettings = { device_name: null, log_level: "info", ffmpeg_dir: null };
 
 function settingsPath(dataDir: string): string {
   return path.join(dataDir, ".aestudio", "settings.json");
@@ -52,6 +54,8 @@ export function loadSettings(dataDir: string): PanelSettings {
       log_level: ["debug", "info", "warn", "error"].includes(raw.log_level as string)
         ? (raw.log_level as LogLevelSetting)
         : "info",
+      ffmpeg_dir:
+        typeof raw.ffmpeg_dir === "string" && raw.ffmpeg_dir !== "" ? raw.ffmpeg_dir : null,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

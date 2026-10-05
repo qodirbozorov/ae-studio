@@ -113,7 +113,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: buzilgan fayl qayta yuklab olinadi, 3 urinishdan keyin `ASSET_CORRUPT` qaytadi.
 - [x] **P2.07 — Ish papkasi va Sozlamalar.** Papka tanlash, `/source /audio /frames /out /logs /.aestudio` yaratish, oxirgi loyihalar (`projects`). Path traversal guard `shared` da turadi va panel bilan serverda ishlatiladi. Sozlamalar ekrani: qurilma nomi, chiqish, log darajasi. `ae.state` xabari.
   - Tayyor: papkadan tashqaridagi yo'l ikkala tomonda ham rad etiladi (test).
-- [ ] **P2.08 — ffmpeg wrapper va INGEST.** `child_process.spawn` + timeout + kill. ffprobe metadata, rasm thumbnail / video kadrlari (≤1280px JPG) storage'ga yuklanadi; `asset.scanned` → `assets` jadvali; katta fayllar uchun tez hash strategiyasi.
+- [x] **P2.08 — ffmpeg wrapper va INGEST.** `child_process.spawn` + timeout + kill. ffprobe metadata, rasm thumbnail / video kadrlari (≤1280px JPG) storage'ga yuklanadi; `asset.scanned` → `assets` jadvali; katta fayllar uchun tez hash strategiyasi.
   - Tayyor: aralash papka (video, rasm, audio, buzuq fayl) to'g'ri skanerlanadi.
 - [ ] **P2.09 — Qolgan yadro oplar.** `project.open_or_create`, `project.save` (vNNN), `comp.nest`, `layer.add_shape`, `layer.add_audio`, `prop.keyframes` (ease), `prop.expression` (+ expression kutubxonasi: wiggle, bounce, loop va boshqalar, faqat nom bilan, §11.4.4), `fx.apply_preset`, `fx.add`; `ops.batch`.
   - Tayyor: har op idempotent, har biriga AE smoke-test bor.
