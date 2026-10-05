@@ -104,3 +104,71 @@ describe("MCP protokoli", () => {
     }
   });
 });
+
+describe("MCP prompts", () => {
+  it("/new-reel: ro'yxatda va brief/format/papka bilan matn qaytaradi", async () => {
+    const s = await mcpSession(t, "mcp@x.uz");
+    const list = await s.rpc("prompts/list");
+    expect(list.prompts).toEqual([
+      expect.objectContaining({
+        name: "new-reel",
+        arguments: expect.arrayContaining([
+          expect.objectContaining({ name: "brief", required: true }),
+        ]),
+      }),
+    ]);
+    const got = await s.rpc("prompts/get", {
+      name: "new-reel",
+      arguments: {
+        brief: "Kofe do'koni uchun reklama",
+        format: "1:1",
+        duration: "20",
+        folder: "D:/Videos/kofe",
+      },
+    });
+    const body = got.messages[0].content.text as string;
+    expect(body).toContain("Kofe do'koni uchun reklama");
+    expect(body).toContain("1080×1080");
+    expect(body).toContain("20 s atrofida");
+    expect(body).toContain("D:/Videos/kofe");
+    for (const tool of [
+      "env_check",
+      "assets_scan",
+      "plan_write",
+      "preflight",
+      "build_start",
+      "frames_capture",
+      "verify_patch",
+      "report_get",
+    ]) {
+      expect(body).toContain(tool);
+    }
+    // Promptda tilga olingan barcha toollar haqiqatda mavjud.
+    const tools = (await s.rpc("tools/list")).tools.map((tool: { name: string }) => tool.name);
+    const mentioned = [...new Set(body.match(/\b[a-z]+_[a-z_]+\b/g) ?? [])].filter((name) =>
+      /^(env|project|assets?|spec|plan|preflight|build|job|frames|verify|render|report)_/.test(
+        name,
+      ),
+    );
+    for (const name of mentioned) expect(tools, name).toContain(name);
+
+    const empty = await s.rpc("prompts/get", { name: "new-reel", arguments: {} });
+    expect(empty.messages[0].content.text).toContain("1080×1920");
+    await expect(s.rpc("prompts/get", { name: "yoq" })).rejects.toThrow();
+  });
+});
+
+describe("MCP instructions", () => {
+  it("instructions'da tilga olingan barcha toollar mavjud", async () => {
+    const s = await mcpSession(t, "mcp@x.uz");
+    const tools = (await s.rpc("tools/list")).tools.map((tool: { name: string }) => tool.name);
+    const mentioned = [...new Set(MCP_INSTRUCTIONS.match(/\b[a-z]+_[a-z_]+\b/g) ?? [])].filter(
+      (name) =>
+        /^(env|project|assets?|spec|plan|preflight|build|job|frames|verify|render|report)_/.test(
+          name,
+        ),
+    );
+    expect(mentioned.length).toBeGreaterThan(10);
+    for (const name of mentioned) expect(tools, name).toContain(name);
+  });
+});

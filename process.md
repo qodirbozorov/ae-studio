@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 3 — Claude loop'i · jarayonda (8/12)
-- **Oxirgi bajarilgan:** P3.08 — report_get, Tarix ekrani, Claude indikatori (2026-10-05)
-- **Keyingi todo:** P3.09 — MCP prompt /new-reel
+- **Faza:** 3 — Claude loop'i · jarayonda (9/12)
+- **Oxirgi bajarilgan:** P3.09 — /new-reel prompt (2026-10-05)
+- **Keyingi todo:** P3.10 — xavfsizlik (rate limit, path, revoke UI, audit)
 - **Blokerlar:** 👤 AE kompyuterida: ZXP, kabinet kodi bilan ulanish, Live/Undo, AE'ni o'rtada yopib-ochish · 👤 RESEND_API_KEY (magic link hozir server logida)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -752,3 +752,25 @@
 
   Panel build ✅. Repo testlari ✅.
 - **Keyingi:** P3.09 (MCP prompt `/new-reel`)
+
+### 2026-10-05 · P3.09 — MCP prompt `/new-reel` · ✅
+- **Qilindi (`src/mcp/prompts.ts`):** `new-reel` prompti (audio'siz).
+  - **Argumentlar:** `brief` (majburiy), `folder`, `format` (9:16 default, 1:1, 16:9), `duration`.
+  - **Matn:** Claude'ga to'liq loop yo'riqnomasi:
+    1. env_check;
+    2. loyiha → assets_scan/list → asset_preview;
+    3. spec_schema → sahna rejasi (hook → fikrlar → CTA, qisqa matnlar);
+    4. foydalanuvchidan tasdiq → plan_write;
+    5. preflight → build_start;
+    6. job_status polling;
+    7. VERIFY: frames_capture, tanqidiy tekshiruv, verify_patch (≤3) yoki verify_approve;
+    8. report_get.
+
+    Shuningdek: audio hali yo'q, hech narsa o'chirilmaydi, foydalanuvchi tilida gaplashish.
+  - `prompts/list` va `prompts/get` handlerlari P3.02 dan beri bor.
+- **Tekshiruv:** `mcp.test.ts`:
+  - `/new-reel`: ro'yxatda; argumentlar matnga tushadi (format o'lchami, davomiylik, papka); default'lar; noma'lum prompt → xato.
+  - Prompt va server `instructions`ida tilga olingan har bir tool haqiqatda mavjud (avtomatik solishtirish — keyinchalik nom o'zgarsa test yiqiladi).
+
+  Repo 343 ✅.
+- **Keyingi:** P3.10 (xavfsizlik)
