@@ -85,6 +85,17 @@ describe("env_check / devices_list / ae_info", () => {
     ]);
   });
 
+  it("panel AE versiyasini hali yubormagan bo'lsa env_check AE'ni jonli ping qiladi", async () => {
+    const device = await addDevice();
+    const agent = agentFor(device.id);
+    agent.connect();
+    agent.deliver({ type: "ae.state", ae_version: null, project_path: null, busy: false });
+    await new Promise((r) => setTimeout(r, 20));
+    const { result } = await s.call("env_check");
+    expect(result.data).toMatchObject({ ready: true, device: { ae_version: "22.0" } });
+    expect(agent.ran.some((id) => id.startsWith("mcp.ping."))).toBe(true);
+  });
+
   it("bir nechta online qurilma → device_id so'raladi", async () => {
     const a = await addDevice("A");
     const b = await addDevice("B");

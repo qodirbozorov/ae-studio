@@ -25,6 +25,16 @@ export const envTools = [
       if (!picked.ok && picked.error.code !== "ENV_AGENT_OFFLINE") return picked;
       const issues: AesError[] = [];
       const device = picked.ok ? presentDevice(ctx, picked.data) : null;
+      // Panel AE holatini hali yubormagan bo'lsa — AE'ni jonli tekshiramiz.
+      if (device !== null && device.online && device.ae_version === null) {
+        const ping = await ctx.app.hub.run(
+          device.id,
+          makeOp("ping", `mcp.ping.${Date.now()}`, 0, {}, { timeout_ms: 10_000 }),
+          "mcp",
+        );
+        const version = ping.ok ? ping.data.info?.ae_version : undefined;
+        if (typeof version === "string") device.ae_version = version;
+      }
       if (device === null || !device.online) {
         issues.push(
           picked.ok

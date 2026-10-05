@@ -156,13 +156,16 @@ export function createAgent(options: AgentOptions): Agent {
     aeVersion = typeof info.ae_version === "string" ? info.ae_version : null;
     appPath = typeof info.app_path === "string" ? info.app_path : appPath;
     const projectPath = typeof info.project_path === "string" ? info.project_path : null;
-    const ffmpeg = await checkBinaries(resolveBinaries(settings.ffmpeg_dir));
-    target.reportAeState({
+    const state = {
       ae_version: aeVersion,
       project_path: projectPath,
       project_root: root || null,
-      ffmpeg,
       busy: false,
+    };
+    // AE holati darhol (env_check kutmasin); ffmpeg tekshiruvi (bir necha soniya) keyin alohida.
+    target.reportAeState(state);
+    void checkBinaries(resolveBinaries(settings.ffmpeg_dir)).then((ffmpeg) => {
+      if (target.status() === "connected") target.reportAeState({ ...state, ffmpeg });
     });
   }
 
@@ -509,7 +512,10 @@ export function createAgent(options: AgentOptions): Agent {
       project = res.body.data;
       root = prepared;
       log.add({ level: "info", message: `📁 Ish papkasi: ${prepared}` });
-      if (client !== null && client.status() === "connected") void reportAeState(client);
+      // Server (CHECK, env_check) yangi papkani `project.opened` javobidan oldin bilsin.
+      if (client !== null && client.status() === "connected") {
+        await reportAeState(client).catch(() => undefined);
+      }
       return project;
     },
     async recentProjects() {

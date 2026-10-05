@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 3 — Claude loop'i · jarayonda (11/12, P3.11 👤)
-- **Oxirgi bajarilgan:** P3.11 — Claude'ga ulash: server va prod oqim tayyor (2026-10-05)
-- **Keyingi todo:** P3.12 — Faza 3 gate
+- **Faza:** 3 — Claude loop'i · kod va prod qismi to'liq (12/12), Claude UI va AE bandlari 👤 · Faza 4 navbatda
+- **Oxirgi bajarilgan:** P3.12 — Faza 3 gate: lokal va production ✅ (2026-10-05)
+- **Keyingi todo:** Faza 4 — P4.01 (ElevenLabs kaliti 👤)
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -83,6 +83,7 @@
 | 2026-10-05 | P3.06 | Q4 yopildi: patch — yangi plan versiyasi + yangi .aep vNNN da to'liq qayta qurish (joyida tahrir emas) | Yopiq op to'plamida o'chirish yo'q; eski fayl saqlanadi; nest dublikati xavfi yo'q |
 | 2026-10-05 | P3.07 | Q5 yopildi: aerender asosiy, Render Queue zaxira; AE oraliq fayl → panel ffmpeg (preset) → out/<nom>_vNNN.mp4, ustiga yozmaslik (_2…) | Output module shablonlari AE versiyalari orasida farq qiladi; ffmpeg preset'ni bir xil qiladi; LGPL build'da libx264 yo'q → encoder avtomatik tanlanadi |
 | 2026-10-05 | P3.10 | §5 ga audit_log jadvali; MCP audit faqat o'zgartiruvchi (readOnlyHint bo'lmagan) toollar | Xavfsizlik hodisalari kuzatilsin, o'qish chaqiruvlari jurnalni to'ldirmasin |
+| 2026-10-05 | P3.12 | Faza 3 gate'i skriptlangan Claude (faqat MCP toollari) bilan lokal va production'da yopildi; haqiqiy Claude UI va AE bandlari 👤 | Bu kompyuterda AE yo'q, Claude connector login'i uchun RESEND kaliti kerak |
 
 ---
 
@@ -821,3 +822,31 @@
   - Claude Settings → Connectors → Add custom connector → URL → login → ruxsat; web, desktop va telefondan tekshirish.
   - **Bloker:** magic link xati hozir yuborilmaydi (`RESEND_API_KEY` yo'q), shuning uchun foydalanuvchi o'zi kira olmaydi. `RESEND_API_KEY` va `MAIL_FROM` Railway'ga qo'shilishi kerak.
 - **Keyingi:** P3.12 (Faza 3 gate)
+
+### 2026-10-05 · P3.12 — 🧪 Faza 3 gate · ⚠️ kod va prod qismi ✅, haqiqiy Claude/AE bandlari 👤
+- **Gate stsenariysi (`apps/panel/test/reel-scenario.ts`)** faqat MCP toollari orqali, Claude qiladigan ketma-ketlikda:
+  1. `project_create` → `env_check` (ready, papka mos).
+  2. `assets_scan` → `assets_list` → `asset_preview` (rasm).
+  3. `spec_schema` → `plan_write` (**ataylab xato:** CTA 0.5 s va "Obuna boling") → `preflight` (ready) → `build_start`.
+  4. `job_status` polling → VERIFY → `frames_capture` (rasmlar) → `verify_patch` (JSON Patch: dur 2, "Obuna bo'ling!", sabab bilan) → yangi `.aep` v002 → `frames_capture`.
+  5. `verify_approve` → RENDER → DONE → `report_get`: `out/gate_v002.mp4`, davomiylik ±1 kadr, "Patch'lar: 1".
+- **Lokal (`gate3.e2e.test.ts`):** haqiqiy server, device flow, agent, ffmpeg, ES3 bundle (mock AE, kadrlar diskda) va soxta aerender.
+  - ffprobe: MP4 4 s.
+  - v001 va v002 `.aep` ikkalasi saqlangan; `.aestudio/plan.v002.json` va `report.v002.md` bor.
+- **Production (`prod.gate3.smoke.test.ts`)** — haqiqiy Claude connector oqimi bilan olingan token:
+  - oqim: DCR → ruxsat ekrani → PKCE → `https://server-production-9c75.up.railway.app/mcp` (JSON-RPC);
+  - agent shu kompyuterda (device flow bilan ulangan);
+  - natija ✅: job `a0ba9900…`, 12 kadr Claude'ga image content sifatida, 1 patch, `out/gate_v002.mp4` 4.02 s (`h264_social`), 21/21 op, hisobot;
+  - tozalash: OAuth ulanishi va qurilma bekor qilindi (kabinetda ulanishlar bo'sh).
+- **Gate davomida topilgan va tuzatilgan xato:**
+  - **Muammo:** panel AE holatini hali yubormagan paytda `env_check` "AE yopiq" deb qaytarardi.
+  - **Agent tomoni:** AE holati ping'dan keyin darhol yuboriladi, ffmpeg tekshiruvi alohida keyin keladi. `project_create` javobi esa `ae.state` dan keyin yuboriladi, shuning uchun tartib kafolatlangan.
+  - **Server tomoni:** `env_check` AE versiyasi noma'lum bo'lsa AE'ni jonli `ping` qiladi. Test bilan qoplangan.
+- **Gate bandlari:**
+  - ✅ **brief → video → hisobot:** prod MCP orqali, skriptlangan "Claude" bilan.
+  - ✅ **Kadrlarni ko'rib patch qilish.**
+  - ✅ **`/out` da mp4, davomiylik mos.**
+  - 👤 **Claude UI'da custom connector:** server tomoni prod'da ✅; `RESEND_API_KEY` kerak, ulash qadamlari `docs/claude-connector.md` da.
+  - 👤 **Haqiqiy AE'da:** `saveFrameToPng`, aerender, Live/Undo.
+- **Faza 3 yakuni:** P3.01–P3.10 ✅; P3.11 va P3.12 ning server, kod va prod qismi ✅. Repo 350 test ✅ (2 ta prod smoke qo'lda ishga tushiriladi).
+- **Keyingi:** Faza 4 — P4.01 (ElevenLabs kaliti 👤)
