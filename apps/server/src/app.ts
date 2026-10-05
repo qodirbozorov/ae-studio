@@ -14,7 +14,15 @@ import type { Env } from "./env";
 import { registerHealth } from "./health";
 import type { RedisLike } from "./redis";
 import { findWebDist, isSpaRequest, registerWeb } from "./web";
-import { registerDevAgent } from "./ws/dev-agent";
+import { AgentHub } from "./ws/hub";
+import { registerAgentSocket } from "./ws/routes";
+
+declare module "fastify" {
+  interface FastifyInstance {
+    /** Ulangan panellar markazi (testlar va keyingi modullar uchun). */
+    hub: AgentHub;
+  }
+}
 
 export interface AppDeps {
   env: Env;
@@ -54,11 +62,15 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     reply.code(500).send(fail("SYS_INTERNAL"));
   });
 
+  const now = deps.now ?? (() => new Date());
+  const hub = new AgentHub(deps.db, app.log, now);
+  app.decorate("hub", hub);
   const ctx: AppContext = {
+    hub,
     env: deps.env,
     db: deps.db,
     redis: deps.redis,
-    now: deps.now ?? (() => new Date()),
+    now,
     mailer:
       deps.mailer ??
       (deps.env.RESEND_API_KEY !== undefined
@@ -78,11 +90,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerHealth(app, deps);
   registerAuthRoutes(app, ctx);
   registerDeviceRoutes(app, ctx);
-
-  // P1.13: faqat DEV_AGENT_TOKEN berilganda (P2.05 da device flow bilan almashtiriladi).
-  if (deps.env.DEV_AGENT_TOKEN !== undefined) {
-    await registerDevAgent(app, deps.env.DEV_AGENT_TOKEN);
-  }
+  registerAgentSocket(app, ctx, hub);
+  app.addHook("onClose", async () => hub.close());
 
   return app;
 }

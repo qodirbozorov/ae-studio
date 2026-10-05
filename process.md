@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · jarayonda (4/14)
-- **Oxirgi bajarilgan:** P2.04 — panel ulanish ekrani + shifrlangan credentials (2026-10-05)
-- **Keyingi todo:** P2.05 — production WSS (device token, heartbeat, WAITING_AGENT asosi)
+- **Faza:** 2 — Yadro · jarayonda (5/14)
+- **Oxirgi bajarilgan:** P2.05 — production WSS, device token, heartbeat (2026-10-05)
+- **Keyingi todo:** P2.06 — storage (S3 interfeysi; R2/Railway bucket 👤 Q3) yoki undan mustaqil P2.07–P2.13
 - **Blokerlar:** 👤 Railway'da servislar yaratishga tasdiq · 👤 AE kompyuterida ZXP sinovi · git remote URL yo'q (push qilinmagan)
 - **Ochiq qarorlar:** Q3–Q5, Q7–Q10. Yopilgan: Q1, Q2 (magic link), Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -59,6 +59,7 @@
 | 2026-10-05 | P2.01 | **Q2 yopildi:** web login — email magic link; xatlar Resend API orqali (`RESEND_API_KEY`), kalit bo'lmasa dev rejimda havola logga chiqadi | Eng sodda, Google OAuth client shart emas |
 | 2026-10-05 | P2.01 | Sessiyalar JWT emas, DB'dagi opaque token (sha256 hash, cookie) | Darhol bekor qilish mumkin, kalit boshqaruvi yo'q; JWT_SIGNING_KEY hozircha ishlatilmaydi |
 | 2026-10-05 | P2.02 | DB oqimlari testlarida production drayveri ham sinaladi: `createWireTestDb()` (PGlite socket + postgres.js) | PGlite drayveri postgres.js xatolarini (Date param) yashirgani aniqlandi |
+| 2026-10-05 | P2.05 | Dev token rejimi (DEV_AGENT_TOKEN, /dev/op) olib tashlandi; o'rniga sessiya bilan himoyalangan POST /api/devices/:id/ops | Rejada 'dev token o'chiriladi'; diagnostika uchun egasi o'z qurilmasiga op yubora oladi |
 
 ---
 
@@ -237,3 +238,16 @@
   - **UI:** `Connection.tsx`: hisob bo'lsa avtomatik ulanadi; bo'lmasa server URL → katta kod → brauzer avtomatik ochiladi → tasdiq kutiladi → ulanadi; chiqish va bekor qilish. Token CEP `userData` papkasida.
 - **Tekshiruv:** `pairing.test.ts` 5 ta (shifr fayli tokenni ochiq saqlamaydi; boshqa mashina yoki buzilgan fayl ochilmaydi; haqiqiy Fastify serveri bilan to'liq juftlash va kabinet API orqali tasdiq; rad etish; bekor qilish). dev-ws e2e 401 → `unauthorized` ga yangilandi. Panel 43/43 · typecheck · lint · build ✅.
 - **Keyingi:** P2.05
+
+### 2026-10-05 · P2.05 — Production WSS (device token) · ✅
+- **Qilindi:**
+  - **Server:** `src/ws/hub.ts` `AgentHub` (har qurilma alohida; yangi ulanish eskisini almashtiradi).
+    - `hello` → `devices.ae_version/last_seen` yangilanadi va `hello_ack` yuboriladi; `ae.state` → AE versiyasi yangilanadi.
+    - Heartbeat 10 s; 30 s javobsiz bo'lsa uziladi.
+    - `presence` va `message` obunalari P2.11 dagi `WAITING_AGENT` uchun.
+    - `run()` op_id bo'yicha kutadi (timeout + 5 s, uzilsa `ENV_AGENT_OFFLINE`); `kick()`.
+    - `src/ws/routes.ts`: `/ws/agent` `Authorization: Bearer <device_token>` (`authenticateDevice`, yaroqsiz bo'lsa 401 `AUTH_DEVICE_REVOKED`); `POST /api/devices/:id/ops` (faqat egasiga; joblargacha diagnostika).
+    - Kabinetda revoke → `hub.kick()`. Dev token (`DEV_AGENT_TOKEN`, `/dev/op`, `dev-agent.ts`) olib tashlandi.
+  - **Agent:** ulangach `ping` → `ae.state` (AE versiyasi, loyiha yo'li); `WsClient.reportAeState`.
+- **Tekshiruv:** `agent-ws.e2e.test.ts` 4 ta (haqiqiy device flow bilan juftlash → device token bilan WS → kabinetdan op → mock AE → natija; AE versiyasi qurilma ro'yxatida; revoke → uzilish → 401 → `unauthorized` → credentials fayli o'chadi; heartbeat timeout → server uzadi → panel qayta ulanadi; server qayta ishga tushsa saqlangan token bilan ulanadi; ulanmagan qurilma → `ENV_AGENT_OFFLINE`). Repo 183/183 · typecheck · lint · prettier ✅.
+- **Keyingi:** P2.06 (storage) — ❓ 👤 R2 yoki Railway bucket (Q3)

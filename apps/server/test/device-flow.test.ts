@@ -82,13 +82,7 @@ describe("device flow (§4.2, RFC 8628)", () => {
     expect((await poll(flow.device_code)).json()).toMatchObject({ error: "expired_token" });
 
     const identity = await authenticateDevice(
-      {
-        env: {} as never,
-        db: t.db.db,
-        redis: {} as never,
-        mailer: {} as never,
-        now: () => t.clock.now,
-      },
+      { db: t.db.db, now: () => t.clock.now },
       `Bearer ${body.access_token}`,
     );
     expect(identity).toEqual({ userId: expect.any(String), deviceId: body.device_id });

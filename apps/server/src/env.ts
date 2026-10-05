@@ -42,9 +42,6 @@ export const envSchema = z
 
     /** Web kabinet build papkasi; berilmasa `apps/web/dist` avtomatik qidiriladi. */
     WEB_DIST: optionalString,
-
-    /** P1.13 dev WS tokeni. P2.05 da device token bilan almashtiriladi. */
-    DEV_AGENT_TOKEN: z.string().min(32).optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === "production" && env.PUBLIC_URL === undefined) {

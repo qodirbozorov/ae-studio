@@ -226,6 +226,7 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
       .update(oauthTokens)
       .set({ revokedAt: now })
       .where(and(eq(oauthTokens.deviceId, id), isNull(oauthTokens.revokedAt)));
+    ctx.hub.kick(id);
     return ok({ revoked: true });
   });
 }
@@ -237,7 +238,7 @@ export interface DeviceIdentity {
 
 /** WS ulanishida `Authorization: Bearer <device_token>` ni tekshiradi (P2.05). */
 export async function authenticateDevice(
-  ctx: AppContext,
+  ctx: Pick<AppContext, "db" | "now">,
   header: string | undefined,
 ): Promise<DeviceIdentity | null> {
   const token = header?.startsWith("Bearer ") ? header.slice(7) : "";

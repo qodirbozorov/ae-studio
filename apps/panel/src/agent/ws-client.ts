@@ -30,6 +30,12 @@ export interface WsClientOptions {
 export interface WsClient {
   start(): void;
   stop(): void;
+  /** AE holatini serverga yuboradi (`ae.state`). */
+  reportAeState(state: {
+    ae_version: string | null;
+    project_path: string | null;
+    busy: boolean;
+  }): void;
   status(): ConnectionStatus;
   onStatus(listener: (status: ConnectionStatus) => void): () => void;
 }
@@ -192,6 +198,9 @@ export function createWsClient(options: WsClientOptions): WsClient {
       socket?.close(1000, "Panel to'xtatdi");
       socket = null;
       setStatus("idle");
+    },
+    reportAeState(state) {
+      send({ type: "ae.state", ...state });
     },
     status: () => current,
     onStatus(listener) {

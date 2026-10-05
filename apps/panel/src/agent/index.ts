@@ -3,6 +3,7 @@
  * va CEP `evalScript` ni beradi. Agent brauzer API'siga bog'liq emas — Node'da test qilinadi.
  */
 import os from "node:os";
+import { makeOp } from "@aes/shared";
 import { createAeBridge } from "./ae-bridge";
 import type { AeBridge, EvalScript } from "./ae-bridge";
 import { clearCredentials, loadCredentials, saveCredentials } from "./credentials";
@@ -82,11 +83,31 @@ export function createAgent(options: AgentOptions): Agent {
   let client: WsClient | null = null;
   let account = loadCredentials(dataDir);
 
+  let aeVersion: string | null = null;
+
+  /** Ulangach AE versiyasi va loyiha yo'lini `ping` bilan aniqlab serverga yuboradi. */
+  async function reportAeState(target: WsClient): Promise<void> {
+    const res = await bridge.runOp(makeOp("ping", "sys.ping", 0, {}, { timeout_ms: 10_000 }), {
+      root,
+    });
+    const info = res.ok ? (res.data.info ?? {}) : {};
+    aeVersion = typeof info.ae_version === "string" ? info.ae_version : null;
+    const projectPath = typeof info.project_path === "string" ? info.project_path : null;
+    target.reportAeState({ ae_version: aeVersion, project_path: projectPath, busy: false });
+  }
+
   function connect(server: ServerConnection): WsClient {
     client?.stop();
-    const next = createWsClient({ ...server, runner, log, getRoot: () => root });
+    const next = createWsClient({
+      ...server,
+      runner,
+      log,
+      getRoot: () => root,
+      aeVersion: () => aeVersion,
+    });
     client = next;
     next.onStatus((status) => {
+      if (status === "connected") void reportAeState(next);
       if (status === "unauthorized" && account !== null && server.token === account.token) {
         log.add({ level: "warn", message: "Qurilma bekor qilingan — panelni qayta ulang" });
         clearCredentials(dataDir);

@@ -107,7 +107,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: to'liq oqim bo'yicha integratsiya testi bor.
 - [x] **P2.04 — Panel: Ulanish ekrani va credentials.** Kodni ko'rsatish, brauzerni ochish, poll. Token `.aestudio/credentials` ga AES bilan yoziladi (kalit mashinaga bog'liq, Node `crypto`, native modulsiz). Holat indikatorlari: 🟢 Server · 🟢 AE.
   - Tayyor: 👤 panel kod orqali ulanadi; AE qayta ochilganda qayta login so'ramaydi.
-- [ ] **P2.05 — Production WSS.** ❓ Brauzer `WebSocket` `Authorization` header qo'ya olmaydi (Q1). Tavsiya: CEP Node'da sof-JS `ws` paketi (header bilan, §4.2 ga mos). Heartbeat 10 s; 30 s javob bo'lmasa qurilma offline, joblar `WAITING_AGENT` ga o'tadi. Panel backoff + jitter bilan qayta ulanadi; `hello` kelganda tugallanmagan job davom etadi. Dev token o'chiriladi.
+- [x] **P2.05 — Production WSS.** ❓ Brauzer `WebSocket` `Authorization` header qo'ya olmaydi (Q1). Tavsiya: CEP Node'da sof-JS `ws` paketi (header bilan, §4.2 ga mos). Heartbeat 10 s; 30 s javob bo'lmasa qurilma offline, joblar `WAITING_AGENT` ga o'tadi. Panel backoff + jitter bilan qayta ulanadi; `hello` kelganda tugallanmagan job davom etadi. Dev token o'chiriladi.
   - Tayyor: tarmoq uzilishi testida panel avtomatik qayta ulanadi va job davom etadi.
 - [ ] **P2.06 — Storage (§4.4, §6).** ❓ 👤 Cloudflare R2 yoki Railway bucket (Q3). S3 klient, pre-signed PUT/GET (15 daqiqa), kalit sxemasi `u/<user>/p/<project>/{thumbs|frames|audio-in|audio-out}/<hash>.<ext>`. Panelda upload/download + sha256 tekshiruvi (3 qayta urinish, keyin `ASSET_CORRUPT`); `file.download` / `file.uploaded` / `file.saved`.
   - Tayyor: buzilgan fayl qayta yuklab olinadi, 3 urinishdan keyin `ASSET_CORRUPT` qaytadi.

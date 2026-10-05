@@ -59,10 +59,4 @@ describe("loadEnv", () => {
     const key = Buffer.alloc(32, 7).toString("base64");
     expect(loadEnv({ ...base, MASTER_KEY: key }).MASTER_KEY).toBe(key);
   });
-
-  it("DEV_AGENT_TOKEN qisqa bo'lsa rad etiladi", () => {
-    expect(problems({ ...base, DEV_AGENT_TOKEN: "short" })).toEqual([
-      expect.stringContaining("DEV_AGENT_TOKEN"),
-    ]);
-  });
 });
