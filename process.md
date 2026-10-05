@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 4 — ElevenLabs · jarayonda (1/15)
-- **Oxirgi bajarilgan:** P4.01 — ElevenLabs kaliti va xavfsizlik (2026-10-05)
-- **Keyingi todo:** P4.02 — eleven/ imkoniyatlar qatlami
+- **Faza:** 4 — ElevenLabs · jarayonda (2/15)
+- **Oxirgi bajarilgan:** P4.02 — eleven/ imkoniyatlar qatlami (2026-10-05)
+- **Keyingi todo:** P4.03 — audio_task va navbat
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -881,3 +881,27 @@
 
   Repo 356 ✅.
 - **Keyingi:** P4.02 (imkoniyatlar qatlami)
+
+### 2026-10-05 · P4.02 — `eleven/` klient qatlami · ✅
+- **Qilindi:** imkoniyatlar oilalar bo'yicha 4 faylda, har imkoniyat alohida funksiya; yo'l va maydonlar rasmiy API reference bo'yicha.
+  - **`tts.ts`:** `POST /v1/text-to-speech/{voice_id}/with-timestamps`. Javob: `audio_base64`, `alignment`, `normalized_alignment` (belgi vaqtlari); `output_format=mp3_44100_128`.
+  - **`generate.ts`:**
+    - dialogue — `/v1/text-to-dialogue`, default model `eleven_v3`;
+    - SFX — `/v1/sound-generation`, `eleven_text_to_sound_v2`, 0.5–30 s;
+    - music — `/v1/music` (`prompt` + `music_length_ms` + `force_instrumental`, yoki `composition_plan`; ikkalasi birga emas);
+    - composition plan — `/v1/music/plan`.
+  - **`analyze.ts`:**
+    - STT — `/v1/speech-to-text`, `scribe_v2`, so'z darajasidagi vaqtlar, diarization, audio eventlar;
+    - forced alignment — `/v1/forced-alignment`, file + text → characters, words, loss;
+    - isolation — `/v1/audio-isolation`.
+  - **`voice.ts`:**
+    - STS — `/v1/speech-to-speech/{voice_id}`, `eleven_multilingual_sts_v2`;
+    - dubbing: create → `GET /v1/dubbing/{id}` (dubbing | dubbed | failed) poll → `GET …/audio/{lang}`; timeout 30 daqiqa;
+    - voice design — `/v1/text-to-voice/design` va saqlash `/v1/text-to-voice`;
+    - IVC — `/v1/voices/add`;
+    - ro'yxatlar — `/v2/voices`, `/v1/models`;
+    - pronunciation — `/v1/pronunciation-dictionaries/add-from-rules`.
+  - **`audio.ts`:** `sniffAudio` (fayl turi baytlardan: wav, mp3, ogg, m4a), multipart `formWith`.
+  - Xato xaritasi va retry (P4.01) hamma joyda bir xil; user bo'yicha rate limit `ElevenService.client()` da.
+- **Tekshiruv:** `eleven-capabilities.test.ts` 6 ta — har imkoniyat soxta API'ga to'g'ri yo'l, query, JSON yoki multipart maydonlar bilan boradi va javob to'g'ri o'qiladi. Dubbing: 3 poll → audio; timeout → `EL_TIMEOUT`. `sniffAudio` tekshirildi.
+- **Keyingi:** P4.03 (`audio_task` va navbat)
