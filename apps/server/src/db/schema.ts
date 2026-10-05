@@ -431,3 +431,23 @@ export const auditLog = pgTable(
   },
   (t) => [index("audit_log_user_idx").on(t.userId, t.id)],
 );
+
+// ---------------------------------------------------------------- talaffuz lug'atlari (P4.05)
+
+/** ElevenLabs pronunciation dictionary'lari: spec'da slug bilan (`voiceover.pronunciation`). */
+export const pronunciationDicts = pgTable(
+  "pronunciation_dicts",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    slug: text("slug").notNull(),
+    elId: text("el_id").notNull(),
+    versionId: text("version_id").notNull(),
+    rules: jsonb("rules").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [unique("pronunciation_dicts_user_slug_uq").on(t.userId, t.slug)],
+);

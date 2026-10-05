@@ -43,6 +43,13 @@
       "when": 1791196393216,
       "tag": "0005_audio_tasks",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791197404256,
+      "tag": "0006_pronunciation",
+      "breakpoints": true
     }
   ]
 }

@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 4 — ElevenLabs · jarayonda (4/15)
-- **Oxirgi bajarilgan:** P4.04 — panel audio ajratish (2026-10-05)
-- **Keyingi todo:** P4.05 — TTS, ovozlar, narx (MCP toollari)
+- **Faza:** 4 — ElevenLabs · jarayonda (8/15)
+- **Oxirgi bajarilgan:** P4.08 — ovozni o'zgartirish toollari (2026-10-05)
+- **Keyingi todo:** P4.09 — AUDIO holati
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -89,6 +89,8 @@
 | 2026-10-05 | P4.03 | BullMQ worker o'rniga server ichidagi Postgres asosidagi navbat (recover bilan) | Railway bitta nusxa, Postgres yagona haqiqat manbai, Redis'siz test; keyin kerak bo'lsa alohida worker'ga ajratiladi |
 | 2026-10-05 | P4.03 | ElevenLabs natijalari storage'da (audio-out/<sha256>), panelga file.download bilan audio/<kind>_<sha12>.<ext> ga yetkaziladi | Foydalanuvchi talabi: EL fayllari serverda saqlanadi, panelga olib kelinadi; tarkibga bog'liq nom — ustiga yozmaslik |
 | 2026-10-05 | P4.04 | audio-in yuklash: resumable multipart o'rniga bitta pre-signed PUT + 3 urinish (oldin mono Opus 32k ga siqiladi) | ~15 MB/soat; S3 bitta PUT 5 GB gacha; soddaroq va lokal storage bilan ham ishlaydi |
+| 2026-10-05 | P4.05 | Default TTS modeli eleven_v4; talaffuz lug'atlari pronunciation_dicts jadvalida (slug) | O'zbekcha faqat v4 da; spec slug bilan murojaat qiladi |
+| 2026-10-05 | P4.08 | el_voice_clone: consent literal true (zod) + audit | §7.1: faqat egasining roziligi bilan |
 
 ---
 
@@ -956,3 +958,70 @@
 
   Repo ✅.
 - **Keyingi:** P4.05 (TTS, ovozlar, narx toollari)
+
+### 2026-10-05 · P4.05 — TTS, ovozlar, narx · ✅
+- **MCP toollari (`mcp/tools/eleven-voice.ts`):**
+  - **`el_tts`:**
+    - so'z vaqtlari bilan; default model `eleven_v4` (o'zbekcha uchun);
+    - til, voice_settings, talaffuz lug'atlari (slug → locator), `fresh`, `wait_s` (≤55 s; 0 — darhol `task_id`);
+    - natija loyihaning `audio/` papkasiga yetkaziladi; bir xil parametr → kesh, 0 kredit.
+  - **`el_voices`** (qidiruv), **`el_models`** (til bo'yicha filtr + "o'zbekcha → eleven_v4" eslatmasi).
+  - **`el_pronunciation`:**
+    - qoidalar: `{word, alias}` yoki `{word, phoneme, alphabet}` → ElevenLabs `add-from-rules`;
+    - yangi jadval `pronunciation_dicts` (migratsiya `0006`, slug → el_id/version_id); qoidasiz chaqirilsa ro'yxat.
+  - **`el_usage`:** tarif, ishlatilgan, qolgan, yangilanish sanasi.
+  - **`el_estimate`:** plan yoki items bo'yicha taxminiy kredit, qolgan kvota bilan solishtiriladi; oshsa `fits:false`, `ask_user:true` va hint.
+  - **`build_start` dry_run:** endi `credits` va `audio` bo'limini ham qaytaradi.
+- **`audio/plan.ts` (`planAudioTasks`):** spec `audio` → vazifalar ro'yxati (bahoda ham, AUDIO holatida ham ishlatiladi):
+  - voiceover: tts / dialogue / asset+text → align;
+  - music: `match_video` → video uzunligi, 3–600 s ga siqiladi;
+  - SFX (prompt bilan);
+  - source_audio: isolate va STT.
+- **Umumiy (`eleven-common.ts`):** `runTask` (yuborish + kutish; xatoda `task_id` bilan), `inputFromAsset` (asset → panel ajratadi → `audio-in`), `dictionaries`, `direct` (navbatsiz chaqiruv).
+- **Tekshiruv:** `eleven-tools.test.ts` (P4.05 bo'limi, 5 ta):
+  - kalitsiz `EL_AUTH`; `el_usage`;
+  - `el_tts` (model va til so'rovga boradi, `audio/` ga yetkaziladi, qayta → kesh);
+  - lug'at yaratish → TTS'da locator; noma'lum lug'at;
+  - ovozlar va modellar (uz → `eleven_v4`);
+  - `el_estimate` (tts 16 + music 95 + sfx 32 = 143), kvota oshsa `ask_user`; `dry_run` krediti.
+
+### 2026-10-05 · P4.06 — Generatsiya · ✅
+- **MCP (`mcp/tools/eleven-generate.ts`):**
+  - **`el_dialogue`:** bir nechta ovoz, `eleven_v3`.
+  - **`el_sfx`:** prompt, 0.5–30 s, loop, prompt_influence.
+  - **`el_music`:** prompt + aniq `duration_s` (3–600) + instrumental, yoki el_music_plan'dan `composition_plan`. Ikkalasi birga → `SYS_BAD_REQUEST`.
+  - **`el_music_plan`:** global uslublar + aniq davomiylikli bo'limlar; Claude tahrirlab `el_music` ga beradi.
+  - Hammasi `audio_task` navbati orqali: kesh, storage, `audio/` ga yetkazish.
+- **Tekshiruv (P4.06 bo'limi):**
+  - dialog va SFX (davomiylik 1.2 s);
+  - plan (2 bo'lim, 20 s) → shu plan bo'yicha musiqa 20 s;
+  - prompt bo'yicha musiqa 12 s (`music_length_ms` 12000, instrumental);
+  - prompt + plan birga → xato.
+
+### 2026-10-05 · P4.07 — Tahlil · ✅
+- **MCP (`mcp/tools/eleven-analyze.ts`):**
+  - **`el_stt`:** Scribe (`scribe_v2`), til, diarize, num_speakers. Panel asset'dan ovozni ajratadi (`audio-in`, sha256 kesh kalitida).
+  - **`el_align`:** ma'lum matn + yozilgan ovoz → so'z vaqtlari.
+  - **`el_isolate`:** toza ovoz (yangi fayl `audio/` da).
+  - **`transcript_get`:** so'zlar, start/end, speaker; tahrirlangan versiya ustun turadi.
+  - **`transcript_edit`:** so'zlarni vaqtlarni o'zgartirmasdan tuzatadi (`words: [{index, text}]` yoki so'zlar soni bir xil to'liq matn) → `result.transcript_edited`. Subtitrlar shu versiyani ishlatadi.
+  - Rasm yoki boshqa tur → `ASSET_UNSUPPORTED`.
+- **Soxta panel:** `audio.extract.request` → storage'ga WAV va `file.uploaded`.
+- **Tekshiruv (P4.07 bo'limi):**
+  - STT (panel aynan shu faylni ajratadi; til va diarize so'rovga boradi) → `transcript_get` (4 so'z);
+  - indeks bo'yicha tahrir (vaqt saqlanadi), to'liq matn bo'yicha tahrir; so'zlar soni mos kelmasa xato;
+  - alignment, isolation; rasm → xato.
+
+### 2026-10-05 · P4.08 — Ovozni o'zgartirish · ✅
+- **MCP (`mcp/tools/eleven-transform.ts`):**
+  - **`el_voice_change`:** STS, `remove_background_noise`.
+  - **`el_dub`:** yaratish → status poll (30 daqiqagacha, navbatda) → dublyaj audiosi `audio/` ga; uzun media uchun `wait_s: 0`.
+  - **`el_voice_design`:** tavsifdan namunalar. Birinchi namuna eshitish uchun `audio/` ga tushadi, hammasi `result.previews` da. `save: {generated_voice_id, name}` → `voice_id`.
+  - **`el_voice_clone`:** `consent: true` majburiy (zod literal); aks holda rad etiladi. Namunalar panel ajratgan ovozdan olinadi. Audit jurnaliga `mcp.el_voice_clone` yoziladi.
+- **Tekshiruv (P4.08 bo'limi):**
+  - voice change; dubbing (2 poll → audio, `dubbing_id`);
+  - voice design (2 namuna) va saqlash (`designed_gen_2`);
+  - klon: `consent:false` → rad, `true` → `cloned_1`, audit'da bor.
+
+  `eleven-tools.test.ts` 8/8, repo 378 ✅.
+- **Keyingi:** P4.09 (AUDIO holati)

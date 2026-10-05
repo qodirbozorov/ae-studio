@@ -2,11 +2,13 @@
  * Soxta panel (agent): AgentHub'ga to'g'ridan-to'g'ri ulanadi (WS'siz), oplarga javob beradi.
  * Xatti-harakat `onOp` bilan boshqariladi: javob, xato yoki javobsiz qoldirish (uzilish simulyatsiyasi).
  */
+import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { PROTOCOL_VERSION, makeError } from "@aes/shared";
 import type { AesError, OpEnvelope, PanelMessage, ServerMessage } from "@aes/shared";
 import type { WebSocket } from "ws";
 import type { AgentHub } from "../../src/ws/hub";
+import { wav } from "./fake-eleven";
 
 class FakeSocket extends EventEmitter {
   closed = false;
@@ -60,6 +62,8 @@ export class FakeAgent {
   onRender: (
     message: Extract<ServerMessage, { type: "render.request" }>,
   ) => "ok" | "drop" | AesError | { duration: number } = () => "ok";
+  /** `audio.extract.request` so'ralgan yo'llar (javob: storage'ga WAV). */
+  readonly extractions: string[] = [];
   /** Preview so'ralgan yo'llar. */
   readonly previews: string[] = [];
   /** `project.open` (MCP project_create): loyihani ro'yxatdan o'tkazadi. */
@@ -169,6 +173,32 @@ export class FakeAgent {
           size: 2_000_000,
           method: "aerender",
           encoder: "libx264",
+        },
+        socket,
+      );
+    } else if (message.type === "audio.extract.request") {
+      this.extractions.push(message.local_path);
+      if (this.storage === null) {
+        this.deliver(
+          {
+            type: "request.failed",
+            request_id: message.request_id,
+            error: makeError("ENV_FFMPEG_MISSING", "soxta agentda storage yo'q"),
+          },
+          socket,
+        );
+        return;
+      }
+      const audio = wav(2);
+      await this.storage.putBytes(message.upload.storage_key, audio, "audio/wav");
+      this.deliver(
+        {
+          type: "file.uploaded",
+          request_id: message.request_id,
+          storage_key: message.upload.storage_key,
+          sha256: createHash("sha256").update(audio).digest("hex"),
+          size: audio.length,
+          duration_s: 2,
         },
         socket,
       );

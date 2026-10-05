@@ -7,11 +7,14 @@ import type { JobState, OpEnvelope, Result, VideoSpec } from "@aes/shared";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { jobEvents, jobs, projects } from "../../db/schema";
+import { planAudioTasks } from "../../audio/plan";
 import { aepPath, compileAssets } from "../../jobs/engine";
 import type { JobRow } from "../../jobs/engine";
 import { defineTool } from "../registry";
 import type { ToolContext } from "../registry";
 import { ownProject, uuidArg } from "./common";
+import { dictionaries } from "./eleven-common";
+import { estimateWithQuota } from "./eleven-voice";
 import type { ProjectRow } from "./common";
 
 /** Op turi bo'yicha taxminiy vaqt (soniya; AE + tarmoq). */
@@ -217,6 +220,11 @@ export const buildTools = [
           acc[op.op] = (acc[op.op] ?? 0) + 1;
           return acc;
         }, {});
+        const audioPlan = planAudioTasks(plan.data.spec, {
+          videoDuration: compiled.data.duration,
+          dictionaries: await dictionaries(ctx, ctx.userId),
+        });
+        const credits = audioPlan.length === 0 ? null : await estimateWithQuota(ctx, audioPlan);
         return ok({
           dry_run: true,
           plan_version: plan.data.version,
@@ -227,7 +235,8 @@ export const buildTools = [
           scenes: compiled.data.scenes,
           duration_s: compiled.data.duration,
           estimate_s: estimateSeconds(compiled.data.ops),
-          credits: 0,
+          credits: credits?.total ?? 0,
+          ...(credits === null ? {} : { audio: credits }),
           warnings: compiled.data.warnings,
         });
       }

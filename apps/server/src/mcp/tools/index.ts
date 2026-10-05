@@ -3,6 +3,10 @@ import type { ToolDef } from "../registry";
 import { assetTools } from "./assets";
 import { audioStatusTools } from "./audio";
 import { buildTools } from "./build";
+import { elevenAnalyzeTools } from "./eleven-analyze";
+import { elevenGenerateTools } from "./eleven-generate";
+import { elevenTransformTools } from "./eleven-transform";
+import { elevenVoiceTools } from "./eleven-voice";
 import { envTools } from "./env";
 import { projectTools } from "./projects";
 import { renderTools } from "./render";
@@ -18,6 +22,10 @@ export const TOOLS: readonly ToolDef[] = [
   ...verifyTools,
   ...renderTools,
   ...audioStatusTools,
+  ...elevenVoiceTools,
+  ...elevenGenerateTools,
+  ...elevenAnalyzeTools,
+  ...elevenTransformTools,
   ...reportTools,
   ...specTools,
 ];
