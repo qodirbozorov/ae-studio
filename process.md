@@ -10,10 +10,10 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · jarayonda (13/14)
-- **Oxirgi bajarilgan:** P2.13 — versiyalash va REPORT (2026-10-05)
-- **Keyingi todo:** P2.14 — Faza 2 gate
-- **Blokerlar:** 👤 AE kompyuterida ZXP sinovi · 👤 RESEND_API_KEY (magic link xati hozir server logida) · git remote URL yo'q (push qilinmagan)
+- **Faza:** 2 — Yadro · kod qismi to'liq (14/14), AE bandlari 👤 · Faza 3 navbatda
+- **Oxirgi bajarilgan:** P2.14 — Faza 2 gate: kod va prod qismi ✅ (2026-10-05)
+- **Keyingi todo:** Faza 3 — P3.01 (ae-studio-phases.md dagi birinchi [ ] todo)
+- **Blokerlar:** 👤 AE kompyuterida: ZXP, kabinet kodi bilan ulanish, Live/Undo, AE'ni o'rtada yopib-ochish · 👤 RESEND_API_KEY (magic link hozir server logida) · git remote URL yo'q (push qilinmagan)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
 - **Bash tool eslatmasi:** shu sessiyada PATH yangilanmagan, har buyruq oldidan: `export PATH="/c/Users/991106847/AppData/Local/Programs/nodejs:/c/Users/991106847/AppData/Local/Programs/ffmpeg/bin:$PATH"`
@@ -75,6 +75,7 @@
 | 2026-10-05 | P2.12 | job.update ga paused/outcome/error qo'shildi; panel tarixni HTTP (/api/agent/jobs/:id/events) bilan oladi | Live ekrani qayta ulanganda to'liq holatni ko'rsatishi uchun |
 | 2026-10-05 | P2.13 | Lokal hisobot nusxasi .aestudio/report.vNNN.md (aep versiyasi bo'yicha), yagona report.md emas | Hech bir fayl ustiga yozilmaydi (§2.10) |
 | 2026-10-05 | P2.13 | file.download default'da mavjud faylni boshqa tarkib bilan almashtirmaydi (overwrite flag'i); plan/report storage'da docs/<sha256> | Versiyalar himoyasi panel tomonida ham; content-addressed — takroriy yuklash yo'q |
+| 2026-10-05 | P2.14 | Faza 2 gate'ining kod va prod qismi production smoke testi (prod.smoke.test.ts, mock AE) bilan yopildi; haqiqiy AE bandlari 👤 qoldi | Bu kompyuterda AE yo'q (foydalanuvchi qarori) |
 
 ---
 
@@ -455,3 +456,31 @@
 
   Repo 273/273 · typecheck · lint · prettier ✅.
 - **Keyingi:** P2.14 (Faza 2 gate)
+
+### 2026-10-05 · P2.14 — 🧪 Faza 2 gate · ⚠️ kod va prod qismi ✅, haqiqiy AE bandlari 👤
+- **Railway (production) smoke** — `apps/panel/test/prod.smoke.test.ts` (faqat `AES_PROD_URL` va `AES_PROD_COOKIE` bilan ishga tushadi).
+  - **Sharoit:** https://server-production-9c75.up.railway.app ga haqiqiy agent kodi, device flow va ffmpeg INGEST; ExtendScript ES3 bundle mock AE'da. Natija ✅ (20 s).
+  - **Job `83d0c299…`** quyidagi zanjirdan o'tdi:
+    1. CHECK → PLAN → INGEST (6 fayl, 2 tasi ataylab buzuq) → AUDIO (skipped) → PREFLIGHT (30 op → `…_v001.aep`) → BUILD;
+    2. `point.l0` paytida panel uzildi → `WAITING_AGENT`;
+    3. qayta ulandi → `build.resume` (loyiha qayta ochildi, oxirgi saqlangan sahnadan) → BUILD tugadi (30/30);
+    4. VERIFY → approve → RENDER (skipped) → REPORT → DONE (`success`).
+  - **Dublikat yo'q:** comp'lar `01_hook, 02_point, 03_cta, smoke`; asosiy comp'da 3 nest; `02_point` da 3 layer.
+  - **Lokal nusxa:** `.aestudio/report.v001.md` diskda va DB'dagi hisobot bilan bir xil.
+  - **Tozalash:** smoke qurilmasi kabinetdan bekor qilindi (revoke).
+- **Gate bandlari:**
+  - ✅ **Avtomatik qayta ulanish:** `WAITING_AGENT` → davom (prod).
+  - ✅ **3 sahnali video `plan.json` dan:** `build.e2e`, `job.e2e`, prod smoke.
+  - ✅ **`report.md`:** `reports` jadvali va `.aestudio/report.v001.md`.
+  - 👤 **Panel kabinet kodi orqali ulanishi:** device flow va WS prod'da agent kodi bilan ishladi. AE ichidagi panel UI'ni haqiqiy AE'da ko'rish qoldi.
+  - 👤 **AE yopilib qayta ochilsa dublikatsiz davom:** uzilish simulyatsiyasi prod'da dublikatsiz o'tdi. Haqiqiy AE'da yopib-ochish sinovi qoldi.
+- **Faza 1 gate'iga ta'siri:**
+  - `/health` Railway'da javob beradi ✅.
+  - Railway'dan `op.run` mock AE'da bajarildi; haqiqiy AE 👤.
+- **Boshqa:** `build.resume` xabari aniqlashtirildi ("loyiha qayta ochiladi, <op> dan"). Repo testlari va prod smoke o'tdi.
+- **Faza 2 yakuni:** P2.01–P2.13 bajarildi; P2.14 ning kod va prod qismi ✅. Qolgan 👤 bandlar AE kompyuterida tekshiriladi:
+  - ZXP o'rnatish (`docs/panel-install.md`);
+  - kabinet kodi bilan ulanish;
+  - Live ekrani va Undo last;
+  - AE'ni o'rtada yopib-ochish.
+- **Keyingi:** Faza 3 — P3.01

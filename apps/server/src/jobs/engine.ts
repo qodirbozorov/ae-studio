@@ -769,9 +769,17 @@ export class JobEngine {
         .update(jobs)
         .set({ prevState: null })
         .where(and(eq(jobs.id, job.id), eq(jobs.state, "BUILD")));
-      await this.event(job, "info", "build.resume", `BUILD davom etadi: ${queue[0]!.opId} dan`, {
-        opId: queue[0]!.opId,
-      });
+      const from = rows[start] ?? queue[0]!;
+      const reopen = queue[0] !== from ? "loyiha qayta ochiladi, " : "";
+      await this.event(
+        job,
+        "info",
+        "build.resume",
+        `BUILD davom etadi: ${reopen}${from.opId} dan`,
+        {
+          opId: from.opId,
+        },
+      );
     }
 
     // Plan nusxasi ish papkasiga (har BUILD kirishida; bir xil tarkib — idempotent).

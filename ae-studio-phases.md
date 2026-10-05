@@ -89,9 +89,9 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: Railway'dagi serverdan yuborilgan op AE'da bajariladi, natija serverga qaytadi.
 - [ ] **P1.14 — 🧪 Faza 1 gate.**
   - [x] `pnpm test` o'tadi (M0) — 164/164, 2026-10-05
-  - [ ] `/health` Railway'da javob beradi (M0)
+  - [x] `/health` Railway'da javob beradi (M0) — `{db: ok, redis: ok}`, 2026-10-05
   - [ ] 👤 panel tugmasi AE'da comp + matn yaratadi va bu live logda ko'rinadi (M1)
-  - [ ] Railway'dan yuborilgan `op.run` AE'da bajariladi (§17.5)
+  - [ ] Railway'dan yuborilgan `op.run` AE'da bajariladi (§17.5) — mock AE bilan prod smoke ✅ 2026-10-05; haqiqiy AE 👤
 
 ---
 
@@ -126,11 +126,11 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P2.13 — Versiyalash va oddiy REPORT.** `plans` versiyalari, `.aep` vNNN, local nusxalar `.aestudio/plan.vNNN.json`. `reports/` generatori (qurilganlar, yo'llar, tahrir qo'llanmasi, ogohlantirishlar) → `reports` jadvali va `.aestudio/report.md`.
   - Tayyor: hech qaysi versiya ustiga yozilmaydi (test).
 - [ ] **P2.14 — 🧪 Faza 2 gate.**
-  - [ ] 👤 panel web kabinetdagi kod orqali ulanadi (M2)
-  - [ ] internet uzilib qaytganda avtomatik qayta ulanadi: `WAITING_AGENT` → davom (M2)
-  - [ ] qo'lda yozilgan `plan.json` dan 3 sahnali video quriladi (M3)
-  - [ ] 👤 o'rtada AE yopilib qayta ochilsa, dublikatsiz davom etadi (M3)
-  - [ ] `report.md` hosil bo'ladi
+  - [ ] 👤 panel web kabinetdagi kod orqali ulanadi (M2) — device flow prod'da agent bilan ✅ (`prod.smoke`); AE ichidagi UI 👤
+  - [x] internet uzilib qaytganda avtomatik qayta ulanadi: `WAITING_AGENT` → davom (M2) — prod smoke, 2026-10-05
+  - [x] qo'lda yozilgan `plan.json` dan 3 sahnali video quriladi (M3) — `build.e2e`, `job.e2e`, prod smoke (mock AE), 2026-10-05
+  - [ ] 👤 o'rtada AE yopilib qayta ochilsa, dublikatsiz davom etadi (M3) — uzilish simulyatsiyasi prod'da ✅ (dublikat yo'q); haqiqiy AE 👤
+  - [x] `report.md` hosil bo'ladi — `reports` + `.aestudio/report.v001.md`, 2026-10-05
 
 ---
 
