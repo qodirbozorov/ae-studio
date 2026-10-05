@@ -140,7 +140,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 
 - [x] **P3.01 — OAuth 2.1 server (§4.1).** `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`, dynamic client registration, `/oauth/authorize` (kabinet sessiyasi + ruxsat ekrani), `/oauth/token` (PKCE S256 majburiy, refresh rotation), revoke. `/mcp` 401 qaytarganda `WWW-Authenticate` + resource metadata beriladi. MCP authorization spec'ning joriy talablari (DCR / Client ID Metadata Document) va Claude callback URL'lari rasmiy hujjatdan tekshiriladi.
   - Tayyor: test klient bilan to'liq DCR + PKCE oqimi o'tadi.
-- [ ] **P3.02 — `/mcp` (Streamable HTTP).** `@modelcontextprotocol/sdk`, token → `user_id`, user bo'yicha rate limit, yagona javob formati, zod'dan JSON Schema `inputSchema`, MCP `instructions` (Claude uchun loop qoidalari).
+- [x] **P3.02 — `/mcp` (Streamable HTTP).** `@modelcontextprotocol/sdk`, token → `user_id`, user bo'yicha rate limit, yagona javob formati, zod'dan JSON Schema `inputSchema`, MCP `instructions` (Claude uchun loop qoidalari).
   - Tayyor: MCP Inspector bilan ulanib, tool chaqirib bo'ladi.
 - [ ] **P3.03 — Muhit va loyiha toollari.** `env_check`, `devices_list`, `ae_info` (versiya, ochiq loyiha, comp'lar, shriftlar; ❓ `app.fonts` eski AE'da yo'q, Q10), `project_create`, `project_list`, `project_get`, `plan_write` (`SPEC_INVALID` aniq path bilan), `plan_patch` (JSON Patch → yangi versiya), `plan_get`.
 - [ ] **P3.04 — Fayl toollari.** `assets_scan` (asinxron), `assets_list`, `asset_preview`: `asset.preview.request` → panel ffmpeg → Claude'ga **image content** sifatida qaytadi (token tejash uchun kichraytiriladi).

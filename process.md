@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 3 — Claude loop'i · jarayonda (1/12)
-- **Oxirgi bajarilgan:** P3.01 — OAuth 2.1 server (2026-10-05)
-- **Keyingi todo:** P3.02 — /mcp (Streamable HTTP)
+- **Faza:** 3 — Claude loop'i · jarayonda (2/12)
+- **Oxirgi bajarilgan:** P3.02 — /mcp Streamable HTTP (2026-10-05)
+- **Keyingi todo:** P3.03 — muhit va loyiha toollari
 - **Blokerlar:** 👤 AE kompyuterida: ZXP, kabinet kodi bilan ulanish, Live/Undo, AE'ni o'rtada yopib-ochish · 👤 RESEND_API_KEY (magic link hozir server logida)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -77,6 +77,7 @@
 | 2026-10-05 | P2.13 | file.download default'da mavjud faylni boshqa tarkib bilan almashtirmaydi (overwrite flag'i); plan/report storage'da docs/<sha256> | Versiyalar himoyasi panel tomonida ham; content-addressed — takroriy yuklash yo'q |
 | 2026-10-05 | P2.14 | Faza 2 gate'ining kod va prod qismi production smoke testi (prod.smoke.test.ts, mock AE) bilan yopildi; haqiqiy AE bandlari 👤 qoldi | Bu kompyuterda AE yo'q (foydalanuvchi qarori) |
 | 2026-10-05 | P3.01 | OAuth: DCR + CIMD ikkalasi; opaque tokenlar (access 1 soat, refresh 30 kun, rotation + reuse'da oila bekor); ruxsat ekrani server HTML | MCP spec 2025-11-25 (CIMD SHOULD, DCR MAY) va Claude hujjati (ikkalasini ham qo'llaydi) |
+| 2026-10-05 | P3.02 | /mcp stateless (har so'rovga yangi Server, JSON javob), low-level SDK Server + zod v4 toJSONSchema; tool tavsiflari ingliz tilida, xato hint'lari o'zbekcha | Railway bitta nusxa, sessiya holati kerak emas; tavsiflar model uchun aniqroq |
 
 ---
 
@@ -536,3 +537,28 @@
 
   Repo 287 ✅.
 - **Keyingi:** P3.02 (`/mcp`)
+
+### 2026-10-05 · P3.02 — `/mcp` (Streamable HTTP) · ✅
+- **Qilindi (`src/mcp/`):**
+  - **`routes.ts`:**
+    - `POST /mcp` stateless rejimda ishlaydi: har so'rovga yangi `Server` va `StreamableHTTPServerTransport`, javob JSON (`enableJsonResponse`), body 4 MB gacha.
+    - Bearer token `authenticateBearer` bilan tekshiriladi (faqat shu resource uchun berilgan token). Token yo'q bo'lsa 401 va `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource/mcp", scope="mcp"`; yaroqsiz bo'lsa qo'shimcha `error="invalid_token"`.
+    - `GET`/`DELETE /mcp` → 405.
+    - `onRequest`/`onCall` hook'lari (Claude indikatori va audit uchun).
+  - **`server.ts`:**
+    - SDK'ning low-level `Server` sinfi ishlatiladi; `inputSchema` zod v4 `z.toJSONSchema` dan olinadi.
+    - Argumentlar `parseWith` bilan tekshiriladi (uz locale, JSON Pointer path'lar).
+    - Javob yagona `{ok, data|error}` text va ixtiyoriy rasmlar; xatoda `isError`.
+    - User bo'yicha rate limit: daqiqasiga 120 ta (`SYS_RATE_LIMIT`, `retry_after_s`).
+    - MCP `instructions`: loop qoidalari (env_check → … → report_get).
+  - **`registry.ts`** (`ToolDef`, `defineTool`, `ToolContext`) va **`prompts.ts`** (`PromptDef`, ro'yxati P3.09 da to'ldiriladi).
+  - Birinchi tool: **`spec_schema`** (JSON Schema va yopiq ro'yxatlar).
+  - Bog'liqlik: `@modelcontextprotocol/sdk` 1.32.0 (protokol 2025-11-25).
+- **Tekshiruv:** `mcp.test.ts` 6 ta:
+  - 401 challenge aniq formatda; yaroqsiz token → `invalid_token`;
+  - boshqa resource uchun berilgan token rad etiladi; GET → 405;
+  - **SDK `Client` + `StreamableHTTPClientTransport` haqiqiy HTTP orqali:** initialize (instructions, server nomi) → tools/list (annotatsiyalar) → tools/call. Bu MCP Inspector'ga teng sinov;
+  - noma'lum tool → `isError` + `SYS_NOT_FOUND`; har tool `inputSchema` obyekt.
+
+  Server bundle SDK bilan yuklanadi. Repo testlari ✅.
+- **Keyingi:** P3.03
