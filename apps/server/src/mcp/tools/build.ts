@@ -8,7 +8,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { jobEvents, jobs, projects } from "../../db/schema";
 import { planAudioTasks } from "../../audio/plan";
-import { compileExtras } from "../../jobs/compile-extras";
+import { aeFonts, compileExtras, usesFonts } from "../../jobs/compile-extras";
 import { aepPath, compileAssets } from "../../jobs/engine";
 import type { JobRow } from "../../jobs/engine";
 import { defineTool } from "../registry";
@@ -59,15 +59,28 @@ async function dryCompile(
   const projectPath = aepPath(project, version);
   // TTS-first: AUDIO natijasi bor bo'lsa sahna vaqtlari voiceover'dan; bo'lmasa vaqt AUDIO'dan keyin aniqlanadi.
   const audio = await ctx.engine.audioReadyFor(project.id, planVersion);
+  const extras = await compileExtras(ctx.app, project.userId, spec);
+  const pendingAudio = audio === null && spec.scenes.some((scene) => typeof scene.dur === "string");
+  if (!extras.ok) {
+    return { missing, projectPath, compiled: extras, pendingAudio: false, brand: undefined };
+  }
+  // Shriftlar: panel ulangan bo'lsa AE'dan (AE_FONT_MISSING'ni build'dan oldin ko'rsatish uchun).
+  if (
+    project.deviceId !== null &&
+    ctx.app.hub.isOnline(project.deviceId) &&
+    usesFonts(spec, extras.data)
+  ) {
+    const fonts = await aeFonts(ctx.app, project.deviceId, "mcp");
+    if (fonts.ok) extras.data.fonts = fonts.data;
+  }
   const compiled = compile(spec, {
     assets,
     projectPath,
     version,
     ...(audio === null ? {} : { audio }),
-    ...(await compileExtras(ctx.app, project.userId, spec)),
+    ...extras.data,
   });
-  const pendingAudio = audio === null && spec.scenes.some((scene) => typeof scene.dur === "string");
-  return { missing, projectPath, compiled, pendingAudio };
+  return { missing, projectPath, compiled, pendingAudio, brand: extras.data.brand };
 }
 
 async function loadSpec(
@@ -236,7 +249,7 @@ export const buildTools = [
       if (input.dry_run) {
         const plan = await loadSpec(ctx, project.data, input.plan_version);
         if (!plan.ok) return plan;
-        const { missing, projectPath, compiled, pendingAudio } = await dryCompile(
+        const { missing, projectPath, compiled, pendingAudio, brand } = await dryCompile(
           ctx,
           project.data,
           plan.data.spec,
@@ -247,6 +260,7 @@ export const buildTools = [
           const pendingPlan = planAudioTasks(plan.data.spec, {
             videoDuration: null,
             dictionaries: await dictionaries(ctx, ctx.userId),
+            brand,
           });
           const pendingCredits = await estimateWithQuota(ctx, pendingPlan);
           return ok({
@@ -268,6 +282,7 @@ export const buildTools = [
         const audioPlan = planAudioTasks(plan.data.spec, {
           videoDuration: compiled.data.duration,
           dictionaries: await dictionaries(ctx, ctx.userId),
+          brand,
         });
         const credits = audioPlan.length === 0 ? null : await estimateWithQuota(ctx, audioPlan);
         return ok({

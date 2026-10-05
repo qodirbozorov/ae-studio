@@ -2,7 +2,7 @@
  * Spec `audio` → ElevenLabs vazifalari ro'yxati (§7.1, P4.09): narx bahosi (`el_estimate`, dry_run) va AUDIO holati.
  * Tartib muhim: avval voiceover (TTS-first timing), keyin musiqa (video uzunligiga), SFX, manba audio.
  */
-import type { AudioKind, VideoSpec } from "@aes/shared";
+import type { AudioKind, Brand, VideoSpec } from "@aes/shared";
 
 /** Default TTS modeli: o'zbekcha faqat v4 da (Q7). */
 export const DEFAULT_TTS_MODEL = "eleven_v4";
@@ -37,7 +37,12 @@ export function clampMusicMs(seconds: number): number {
  */
 export function planAudioTasks(
   spec: VideoSpec,
-  options: { videoDuration: number | null; dictionaries?: Record<string, PronunciationLocator> } = {
+  options: {
+    videoDuration: number | null;
+    dictionaries?: Record<string, PronunciationLocator>;
+    /** Brand kit: default ovoz va musiqa uslubi (§11.3). */
+    brand?: Brand | undefined;
+  } = {
     videoDuration: null,
   },
 ): AudioPlanItem[] {
@@ -54,9 +59,9 @@ export function planAudioTasks(
       kind: "tts",
       label: "Voiceover (TTS)",
       params: {
-        voice_id: vo.voice_id,
+        voice_id: vo.voice_id ?? options.brand?.voice?.voice_id ?? "",
         text: vo.text,
-        model_id: vo.model_id ?? DEFAULT_TTS_MODEL,
+        model_id: vo.model_id ?? options.brand?.voice?.model_id ?? DEFAULT_TTS_MODEL,
         ...(vo.language === undefined ? {} : { language_code: vo.language }),
         ...(vo.voice_settings === undefined ? {} : { voice_settings: vo.voice_settings }),
         ...(locators.length === 0 ? {} : { pronunciation_dictionary_locators: locators }),
@@ -97,7 +102,7 @@ export function planAudioTasks(
       kind: "music",
       label: "Fon musiqa",
       params: {
-        prompt: musicSpec.prompt,
+        prompt: musicSpec.prompt ?? options.brand?.music_style ?? "",
         music_length_ms: clampMusicMs(seconds),
         force_instrumental: musicSpec.instrumental,
       },

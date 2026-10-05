@@ -310,9 +310,12 @@ export const elevenVoiceTools = [
       if (plan === null) return fail("SYS_NOT_FOUND", "Plan topilmadi");
       const spec = parseSpec(plan.spec);
       if (!spec.ok) return spec;
+      const brand = await ctx.app.brands.resolve(ctx.userId, spec.data.brand);
+      if (!brand.ok) return brand;
       const items = planAudioTasks(spec.data, {
         videoDuration: null,
         dictionaries: await dictionaries(ctx, ctx.userId),
+        brand: brand.data,
       });
       const sources = await ctx.app.db
         .select()

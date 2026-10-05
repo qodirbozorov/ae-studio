@@ -20,3 +20,6 @@ export { fitScale, toPixels } from "./layout";
 export { ANIM_IN_S, TRANSITION_S, animOps, transitionOps } from "./motion";
 export { DEFAULT_BRAND_TOKENS, aspectOf, brandTokens, expandTemplate } from "./template";
 export type { CompileTemplate, ExpandedTemplate, TokenValue } from "./template";
+export { buildLook } from "./brand";
+export type { Look } from "./brand";
+export { textBox } from "./compile";

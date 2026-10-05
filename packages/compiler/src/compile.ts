@@ -8,6 +8,7 @@
 import { fail, makeOp, ok } from "@aes/shared";
 import type {
   AeOpName,
+  Brand,
   Layer,
   OpEnvelope,
   OpParamsMap,
@@ -20,7 +21,9 @@ import { fitScale, round, toPixels } from "./layout";
 import type { Frame } from "./layout";
 import { animOps, transitionOps } from "./motion";
 import type { MotionOp } from "./motion";
-import { expandTemplate } from "./template";
+import { buildLook } from "./brand";
+import type { Look } from "./brand";
+import { brandTokens, expandTemplate } from "./template";
 import type { CompileTemplate, ExpandedTemplate, TokenValue } from "./template";
 import { planTiming, resolveAt, shiftWords, voiceSegments } from "./timing";
 import type { CaptionWord } from "@aes/shared";
@@ -49,9 +52,15 @@ export interface CompileContext {
   audio?: CompileAudio;
   /** Spec'dagi shablonlar (§11.2): slug → manifest (+ aep fayli). */
   templates?: Record<string, CompileTemplate>;
-  /** Recipe shablonlari uchun qo'shimcha tokenlar (`brand.*`, P5.04). */
+  /** Recipe shablonlari uchun qo'shimcha tokenlar (berilmasa `brand` dan). */
   tokens?: Record<string, TokenValue>;
+  /** Brand kit (§11.3): matn shrifti/rangi, sahna foni, subtitr stili, shablon tokenlari. */
+  brand?: Brand;
+  /** AE'dagi shriftlar (PostScript nomlari; `info` op). null — noma'lum (AE < 24): tekshirilmaydi. */
+  fonts?: string[] | null;
 }
+
+type LayerContext = CompileContext & { look: Look };
 
 /** AUDIO natijalari (fayllar ish papkasiga nisbiy; so'z vaqtlari audio boshiga nisbatan). */
 export interface CompileAudio {
@@ -96,13 +105,14 @@ class OpList {
   }
 }
 
-function textStyle(style: TextStyle, frame: Frame): TextStyleOp {
+function textStyle(style: TextStyle, frame: Frame, look: Look): TextStyleOp {
   const op: TextStyleOp = {
     size: style.size ?? Math.round(frame.h * 0.045),
-    color: style.color ?? "#FFFFFF",
+    color: style.color ?? look.color,
     justify: style.align ?? "center",
   };
-  if (style.font !== undefined) op.font = style.font;
+  const font = look.font(style.font);
+  if (font !== undefined) op.font = font;
   if (style.stroke_color !== undefined) op.stroke_color = style.stroke_color;
   if (style.stroke_width !== undefined) op.stroke_width = style.stroke_width;
   if (style.all_caps !== undefined) op.all_caps = style.all_caps;
@@ -219,6 +229,14 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
     }
   }
 
+  // Shablon tokenlari: brand kit (logo asset loyihada bo'lmasa — logo'siz, ogohlantirish bilan).
+  const tokens = { ...(ctx.tokens ?? brandTokens(ctx.brand)) };
+  const logo = tokens["brand.logo"];
+  if (typeof logo === "string" && ctx.assets[refKey(logo)] === undefined) {
+    delete tokens["brand.logo"];
+    warnings.push(`Brand logo (${logo}) loyihada yo'q — logo'siz`);
+  }
+
   // Shablonli sahnalar: recipe → layerlar, aep → template.instantiate (§11.2).
   const expansions: (ExpandedTemplate | null)[] = [];
   for (const [i, scene] of spec.scenes.entries()) {
@@ -232,7 +250,7 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
       ctx.templates ?? {},
       frame,
       timing[i]!.duration,
-      ctx.tokens ?? {},
+      tokens,
     );
     if (!expanded.ok) return expanded;
     warnings.push(...expanded.data.warnings);
@@ -241,6 +259,14 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
 
   const assets = checkAssets(spec, ctx, expansions);
   if (!assets.ok) return assets;
+  // Shriftlar: brand default'i va fallback; AE'da yo'q bo'lsa AE_FONT_MISSING (PREFLIGHT).
+  const allLayers = spec.scenes.flatMap((scene, i) => [
+    ...(expansions[i]?.layers ?? []),
+    ...(scene.layers ?? []),
+  ]);
+  const look = buildLook(allLayers, ctx.brand, ctx.fonts, warnings);
+  if (!look.ok) return look;
+  const lctx: LayerContext = { ...ctx, look: look.data };
   const audioSpec = spec.audio;
   // Spec audio'dagi asset havolalari (musiqa, SFX, manba, tayyor voiceover) ham import qilinadi.
   const audioRefs: string[] = [];
@@ -294,7 +320,7 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
         h: frame.h,
         fps,
         dur: time.duration,
-        bg: scene.bg ?? expansion?.bg ?? "#000000",
+        bg: scene.bg ?? expansion?.bg ?? ctx.brand?.colors.background ?? "#000000",
         folder: SCENES_FOLDER,
       },
       scene.id,
@@ -321,7 +347,7 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
         time,
         scene.id,
         frame,
-        ctx,
+        lctx,
         warnings,
       );
     }
@@ -334,7 +360,7 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
         time,
         scene.id,
         frame,
-        ctx,
+        lctx,
         warnings,
       );
     }
@@ -384,7 +410,7 @@ function compileLayer(
   time: CompiledScene,
   sceneId: string,
   frame: Frame,
-  ctx: CompileContext,
+  ctx: LayerContext,
   warnings: string[],
 ): void {
   const start = layer.start ?? 0;
@@ -440,7 +466,7 @@ function compileLayer(
     }
     case "text": {
       const pos = toPixels(layer.pos, frame);
-      const style = textStyle(layer.style, frame);
+      const style = textStyle(layer.style, frame, ctx.look);
       const box = textBox(layer.text, style, layer.max_width, frame);
       list.add(
         "layer.add_text",
@@ -639,7 +665,7 @@ function compileAudio(
       list.add("captions.build", "aes.captions", {
         comp: MAIN_COMP,
         words: words.filter((w) => w.start < duration),
-        style: captions.style,
+        style: captions.style ?? ctx.brand?.captions.style ?? "karaoke_bold",
         pos: toPixels(captions.pos, frame),
         max_words: captions.max_words,
         box_w: Math.round(frame.w * 0.86),

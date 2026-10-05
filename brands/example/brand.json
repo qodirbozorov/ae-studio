@@ -1,0 +1,19 @@
+{
+  "slug": "example",
+  "name": "Namuna brend",
+  "colors": {
+    "primary": "#1E40AF",
+    "secondary": "#93C5FD",
+    "accent": "#F59E0B",
+    "text": "#FFFFFF",
+    "background": "#0B1020"
+  },
+  "fonts": {
+    "heading": { "family": "Montserrat-Bold", "fallback": ["Arial-BoldMT"] },
+    "body": { "family": "Inter-Regular", "fallback": ["ArialMT"] }
+  },
+  "logo": "asset:logo",
+  "captions": { "style": "bold_pop", "highlight": "#F59E0B" },
+  "voice": { "voice_id": "<el_voices dan ovoz id>", "model_id": "eleven_v4" },
+  "music_style": "upbeat modern corporate, light percussion, no vocals"
+}

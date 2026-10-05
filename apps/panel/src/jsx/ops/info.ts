@@ -5,6 +5,7 @@ const MAX_FONTS = 2000;
 
 interface FontLike {
   familyName?: string;
+  postScriptName?: string;
 }
 
 /**
@@ -38,15 +39,26 @@ export function info(_params: InfoParams, opId: string): OpResultData {
   }
 
   let fonts: string[] | null = null;
+  /** PostScript nomlari (brand kit va Spec `style.font` shu nomlar bilan; PREFLIGHT tekshiruvi). */
+  let fontNames: string[] | null = null;
   let fontsNote: string | null = null;
   const fontsApi = (app as unknown as { fonts?: { allFonts?: FontLike[][] } }).fonts;
   if (fontsApi !== undefined && fontsApi !== null && fontsApi.allFonts !== undefined) {
     fonts = [];
+    fontNames = [];
     const groups = fontsApi.allFonts;
     for (let g = 0; g < groups.length && fonts.length < MAX_FONTS; g++) {
       const group = groups[g];
       const first = group === undefined ? undefined : group[0];
       if (first !== undefined && typeof first.familyName === "string") fonts.push(first.familyName);
+      for (
+        let f = 0;
+        group !== undefined && f < group.length && fontNames.length < MAX_FONTS * 4;
+        f++
+      ) {
+        const name = group[f]!.postScriptName;
+        if (typeof name === "string") fontNames.push(name);
+      }
     }
   } else {
     fontsNote = "Shriftlar ro'yxati AE 24.0+ da mavjud (app.fonts)";
@@ -62,6 +74,7 @@ export function info(_params: InfoParams, opId: string): OpResultData {
       dirty: (project as unknown as { dirty?: boolean }).dirty === true,
       comps: comps,
       fonts: fonts,
+      font_names: fontNames,
       fonts_note: fontsNote,
     },
   };

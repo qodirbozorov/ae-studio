@@ -36,6 +36,7 @@ import { projects } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { AgentHub } from "./ws/hub";
 import { TemplateService } from "./templates/service";
+import { BrandService } from "./brands/service";
 import { registerAgentSocket } from "./ws/routes";
 
 declare module "fastify" {
@@ -46,6 +47,7 @@ declare module "fastify" {
     jobs: JobEngine;
     audio: AudioService;
     templates: TemplateService;
+    brands: BrandService;
   }
 }
 
@@ -120,6 +122,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.decorate("audio", ctx.audio);
   ctx.templates = new TemplateService(ctx);
   app.decorate("templates", ctx.templates);
+  ctx.brands = new BrandService(ctx);
+  app.decorate("brands", ctx.brands);
 
   await app.register(cookie);
   // OAuth token/revoke va ruxsat formasi (RFC 6749: application/x-www-form-urlencoded).

@@ -193,8 +193,8 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P5.01 — Shablon tizimi (§11.2).** `templates/<slug>/` (`template.aep` + `template.json` + `preview.gif`), `templates` jadvali, `template.instantiate` op. Slotlar: text → layer nomi, media → placeholder `fit`, color → Essential Graphics; `duration.stretch: time_remap`. Compiler'da `scene.template` → op.
 - [x] **P5.02 — Shablon toollari va prompt.** `templates_list`, `template_get`, `template_apply`, `template_save` (joriy comp'dan yangi shablon); MCP prompt `/from-template`.
 - [x] **P5.03 — Boshlang'ich kutubxona.** hook_title, lower_third, cta_outro, product_showcase, testimonial, top3_list; subtitr stillari (karaoke, bold pop, minimal); transitionlar (`.ffx` yoki op asosida). Imkon qadar qayta yaratsa bo'ladigan "template builder" jsx skriptlari bilan; `preview.gif` = aerender + ffmpeg. 👤 dizaynni ko'rib chiqish.
-  - Tayyor: kamida 5 ta shablon (M7), har biri manifestdagi formatlarda sinalgan.
-- [ ] **P5.04 — Brand kit (§11.3).** `brands/` + `brands` jadvali, `brands_list`, `brand_save`. Compiler qo'llaydi: ranglar, shriftlar (+ fallback; PREFLIGHT'da `AE_FONT_MISSING`), logo, subtitr stili, default ovoz va musiqa uslubi.
+  - [x] Tayyor: kamida 5 ta shablon (M7), har biri manifestdagi formatlarda sinalgan.
+- [x] **P5.04 — Brand kit (§11.3).** `brands/` + `brands` jadvali, `brands_list`, `brand_save`. Compiler qo'llaydi: ranglar, shriftlar (+ fallback; PREFLIGHT'da `AE_FONT_MISSING`), logo, subtitr stili, default ovoz va musiqa uslubi.
 - [ ] **P5.05 — Format variantlari (§11.4.1).** Bitta Spec'dan 9:16 / 1:1 / 16:9: formatga nisbiy joylashuv, safe area, media `fit`, har variant alohida render qilinadi.
 - [ ] **P5.06 — Panel Shablonlar ekrani (Claude'siz rejim).** Galereya (preview gif), slotlarni qo'lda to'ldirish, job REST orqali ishga tushadi.
 - [ ] **P5.07 — Batch (§11.4.3).** Shablon + CSV → N ta video (ustun ↔ slot, har qator uchun progress va hisobot).

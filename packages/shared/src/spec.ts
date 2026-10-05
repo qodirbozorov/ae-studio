@@ -261,7 +261,8 @@ export const voiceoverSchema = z.discriminatedUnion(
   [
     z.strictObject({
       kind: z.literal("tts"),
-      voice_id: voiceIdSchema,
+      /** Berilmasa brand kit ovozi (`brand.voice`). */
+      voice_id: voiceIdSchema.optional(),
       model_id: modelIdSchema.optional(),
       text: z.string().min(1).max(10000),
       language: languageSchema.optional(),
@@ -299,7 +300,8 @@ export const musicSchema = z.discriminatedUnion(
   [
     z.strictObject({
       kind: z.literal("music"),
-      prompt: z.string().min(1).max(2000),
+      /** Berilmasa brand kit musiqa uslubi (`brand.music_style`). */
+      prompt: z.string().min(1).max(2000).optional(),
       length: z
         .union([z.literal("match_video"), z.number().min(5).max(600)])
         .default("match_video"),
@@ -344,8 +346,8 @@ export const sfxSchema = z
 export const captionsSchema = z.strictObject({
   from: z.enum(["voiceover", "source_audio"]),
   method: z.enum(CAPTION_METHODS).default("tts_timestamps"),
-  /** Subtitr stili slug'i (karaoke_bold, bold_pop, minimal ...). */
-  style: slugSchema.default("karaoke_bold"),
+  /** Subtitr stili slug'i (karaoke_bold, bold_pop, minimal ...); berilmasa brand kit stili. */
+  style: slugSchema.optional(),
   pos: positionSchema.default("lower_third"),
   max_words: z.number().int().min(1).max(12).default(4),
 });
@@ -525,6 +527,28 @@ let cachedJsonSchema: Record<string, unknown> | undefined;
 export function specJsonSchema(): Record<string, unknown> {
   cachedJsonSchema ??= z.toJSONSchema(videoSpecSchema, { io: "input" }) as Record<string, unknown>;
   return cachedJsonSchema;
+}
+
+/**
+ * Brand kit'dan to'ldiriladigan audio maydonlari yo'q bo'lsa xato matni (CHECK/preflight):
+ * TTS ovozi (`voice_id` yoki `brand.voice`) va musiqa tavsifi (`prompt` yoki `brand.music_style`).
+ */
+export function missingBrandAudio(
+  spec: VideoSpec,
+  brand: { voice?: { voice_id: string } | undefined; music_style?: string | undefined } | undefined,
+): string | null {
+  const audio = spec.audio;
+  if (audio?.voiceover?.kind === "tts" && audio.voiceover.voice_id === undefined) {
+    if (brand?.voice === undefined) {
+      return "/audio/voiceover/voice_id: ovoz berilmagan va brand kit'da default ovoz yo'q (el_voices)";
+    }
+  }
+  if (audio?.music?.kind === "music" && audio.music.prompt === undefined) {
+    if (brand?.music_style === undefined) {
+      return "/audio/music/prompt: musiqa tavsifi berilmagan va brand kit'da music_style yo'q";
+    }
+  }
+  return null;
 }
 
 /** Spec ElevenLabs'ni talab qiladimi (CHECK: kalit va kvota kerak). */

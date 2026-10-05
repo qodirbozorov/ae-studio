@@ -12,6 +12,7 @@ import type { CompileAsset, CompileAudio } from "@aes/compiler";
 import {
   MAX_PATCHES,
   audioUsesEleven,
+  missingBrandAudio,
   durationMatches,
   fail,
   makeError,
@@ -56,7 +57,7 @@ import { wordsOfTask } from "../audio/words";
 import { normalizeRootPath } from "../projects/routes";
 import { storageKey } from "../storage";
 import { buildReport, pad3 } from "./report";
-import { compileExtras } from "./compile-extras";
+import { aeFonts, compileExtras, usesFonts } from "./compile-extras";
 import { IDLE_STATES, actionAllowed, nextState } from "./machine";
 
 export type JobRow = typeof jobs.$inferSelect;
@@ -101,7 +102,7 @@ const MAX_STEPS = 64;
 
 export type EngineContext = Pick<
   AppContext,
-  "db" | "hub" | "now" | "storage" | "eleven" | "audio" | "templates"
+  "db" | "hub" | "now" | "storage" | "eleven" | "audio" | "templates" | "brands"
 >;
 
 /** Ish papkasidagi lokal nusxalar (§2.10): versiyali, hech biri ustiga yozilmaydi. */
@@ -661,6 +662,13 @@ export class JobEngine {
     // ElevenLabs: spec audio talab qilsa — kalit va kvota (P4.01).
     const plan = await this.plan(job.projectId, job.planVersion);
     const planSpec = plan === null ? null : parseSpec(plan.spec);
+    // Brand kit (§11.3): topilishi va undan to'ldiriladigan audio maydonlari.
+    if (planSpec?.ok === true) {
+      const brand = await this.ctx.brands.resolve(project.userId, planSpec.data.brand);
+      if (!brand.ok) return { kind: "block", error: brand.error };
+      const missing = missingBrandAudio(planSpec.data, brand.data);
+      if (missing !== null) return { kind: "block", error: makeError("SPEC_INVALID", missing) };
+    }
     if (planSpec?.ok === true && audioUsesEleven(planSpec.data)) {
       const account = await this.ctx.eleven.account(project.userId);
       if (!account.configured) {
@@ -788,7 +796,20 @@ export class JobEngine {
     const audioReady = await this.audioReady(job);
     const version = job.aepVersion ?? (await this.nextAepVersion(project.id));
     const projectPath = aepPath(project, version);
-    const extras = await compileExtras(this.ctx, project.userId, spec.data);
+    const resolved = await compileExtras(this.ctx, project.userId, spec.data);
+    if (!resolved.ok) return { kind: "block", error: resolved.error };
+    const extras = resolved.data;
+    // Shriftlar: brand yoki Spec shrift ishlatsa AE'dan ro'yxat (AE_FONT_MISSING + fallback, §11.3).
+    if (job.deviceId !== null && usesFonts(spec.data, extras)) {
+      const fonts = await aeFonts(this.ctx, job.deviceId, job.id);
+      if (!fonts.ok) {
+        if (fonts.error.code === "ENV_AGENT_OFFLINE") {
+          return { kind: "wait_agent", reason: "PREFLIGHT: panel uzildi (shriftlar)" };
+        }
+        return { kind: "block", error: fonts.error };
+      }
+      extras.fonts = fonts.data;
+    }
     const compiled = compile(spec.data, {
       assets: assetMap,
       projectPath,
@@ -1068,7 +1089,9 @@ export class JobEngine {
     const spec = parseSpec(plan.spec);
     if (!spec.ok) return { kind: "block", error: spec.error };
     const dictionaries = await this.dictionaries(project.userId);
-    const items = planAudioTasks(spec.data, { videoDuration: null, dictionaries });
+    const brandResult = await this.ctx.brands.resolve(project.userId, spec.data.brand);
+    const brand = brandResult.ok ? brandResult.data : undefined;
+    const items = planAudioTasks(spec.data, { videoDuration: null, dictionaries, brand });
     if (items.length === 0) {
       await this.event(job, "info", "audio.skipped", "AUDIO: spec'da ElevenLabs vazifasi yo'q");
       if (spec.data.audio !== undefined) {
@@ -1207,6 +1230,7 @@ export class JobEngine {
     const later = planAudioTasks(spec.data, {
       videoDuration: timing.data.total,
       dictionaries,
+      brand,
     }).filter((item) => item.afterTiming === true);
     const second = await runItems(later);
     if (!(second instanceof Map)) return second;

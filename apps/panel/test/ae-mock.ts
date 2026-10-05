@@ -849,7 +849,10 @@ export function createMockAE(
   } as unknown as new (path: string) => { exists: boolean; create(): boolean };
   if (options.fonts !== undefined) {
     (app as unknown as { fonts: unknown }).fonts = {
-      allFonts: options.fonts.map((familyName) => [{ familyName }]),
+      // Mock: oila nomi = PostScript nomining "-" gacha qismi (Montserrat-Bold → Montserrat).
+      allFonts: options.fonts.map((name) => [
+        { familyName: name.split("-")[0], postScriptName: name },
+      ]),
     };
   }
   return {

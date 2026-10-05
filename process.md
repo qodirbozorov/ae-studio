@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (3/14)
-- **Oxirgi bajarilgan:** P5.03 — Boshlang'ich kutubxona: 6 shablon (2026-10-05)
-- **Keyingi todo:** P5.04 — Brand kit
+- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (4/14)
+- **Oxirgi bajarilgan:** P5.04 — Brand kit (2026-10-05)
+- **Keyingi todo:** P5.05 — Format variantlari
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -98,6 +98,7 @@
 | 2026-10-05 | P5.01 | Shablon ikki xil: aep (template.instantiate) va recipe (compiler layerlarga yoyadi) | .aep dizayn faylini bu yerda yaratib bo'lmaydi — boshlang'ich kutubxona qayta yaratsa bo'ladigan recipe; aep yo'li template_save va dizaynerlar uchun |
 | 2026-10-05 | P5.02 | template_save ikki xil: recipe (Spec sahnasidan, AE'siz) va aep (qurilgan .aep panel orqali storage'ga) | recipe AE'siz qayta yaratiladi va formatlarga moslashadi; aep dizayner ishlovi kerak bo'lganda |
 | 2026-10-05 | P5.03 | preview.gif o'rniga panel galereyasi manifestdan sxematik ko'rinish chizadi; gif ixtiyoriy | gif uchun haqiqiy AE render kerak (👤), galereya esa doim ishlashi kerak |
+| 2026-10-05 | P5.04 | Spec brand default 'default' saqlanmagan bo'lsa brand'siz quriladi | mavjud Spec'lar va snapshot'lar o'zgarmaydi; brand ixtiyoriy qatlam |
 
 ---
 
@@ -1232,3 +1233,32 @@ To'liq to'plam: 418 test o'tdi. `build.e2e` dagi layer nomi kutilmasi yangilandi
 - oplar haqiqiy ES3 bundle'da mock AE'da bajariladi.
 
 **👤:** dizaynni haqiqiy AE'da ko'rib chiqish va `preview.gif` (render + ffmpeg, README'dagi tartib).
+
+### P5.04 — Brand kit (2026-10-05)
+
+**Nima qilindi:**
+- **`BrandService` (`ctx.brands`)** — `brands` jadvali: upsert, ro'yxat, `resolve`. Spec'dagi `"default"` saqlanmagan bo'lsa video brand'siz quriladi; boshqa slug topilmasa `SPEC_INVALID /brand`.
+- **MCP:** `brands_list`, `brand_save` (kirish — `brandSchema`).
+- **Compiler (`packages/compiler/src/brand.ts`)** — brand quyidagilarni beradi:
+  - matnning default shrifti (body) va rangi;
+  - sahna foni;
+  - subtitr stili (Spec `captions.style` endi ixtiyoriy: Spec → brand → `karaoke_bold`);
+  - shablon tokenlari. Logo asset loyihada bo'lmasa video logo'siz quriladi, ogohlantirish bilan.
+- **Shriftlar:** ishlatiladigan barcha shriftlar AE ro'yxati bo'yicha tekshiriladi.
+  - Shrift yo'q bo'lsa brand fallback'i ishlatiladi (ogohlantirish bilan).
+  - Fallback ham yo'q bo'lsa `AE_FONT_MISSING` (`details.font`, `fallback`).
+  - Ro'yxat noma'lum bo'lsa (AE < 24) tekshirilmaydi.
+- **AE ro'yxati qayerdan:**
+  - jsx `info` op endi `font_names` qaytaradi (PostScript nomlari, `app.fonts`);
+  - engine PREFLIGHT ro'yxatni brand yoki Spec shrifti bo'lgandagina so'raydi, panel uzilsa kutadi;
+  - MCP `preflight` / `dry_run` panel online bo'lsa so'raydi.
+- **Audio:** TTS `voice_id` va musiqa `prompt` ixtiyoriy bo'ldi; bo'lmasa `brand.voice` / `brand.music_style` ishlatiladi (`planAudioTasks`). CHECK'da `missingBrandAudio`: ikkalasi ham yo'q bo'lsa `SPEC_INVALID`.
+- `brands/README.md` va `brands/example/brand.json`.
+
+**Testlar:**
+- compiler `brand.test` (5): defaultlar, fallback/`AE_FONT_MISSING`, subtitr stili, logo;
+- server `brands.test` (6): toollar, build'da tokenlar/shrift/logo/fon, fallback va `AE_FONT_MISSING` (engine va MCP preflight), noma'lum brand, brand ovozi va musiqasi, ovozsiz voiceover.
+
+To'liq to'plam: 467 o'tdi. Typecheck, lint, prettier toza.
+
+**👤:** haqiqiy AE 24+ da `app.fonts` PostScript nomlari.
