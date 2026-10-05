@@ -16,6 +16,7 @@ import { consumeToken, findActiveToken, hashToken, issueToken } from "../auth/to
 import type { TokenRow } from "../auth/tokens";
 import type { AppContext } from "../context";
 import { oauthClients, oauthTokens } from "../db/schema";
+import { audit } from "../audit";
 import { RateLimiter } from "../lib/rate-limit";
 import {
   OAuthError,
@@ -287,6 +288,14 @@ export function registerOAuthRoutes(
     const target = new URL(params.redirect_uri);
     if (params.state !== undefined) target.searchParams.set("state", params.state);
     target.searchParams.set("iss", urls.issuer);
+    await audit(ctx, request.log, {
+      userId: request.user.id,
+      actor: "user",
+      action: body.decision === "allow" ? "oauth.authorized" : "oauth.denied",
+      target: client.clientName ?? client.id,
+      ip: request.ip,
+      data: { client_id: client.id, redirect_host: target.host, scope },
+    });
     if (body.decision !== "allow") {
       target.searchParams.set("error", "access_denied");
       target.searchParams.set("error_description", "Foydalanuvchi rad etdi");
@@ -429,6 +438,13 @@ export function registerOAuthRoutes(
               await revokeFamily(stale.userId, stale.clientId);
             }
             request.log.warn({ client: stale.clientId }, "oauth: refresh token qayta ishlatildi");
+            await audit(ctx, request.log, {
+              userId: stale.userId,
+              actor: "system",
+              action: "oauth.refresh_reuse",
+              target: stale.clientId,
+              ip: request.ip,
+            });
           }
           throw new OAuthError("invalid_grant", "Refresh token yaroqsiz");
         }
@@ -524,6 +540,13 @@ export function registerOAuthRoutes(
     if (!parsed.success) return reply.code(400).send(fail("SYS_BAD_REQUEST", "client_id kerak"));
     await revokeFamily(request.user!.id, parsed.data.client_id);
     request.log.info({ client: parsed.data.client_id }, "oauth: ilova uzildi");
+    await audit(ctx, request.log, {
+      userId: request.user!.id,
+      actor: "user",
+      action: "oauth.revoked",
+      target: parsed.data.client_id,
+      ip: request.ip,
+    });
     return ok({ revoked: true });
   });
 }

@@ -14,7 +14,7 @@ import { TOOLS } from "./tools";
 export interface McpHooks {
   /** Har autentifikatsiyalangan MCP so'rovi (Claude indikatori uchun). */
   onRequest?: (userId: string) => void;
-  onCall?: (userId: string, clientId: string, tool: string, ok: boolean) => void;
+  onCall?: (userId: string, clientId: string, tool: string, ok: boolean, mutating: boolean) => void;
 }
 
 export function registerMcpRoutes(
@@ -47,7 +47,14 @@ export function registerMcpRoutes(
       prompts: PROMPTS,
       limiter,
       context: { app: ctx, engine, userId: auth.userId, clientId: auth.clientId, log: request.log },
-      onCall: (tool, ok) => hooks.onCall?.(auth.userId, auth.clientId, tool, ok),
+      onCall: (tool, ok) =>
+        hooks.onCall?.(
+          auth.userId,
+          auth.clientId,
+          tool,
+          ok,
+          TOOLS.find((def) => def.name === tool)?.annotations?.readOnlyHint !== true,
+        ),
     });
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

@@ -164,3 +164,20 @@ h1,
 h2 {
   margin: 0 0 4px;
 }
+
+.tabs {
+  display: flex;
+  gap: 16px;
+  margin: 0 0 16px;
+}
+
+.tabs a {
+  color: inherit;
+  opacity: 0.6;
+  text-decoration: none;
+}
+
+.tabs a.active {
+  opacity: 1;
+  font-weight: 600;
+}

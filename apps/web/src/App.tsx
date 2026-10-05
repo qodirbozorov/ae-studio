@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, post } from "./api";
 import type { Me } from "./api";
+import { ConnectionsPage } from "./pages/ConnectionsPage";
 import { DevicePage } from "./pages/DevicePage";
 import { DevicesPage } from "./pages/DevicesPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -45,7 +46,21 @@ export function App() {
           Chiqish
         </button>
       </header>
-      {path === "/device" ? <DevicePage /> : <DevicesPage />}
+      <nav className="tabs">
+        <a href="/" className={path === "/" ? "active" : undefined}>
+          Qurilmalar
+        </a>
+        <a href="/connections" className={path === "/connections" ? "active" : undefined}>
+          Ulangan ilovalar
+        </a>
+      </nav>
+      {path === "/device" ? (
+        <DevicePage />
+      ) : path === "/connections" ? (
+        <ConnectionsPage />
+      ) : (
+        <DevicesPage />
+      )}
     </main>
   );
 }

@@ -42,7 +42,7 @@ async function seedProject(email = "a@example.com") {
 }
 
 describe("migratsiyalar", () => {
-  it("§5 dagi barcha 17 jadval yaratiladi", async () => {
+  it("§5 dagi barcha 17 jadval (+ keyingi fazalar qo'shimchalari) yaratiladi", async () => {
     const block = plan.split("## 5. Ma'lumotlar modeli (Postgres)")[1]!.split("```sql")[1]!;
     const fromPlan = [...block.split("```")[0]!.matchAll(/^([a-z_]+)\s+\(/gm)].map((m) => m[1]!);
     expect(fromPlan).toHaveLength(17);
@@ -50,7 +50,9 @@ describe("migratsiyalar", () => {
     const { rows } = await t.pglite.query<{ table_name: string }>(
       "select table_name from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE'",
     );
-    expect(rows.map((r) => r.table_name).sort()).toEqual([...fromPlan].sort());
+    // §5 ga qo'shimcha: audit_log (P3.10, qarorlar jurnalida).
+    const extra = ["audit_log"];
+    expect(rows.map((r) => r.table_name).sort()).toEqual([...fromPlan, ...extra].sort());
   });
 
   it("qayta qo'llash xavfsiz (idempotent)", async () => {

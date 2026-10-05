@@ -8,6 +8,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { applyScan } from "../../assets/routes";
 import { assets } from "../../db/schema";
+import { resolveProjectPath } from "../../projects/routes";
 import { storageKey } from "../../storage";
 import { defineTool } from "../registry";
 import type { ImageBlock, ToolContext } from "../registry";
@@ -48,6 +49,9 @@ export async function previewImages(
 ) {
   const deviceId = requireOnline(ctx, project);
   if (!deviceId.ok) return deviceId;
+  // Server tomoni himoyasi (§4.4): yo'l ish papkasidan chiqmasligi kerak (panel ham tekshiradi).
+  const inside = resolveProjectPath(project, localPath);
+  if (!inside.ok) return inside;
   const slots = options.mode === "image" ? 1 : (options.times?.length ?? options.count ?? 4);
   const uploads = await Promise.all(
     Array.from({ length: slots }, async () => {

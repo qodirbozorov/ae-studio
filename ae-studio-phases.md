@@ -150,7 +150,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P3.07 — RENDER.** `render.queue` op. ❓ `aerender` (AE UI bloklanmaydi, tavsiya) yoki Render Queue (Q5). Presetlar (`h264_social` …), `render_start`, `render_presets`. Gate: fayl mavjud va ffprobe davomiyligi spec'ga teng (±1 kadr), aks holda `RENDER_DURATION_MISMATCH`. `renders` jadvali.
 - [x] **P3.08 — To'liq REPORT va Tarix ekrani.** `report_get` (chatda markdown); panel Tarix ekrani (joblar, hisobotni ochish, qayta render); 🟢 Claude indikatori.
 - [x] **P3.09 — MCP prompt `/new-reel`.** Hozircha audio'siz versiya; Faza 4 da yangilanadi.
-- [ ] **P3.10 — Xavfsizlik.** Rate limit, server tomonida path traversal, token revoke (kabinetda "ulangan ilovalar"), presigned URL muddatlari, audit eventlar.
+- [x] **P3.10 — Xavfsizlik.** Rate limit, server tomonida path traversal, token revoke (kabinetda "ulangan ilovalar"), presigned URL muddatlari, audit eventlar.
 - [ ] **P3.11 — Claude'ga ulash.** 👤 Settings → Connectors → Add custom connector → `https://<app>.up.railway.app/mcp`; web, desktop va telefondan tekshiriladi.
 - [ ] **P3.12 — 🧪 Faza 3 gate.**
   - [ ] 👤 Claude'da custom connector ulanadi (M4)

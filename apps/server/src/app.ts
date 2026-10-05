@@ -4,6 +4,7 @@ import websocket from "@fastify/websocket";
 import Fastify from "fastify";
 import type { FastifyError, FastifyInstance } from "fastify";
 import { registerAssetRoutes } from "./assets/routes";
+import { audit, registerAuditRoutes } from "./audit";
 import { ConsoleMailer, ResendMailer } from "./auth/mailer";
 import type { Mailer } from "./auth/mailer";
 import { registerAuthRoutes } from "./auth/routes";
@@ -24,6 +25,7 @@ import { registerJobRoutes } from "./jobs/routes";
 import type { RedisLike } from "./redis";
 import { LocalStorage, createStorage } from "./storage";
 import type { Storage } from "./storage";
+import { RateLimiter } from "./lib/rate-limit";
 import { findWebDist, isSpaRequest, registerWeb } from "./web";
 import { AgentHub } from "./ws/hub";
 import { registerAgentSocket } from "./ws/routes";
@@ -109,6 +111,19 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   );
   await app.register(websocket, { options: { maxPayload: 16 * 1024 * 1024 } });
 
+  // Login va qurilma ulash: IP bo'yicha chegaralar (brute force / spam'ga qarshi, P3.10).
+  const authLimiter = new RateLimiter(30, 10 * 60_000, () => now().getTime());
+  const limited = new Set(["/api/auth/magic-link", "/oauth/device/code", "/api/devices/confirm"]);
+  app.addHook("onRequest", async (request, reply) => {
+    if (request.method !== "POST" || !limited.has(request.url.split("?")[0]!)) return;
+    if (!authLimiter.take(`${request.ip}:${request.url}`)) {
+      return reply
+        .code(429)
+        .header("retry-after", String(authLimiter.retryAfterS(`${request.ip}:${request.url}`)))
+        .send(fail("SYS_RATE_LIMIT", "Juda ko'p urinish, birozdan keyin qayta urining"));
+    }
+  });
+
   app.decorateRequest("user", null);
   app.addHook("onRequest", async (request) => {
     if (request.url.startsWith("/api/")) await loadSession(ctx, request);
@@ -135,7 +150,21 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerJobRoutes(app, ctx, engine);
   const presence = new ClaudePresence(ctx, app.log);
   presence.attach();
-  registerMcpRoutes(app, ctx, engine, { onRequest: (userId) => presence.touch(userId) });
+  registerMcpRoutes(app, ctx, engine, {
+    onRequest: (userId) => presence.touch(userId),
+    onCall: (userId, clientId, tool, ok, mutating) => {
+      // O'qish toollari audit'ni to'ldirib yubormasligi uchun faqat o'zgartiruvchilar yoziladi.
+      if (!mutating) return;
+      void audit(ctx, app.log, {
+        userId,
+        actor: "claude",
+        action: `mcp.${tool}`,
+        target: clientId,
+        data: { ok },
+      });
+    },
+  });
+  registerAuditRoutes(app, ctx);
   app.addHook("onReady", async () => {
     // DB hali tayyor bo'lmasa server baribir ko'tariladi (health 503 ko'rsatadi).
     try {

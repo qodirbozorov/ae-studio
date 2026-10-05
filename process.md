@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 3 — Claude loop'i · jarayonda (9/12)
-- **Oxirgi bajarilgan:** P3.09 — /new-reel prompt (2026-10-05)
-- **Keyingi todo:** P3.10 — xavfsizlik (rate limit, path, revoke UI, audit)
+- **Faza:** 3 — Claude loop'i · jarayonda (10/12)
+- **Oxirgi bajarilgan:** P3.10 — xavfsizlik (2026-10-05)
+- **Keyingi todo:** P3.11 — Claude'ga ulash (deploy, prod OAuth/MCP tekshiruvi, yo'riqnoma)
 - **Blokerlar:** 👤 AE kompyuterida: ZXP, kabinet kodi bilan ulanish, Live/Undo, AE'ni o'rtada yopib-ochish · 👤 RESEND_API_KEY (magic link hozir server logida)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -82,6 +82,7 @@
 | 2026-10-05 | P3.03 | project_create faqat mavjud papkani ochadi (subpapkalarni yaratadi), ildiz papkani yaratmaydi | Claude xato yo'l bilan foydalanuvchi diskida keraksiz papka yaratmasligi uchun |
 | 2026-10-05 | P3.06 | Q4 yopildi: patch — yangi plan versiyasi + yangi .aep vNNN da to'liq qayta qurish (joyida tahrir emas) | Yopiq op to'plamida o'chirish yo'q; eski fayl saqlanadi; nest dublikati xavfi yo'q |
 | 2026-10-05 | P3.07 | Q5 yopildi: aerender asosiy, Render Queue zaxira; AE oraliq fayl → panel ffmpeg (preset) → out/<nom>_vNNN.mp4, ustiga yozmaslik (_2…) | Output module shablonlari AE versiyalari orasida farq qiladi; ffmpeg preset'ni bir xil qiladi; LGPL build'da libx264 yo'q → encoder avtomatik tanlanadi |
+| 2026-10-05 | P3.10 | §5 ga audit_log jadvali; MCP audit faqat o'zgartiruvchi (readOnlyHint bo'lmagan) toollar | Xavfsizlik hodisalari kuzatilsin, o'qish chaqiruvlari jurnalni to'ldirmasin |
 
 ---
 
@@ -774,3 +775,33 @@
 
   Repo 343 ✅.
 - **Keyingi:** P3.10 (xavfsizlik)
+
+### 2026-10-05 · P3.10 — Xavfsizlik · ✅
+- **Rate limit:**
+  - MCP: user bo'yicha 120 ta/daqiqa (P3.02).
+  - OAuth: `/oauth/register` IP bo'yicha 30 ta/soat, `/oauth/token` 120 ta/daqiqa (P3.01).
+  - **Yangi:** `POST /api/auth/magic-link`, `/oauth/device/code`, `/api/devices/confirm` — IP va yo'l bo'yicha 10 daqiqada 30 ta; oshsa 429 va `Retry-After`. Magic link'ning har email uchun 30 s chegarasi saqlanadi.
+- **Server tomonida yo'l tekshiruvi:**
+  - `asset_preview`/`frames_capture` panelga yuborishdan oldin yo'l `resolveProjectPath` (ish papkasi ichida) bilan tekshiriladi → `ASSET_OUTSIDE_ROOT`.
+  - Qolgan yo'llar server tomonidan yasaladi va papka ichida bo'ladi: kadrlar papkasi, `out_base` (`fileBase`), `.aep` (`aepPath`). Panel jsx ham alohida tekshiradi (ikki qatlam).
+- **Token revoke UI:** kabinetda yangi "Ulangan ilovalar" sahifasi (`/connections`) — ilovalar (nomi, qaytish host'lari, faol tokenlar), "Uzish" tugmasi (user+klient tokenlari bekor), Claude connector URL'i bo'yicha yo'riqnoma.
+- **Presigned URL muddati:** 15 daqiqa (`PRESIGN_TTL_S`). Muddati o'tgan imzo 403 qaytaradi (`storage.test` allaqachon qamraydi). MCP rasmlar URL emas, base64 sifatida beriladi.
+- **Audit jurnali (`audit_log` jadvali, migratsiya `0004`; §5 ga qo'shimcha):**
+  - `audit()` yordamchisi; yozish xatosi asosiy amalni to'xtatmaydi.
+  - **Yoziladigan hodisalar:**
+    - `device.approved`/`denied`/`revoked`;
+    - `oauth.authorized`/`denied`/`revoked`;
+    - `oauth.refresh_reuse` (system);
+    - Claude'ning o'zgartiruvchi MCP chaqiruvlari (`mcp.<tool>`, `{ok}`; `readOnlyHint` toollar yozilmaydi).
+  - Kabinet: `GET /api/audit` (faqat o'z yozuvlari, 100 ta) va "Faollik" bo'limi.
+- **Tekshiruv:**
+  - `security.test.ts` 4 ta:
+    - qurilma audit'i, begona audit ko'rinmaydi, sessiyasiz 401;
+    - MCP audit faqat o'zgartiruvchi toollar uchun;
+    - device code rate limit → 429 + `Retry-After`, oyna o'tgach tiklanadi;
+    - `asset_preview` `../../secret.jpg` → `ASSET_OUTSIDE_ROOT`, panelga hech narsa ketmaydi.
+  - `oauth.test`: authorized → refresh_reuse → revoked tartibi.
+  - `db.test`: 17 + `audit_log`.
+
+  Web build ✅. Repo testlari ✅.
+- **Keyingi:** P3.11 (Claude'ga ulash: deploy + tayyorgarlik)

@@ -386,3 +386,22 @@ export const reports = pgTable(
   },
   (t) => [index("reports_job_idx").on(t.jobId)],
 );
+
+// ---------------------------------------------------------------- audit (P3.10)
+
+/** Xavfsizlikka oid hodisalar: ruxsatlar, tokenlar, qurilmalar, Claude'ning o'zgartiruvchi chaqiruvlari. */
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    ts: tstz("ts").notNull().defaultNow(),
+    /** `user` (kabinet) | `claude` (MCP) | `device` (panel) | `system`. */
+    actor: text("actor").notNull(),
+    action: text("action").notNull(),
+    target: text("target"),
+    ip: text("ip"),
+    data: jsonb("data"),
+  },
+  (t) => [index("audit_log_user_idx").on(t.userId, t.id)],
+);

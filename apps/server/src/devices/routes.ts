@@ -5,6 +5,7 @@
  * 3) panel `POST /oauth/device/token` ni poll qiladi → uzoq muddatli `device_token`.
  */
 import { randomInt } from "node:crypto";
+import { audit } from "../audit";
 import { fail, ok } from "@aes/shared";
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply } from "fastify";
@@ -186,6 +187,13 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
         data: { ...data, status: parsed.data.approve ? "approved" : "denied" },
       })
       .where(eq(oauthTokens.id, row.id));
+    await audit(ctx, request.log, {
+      userId: request.user!.id,
+      actor: "user",
+      action: parsed.data.approve ? "device.approved" : "device.denied",
+      target: data.device_name,
+      ip: request.ip,
+    });
     return ok({
       status: parsed.data.approve ? "approved" : "denied",
       device_name: data.device_name,
@@ -227,6 +235,14 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
       .set({ revokedAt: now })
       .where(and(eq(oauthTokens.deviceId, id), isNull(oauthTokens.revokedAt)));
     ctx.hub.kick(id);
+    await audit(ctx, request.log, {
+      userId: request.user!.id,
+      actor: "user",
+      action: "device.revoked",
+      target: device.name,
+      ip: request.ip,
+      data: { device_id: id },
+    });
     return ok({ revoked: true });
   });
 }

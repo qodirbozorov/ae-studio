@@ -503,3 +503,32 @@ describe("CIMD SSRF himoyasi", () => {
     }
   });
 });
+
+describe("OAuth audit (P3.10)", () => {
+  it("ruxsat, refresh qayta ishlatish va uzish jurnalga yoziladi", async () => {
+    const { client, tokens } = await fullFlow();
+    await token({
+      grant_type: "refresh_token",
+      refresh_token: tokens.body.refresh_token,
+      client_id: client.client_id,
+    });
+    await token({
+      grant_type: "refresh_token",
+      refresh_token: tokens.body.refresh_token,
+      client_id: client.client_id,
+    });
+    await t.app.inject({
+      method: "POST",
+      url: "/api/oauth/connections/revoke",
+      headers: { cookie },
+      payload: { client_id: client.client_id },
+    });
+    const log = await t.app.inject({ url: "/api/audit", headers: { cookie } });
+    expect(log.json().data.map((row: { action: string }) => row.action)).toEqual([
+      "oauth.revoked",
+      "oauth.refresh_reuse",
+      "oauth.authorized",
+    ]);
+    expect(log.json().data[2]).toMatchObject({ actor: "user", target: "Claude" });
+  });
+});
