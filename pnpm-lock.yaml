@@ -206,6 +206,9 @@ importers:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
     devDependencies:
+      '@aes/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
       '@babel/core':
         specifier: ^7.29.7
         version: 7.29.7(supports-color@7.2.0)

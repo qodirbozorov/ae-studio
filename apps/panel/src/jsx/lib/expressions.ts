@@ -54,10 +54,16 @@ const BUILDERS: { [id: string]: ((args: Args) => string) | undefined } = {
         " * 2 * Math.PI);",
       "var r = []; for (var i = 0; i < value.length; i++) r.push(value[i] + s); r;",
     ].join("\n"),
+  /** Source Text uchun: matn harfma-harf chiqadi (cps — soniyadagi belgilar). */
+  typewriter: (args) =>
+    [
+      "var n = Math.floor((time - inPoint) * " + num(args, "cps", 20, 1, 200) + ");",
+      "text.sourceText.substr(0, Math.max(0, n));",
+    ].join("\n"),
 };
 
 /** Kutubxonadagi id'lar (compiler va testlar shu ro'yxat bilan solishtiradi). */
-export const EXPRESSION_IDS = ["wiggle", "loop_out", "bounce", "pulse"];
+export const EXPRESSION_IDS = ["wiggle", "loop_out", "bounce", "pulse", "typewriter"];
 
 export function buildExpression(id: string, args: Args): string {
   const builder = BUILDERS[id];

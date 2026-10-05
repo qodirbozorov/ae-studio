@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · jarayonda (9/14)
-- **Oxirgi bajarilgan:** P2.09 — 9 ta yadro op ExtendScript'da (2026-10-05)
-- **Keyingi todo:** P2.10 — compiler (Spec → oplist, deterministik op_id)
+- **Faza:** 2 — Yadro · jarayonda (10/14)
+- **Oxirgi bajarilgan:** P2.10 — compiler Spec → oplist (2026-10-05)
+- **Keyingi todo:** P2.11 — job state machine (CHECK → … → REPORT, BLOCKED, WAITING_AGENT)
 - **Blokerlar:** 👤 Railway'da servislar yaratishga tasdiq · 👤 AE kompyuterida ZXP sinovi · git remote URL yo'q (push qilinmagan)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -63,6 +63,8 @@
 | 2026-10-05 | P2.06 | Storage: S3-mos interfeys (R2/Railway bucket — env bilan) + lokal drayver (HMAC imzoli /storage/*) dev/test uchun | Q3 kodga ta'sir qilmaydi; bulutsiz to'liq upload/download e2e testlari |
 | 2026-10-05 | P2.08 | WS'ga `assets.scan` (server → panel) qo'shildi | §10.2 da INGEST'ni boshlovchi xabar yo'q edi; natija `asset.scanned` bilan keladi |
 | 2026-10-05 | P2.08 | LGPL ffmpeg'da libx264 yo'q; H.264 uchun libopenh264 yoki h264_mf (Windows) bor | P3.07 render: AE o'z H.264 chiqishi yoki ffmpeg+openh264 |
+| 2026-10-05 | P2.10 | Build versiya fayliga (`<nom>_vNNN.aep`) yoziladi, har sahnadan keyin saqlanadi; patch'da avval yangi versiya | Resume'da saqlangan joydan davom etadi; ustiga yozish yo'q (§2.10) |
+| 2026-10-05 | P2.10 | Matn layerlari hozircha nuqtali matn (`max_width` qutisi keyinroq) | AE box text o'lchami va joylashuvi vizual tekshiruvsiz xavfli; VERIFY (Faza 3) bilan sozlanadi |
 
 ---
 
@@ -305,3 +307,20 @@
 - **Mock AE:** umumiy property tizimi (addProperty/canAddProperty, nom/indeks bo'yicha, keyframe/interp/ease, expression, `propertyValueType` haqiqiy enum qiymatlari bilan, `nearestKeyIndex`), shape contents, effektlar, audio darajalari, `app.open/newProject`, `project.save/dirty`.
 - **Tekshiruv:** `jsx-ops-core.test.ts` 15 ta (haqiqiy ES3 bundle mock AE'da). jsx bundle 36 KB, ES3 parse va ES5 API taqiqi testlari o'tadi. Repo 224/224 · typecheck (ES3 tiplari) · lint · prettier · build ✅.
 - **Keyingi:** P2.10 (compiler: Spec → oplist)
+
+### 2026-10-05 · P2.10 — Compiler (Spec → oplist) · ✅
+- **Qilindi:** `packages/compiler` (sof, deterministik):
+  - **`compile(spec, ctx)` tartibi:** `project.open_or_create` → takrorsiz `item.import` (Source papkasi) → asosiy comp (`aes.main`) → har sahna uchun comp (`NN_<id>`, Scenes papkasi), layerlar, animatsiya, `comp.nest`, `transition_out`, oraliq `project.save` → yakuniy `project.save`.
+  - **Barqaror op_id'lar:** `<sahna>.<layer id | lN>[.anim]`, `asset.<kalit>`, `<sahna>.comp/.nest/.save`.
+  - **`layout.ts`:** pozitsiya presetlari va `{x,y}` → piksel; `fitScale` ExtendScript'dagi bilan bir xil formula.
+  - **`motion.ts`:** `anim` (fade_in, ken_burns_in/out (fit masshtabidan), pop, zoom_in, slide_*, typewriter → kutubxonadagi `typewriter` expression) va `transition_out` (fade, whip_*, slide_*, zoom_*) nest layer'ida absolyut vaqt bilan.
+  - **Matn uslubi default'lari:** o'lcham ≈ H×0.045, oq rang, markazga tekislangan.
+  - **Asset tekshiruvi:** noma'lum → `SPEC_UNKNOWN_ASSET`; buzuq yoki yo'q → `ASSET_*`; audio'ni media sifatida → `SPEC_INVALID`.
+  - **Vaqt:** `vo:` faqat `sceneDurations` bilan (Faza 4), aks holda `SPEC_INVALID`; shablon → `SPEC_UNKNOWN_TEMPLATE` (Faza 5).
+  - **VERIFY uchun:** `keyTimes`; ogohlantirishlar (video qisqa, `format.duration` farqi).
+
+  Shared va jsx: `typewriter` expression qo'shildi.
+- **Dizayn tuzatishi:** build versiya fayliga (`<nom>_vNNN.aep`) yoziladi va har sahnadan keyin saqlanadi. Avval build `reel.aep` ga yozilib, oxirida "save as" qilinardi; bunda qayta ishga tushirilganda eski bo'sh fayl ochilib qolardi.
+- **Tekshiruv:** compiler 13 ta test (sxemaga moslik, havola tartibi, vaqtlar, piksel joylashuvi, animatsiya va o'tishlar, kalit vaqtlar, snapshot, determinizm, bitta sahnadagi o'zgarish faqat o'sha opni o'zgartirishi, xatolar). `build.e2e.test.ts` 3 ta: compiler → haqiqiy ES3 bundle → mock AE; 3 sahnali video to'liq quriladi; to'liq qayta yuborish → 0 ta yangi element; o'rtada uzilgan build qolganini dublikatsiz tugatadi. **P2.14 gate'ining (3 sahnali video + resume) kod qismi qamrab olindi.** Repo 240/240 · typecheck · lint · prettier ✅.
+- **Qarz:** matn hozircha nuqtali (paragraf qutisi `max_width` VERIFY bilan vizual sinovdan keyin, Faza 3).
+- **Keyingi:** P2.11 (job state machine)

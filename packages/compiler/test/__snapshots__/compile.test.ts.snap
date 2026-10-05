@@ -1,0 +1,532 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`compile — determinizm va barqaror op_id > bir xil kirish → bir xil chiqish (snapshot) 1`] = `
+[
+  {
+    "op": "project.open_or_create",
+    "op_id": "aes.project",
+    "params": {
+      "path": "reel_v001.aep",
+    },
+    "seq": 0,
+    "timeout_ms": 120000,
+  },
+  {
+    "op": "item.import",
+    "op_id": "asset.clip_01",
+    "params": {
+      "file": "source/clip_01.mp4",
+      "folder": "Source",
+    },
+    "seq": 1,
+    "timeout_ms": 120000,
+  },
+  {
+    "op": "item.import",
+    "op_id": "asset.photo_02",
+    "params": {
+      "file": "source/photo_02.jpg",
+      "folder": "Source",
+    },
+    "seq": 2,
+    "timeout_ms": 120000,
+  },
+  {
+    "op": "item.import",
+    "op_id": "asset.ding",
+    "params": {
+      "file": "audio/ding.wav",
+      "folder": "Source",
+    },
+    "seq": 3,
+    "timeout_ms": 120000,
+  },
+  {
+    "op": "comp.create",
+    "op_id": "aes.main",
+    "params": {
+      "bg": "#000000",
+      "dur": 9.5,
+      "fps": 30,
+      "h": 1920,
+      "name": "reel_v1",
+      "w": 1080,
+    },
+    "seq": 4,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "comp.create",
+    "op_id": "hook.comp",
+    "params": {
+      "bg": "#000000",
+      "dur": 3,
+      "folder": "Scenes",
+      "fps": 30,
+      "h": 1920,
+      "name": "01_hook",
+      "w": 1080,
+    },
+    "scene_id": "hook",
+    "seq": 5,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "layer.add_media",
+    "op_id": "hook.l0",
+    "params": {
+      "comp": "hook.comp",
+      "fit": "cover",
+      "item": "asset.clip_01",
+      "pos": [
+        540,
+        960,
+      ],
+      "start": 0,
+    },
+    "scene_id": "hook",
+    "seq": 6,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "prop.keyframes",
+    "op_id": "hook.l0.anim",
+    "params": {
+      "ease": "linear",
+      "keys": [
+        {
+          "t": 0,
+          "v": [
+            177.778,
+            177.778,
+          ],
+        },
+        {
+          "t": 3,
+          "v": [
+            199.111,
+            199.111,
+          ],
+        },
+      ],
+      "layer": "hook.l0",
+      "prop": "scale",
+      "relative": true,
+    },
+    "scene_id": "hook",
+    "seq": 7,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "layer.add_text",
+    "op_id": "hook.title",
+    "params": {
+      "comp": "hook.comp",
+      "pos": [
+        540,
+        960,
+      ],
+      "start": 0,
+      "style": {
+        "color": "#FFFFFF",
+        "justify": "center",
+        "size": 120,
+      },
+      "text": "3 ta xato",
+    },
+    "scene_id": "hook",
+    "seq": 8,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "prop.keyframes",
+    "op_id": "hook.title.anim",
+    "params": {
+      "ease": "ease_out",
+      "keys": [
+        {
+          "t": 0,
+          "v": [
+            0,
+            0,
+          ],
+        },
+        {
+          "t": 0.25,
+          "v": [
+            110,
+            110,
+          ],
+        },
+        {
+          "t": 0.35,
+          "v": [
+            100,
+            100,
+          ],
+        },
+      ],
+      "layer": "hook.title",
+      "prop": "scale",
+      "relative": true,
+    },
+    "scene_id": "hook",
+    "seq": 9,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "comp.nest",
+    "op_id": "hook.nest",
+    "params": {
+      "child": "hook.comp",
+      "dur": 3,
+      "name": "hook",
+      "parent": "aes.main",
+      "start": 0,
+    },
+    "scene_id": "hook",
+    "seq": 10,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "prop.keyframes",
+    "op_id": "hook.nest.transition",
+    "params": {
+      "ease": "ease_in",
+      "keys": [
+        {
+          "t": 2.7,
+          "v": [
+            540,
+            960,
+          ],
+        },
+        {
+          "t": 3,
+          "v": [
+            -540,
+            960,
+          ],
+        },
+      ],
+      "layer": "hook.nest",
+      "prop": "position",
+      "relative": false,
+    },
+    "scene_id": "hook",
+    "seq": 11,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "project.save",
+    "op_id": "hook.save",
+    "params": {
+      "path": "reel_v001.aep",
+      "version": 1,
+    },
+    "scene_id": "hook",
+    "seq": 12,
+    "timeout_ms": 120000,
+  },
+  {
+    "op": "comp.create",
+    "op_id": "point.comp",
+    "params": {
+      "bg": "#101820",
+      "dur": 4,
+      "folder": "Scenes",
+      "fps": 30,
+      "h": 1920,
+      "name": "02_point",
+      "w": 1080,
+    },
+    "scene_id": "point",
+    "seq": 13,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "layer.add_media",
+    "op_id": "point.l0",
+    "params": {
+      "comp": "point.comp",
+      "fit": "contain",
+      "item": "asset.photo_02",
+      "pos": [
+        540,
+        960,
+      ],
+      "start": 0,
+    },
+    "scene_id": "point",
+    "seq": 14,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "prop.keyframes",
+    "op_id": "point.l0.anim",
+    "params": {
+      "ease": "ease_out",
+      "keys": [
+        {
+          "t": 0,
+          "v": 0,
+        },
+        {
+          "t": 0.4,
+          "v": 100,
+        },
+      ],
+      "layer": "point.l0",
+      "prop": "opacity",
+      "relative": true,
+    },
+    "scene_id": "point",
+    "seq": 15,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "layer.add_shape",
+    "op_id": "point.l1",
+    "params": {
+      "color": "#FFCC00",
+      "comp": "point.comp",
+      "kind": "rect",
+      "pos": [
+        540,
+        1497.6,
+      ],
+      "radius": 24,
+      "size": [
+        864,
+        153.6,
+      ],
+      "start": 0,
+    },
+    "scene_id": "point",
+    "seq": 16,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "layer.add_text",
+    "op_id": "point.caption",
+    "params": {
+      "comp": "point.comp",
+      "pos": [
+        540,
+        1497.6,
+      ],
+      "start": 0,
+      "style": {
+        "color": "#FFFFFF",
+        "justify": "center",
+        "size": 86,
+      },
+      "text": "Ko'p odam buni bilmaydi",
+    },
+    "scene_id": "point",
+    "seq": 17,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "prop.expression",
+    "op_id": "point.caption.anim",
+    "params": {
+      "args": {
+        "cps": 20,
+      },
+      "expr_id": "typewriter",
+      "layer": "point.caption",
+      "prop": "ADBE Text Properties/ADBE Text Document",
+    },
+    "scene_id": "point",
+    "seq": 18,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "comp.nest",
+    "op_id": "point.nest",
+    "params": {
+      "child": "point.comp",
+      "dur": 4,
+      "name": "point",
+      "parent": "aes.main",
+      "start": 3,
+    },
+    "scene_id": "point",
+    "seq": 19,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "prop.keyframes",
+    "op_id": "point.nest.transition",
+    "params": {
+      "ease": "linear",
+      "keys": [
+        {
+          "t": 6.7,
+          "v": 100,
+        },
+        {
+          "t": 7,
+          "v": 0,
+        },
+      ],
+      "layer": "point.nest",
+      "prop": "opacity",
+      "relative": false,
+    },
+    "scene_id": "point",
+    "seq": 20,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "project.save",
+    "op_id": "point.save",
+    "params": {
+      "path": "reel_v001.aep",
+      "version": 1,
+    },
+    "scene_id": "point",
+    "seq": 21,
+    "timeout_ms": 120000,
+  },
+  {
+    "op": "comp.create",
+    "op_id": "cta.comp",
+    "params": {
+      "bg": "#000000",
+      "dur": 2.5,
+      "folder": "Scenes",
+      "fps": 30,
+      "h": 1920,
+      "name": "03_cta",
+      "w": 1080,
+    },
+    "scene_id": "cta",
+    "seq": 22,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "layer.add_text",
+    "op_id": "cta.l0",
+    "params": {
+      "comp": "cta.comp",
+      "pos": [
+        540,
+        960,
+      ],
+      "start": 0,
+      "style": {
+        "all_caps": true,
+        "color": "#FFCC00",
+        "justify": "center",
+        "size": 86,
+      },
+      "text": "Obuna bo'ling!",
+    },
+    "scene_id": "cta",
+    "seq": 23,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "prop.keyframes",
+    "op_id": "cta.l0.anim",
+    "params": {
+      "ease": "ease_out",
+      "keys": [
+        {
+          "t": 0,
+          "v": [
+            540,
+            1113.6,
+          ],
+        },
+        {
+          "t": 0.4,
+          "v": [
+            540,
+            960,
+          ],
+        },
+      ],
+      "layer": "cta.l0",
+      "prop": "position",
+      "relative": true,
+    },
+    "scene_id": "cta",
+    "seq": 24,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "prop.keyframes",
+    "op_id": "cta.l0.anim.fade",
+    "params": {
+      "ease": "ease_out",
+      "keys": [
+        {
+          "t": 0,
+          "v": 0,
+        },
+        {
+          "t": 0.4,
+          "v": 100,
+        },
+      ],
+      "layer": "cta.l0",
+      "prop": "opacity",
+      "relative": true,
+    },
+    "scene_id": "cta",
+    "seq": 25,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "layer.add_audio",
+    "op_id": "cta.l1",
+    "params": {
+      "comp": "cta.comp",
+      "item": "asset.ding",
+      "start": 0.2,
+      "volume": -6,
+    },
+    "scene_id": "cta",
+    "seq": 26,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "comp.nest",
+    "op_id": "cta.nest",
+    "params": {
+      "child": "cta.comp",
+      "dur": 2.5,
+      "name": "cta",
+      "parent": "aes.main",
+      "start": 7,
+    },
+    "scene_id": "cta",
+    "seq": 27,
+    "timeout_ms": 30000,
+  },
+  {
+    "op": "project.save",
+    "op_id": "cta.save",
+    "params": {
+      "path": "reel_v001.aep",
+      "version": 1,
+    },
+    "scene_id": "cta",
+    "seq": 28,
+    "timeout_ms": 120000,
+  },
+  {
+    "op": "project.save",
+    "op_id": "aes.save",
+    "params": {
+      "path": "reel_v001.aep",
+      "version": 1,
+    },
+    "seq": 29,
+    "timeout_ms": 120000,
+  },
+]
+`;
