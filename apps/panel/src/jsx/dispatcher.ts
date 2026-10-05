@@ -5,6 +5,9 @@
 import type { AeContext, AeRequest, AeResponse, OpEnvelope, OpResultData } from "@aes/shared/ae";
 import { makeError } from "@aes/shared/errors";
 import { MIN_AE_VERSION } from "../shared/constants";
+import { compCreate } from "./ops/comp";
+import { itemImport } from "./ops/item";
+import { layerAddMedia, layerAddText } from "./ops/layer";
 import { ping } from "./ops/ping";
 import { isAesThrown, raise } from "./lib/util";
 
@@ -18,6 +21,10 @@ export function registerOp(name: string, handler: OpHandler): void {
 }
 
 registerOp("ping", ping as OpHandler);
+registerOp("comp.create", compCreate as OpHandler);
+registerOp("item.import", itemImport as OpHandler);
+registerOp("layer.add_text", layerAddText as OpHandler);
+registerOp("layer.add_media", layerAddMedia as OpHandler);
 
 /** O'zgartirmaydigan oplar: undo group ochilmaydi. */
 const READ_ONLY: { [op: string]: boolean | undefined } = { ping: true };

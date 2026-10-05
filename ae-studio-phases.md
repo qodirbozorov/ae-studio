@@ -83,7 +83,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: `runOp('ping')` AE versiyasi va loyiha yo'lini qaytaradi; xatoda `AE_SCRIPT_ERROR` JSON keladi.
 - [x] **P1.11 — Panel op runner va live log.** `evalScript` uchun promise wrapper, `timeout_ms` o'tsa `AE_TIMEOUT`, ketma-ket navbat (bitta evalScript = bitta op), live log komponenti (⏳ → ✅/❌), dev tugmalar.
   - Tayyor: tugmalar bosilganda ping va op natijalari logda chiqadi.
-- [ ] **P1.12 — Birinchi 4 op.** `comp.create`, `layer.add_text`, `item.import`, `layer.add_media`. Idempotent: izi bor bo'lsa mavjud element qaytariladi. Fayl yo'li faqat ish papkasi ichida bo'lishi mumkin (path traversal tekshiruvi).
+- [x] **P1.12 — Birinchi 4 op.** `comp.create`, `layer.add_text`, `item.import`, `layer.add_media`. Idempotent: izi bor bo'lsa mavjud element qaytariladi. Fayl yo'li faqat ish papkasi ichida bo'lishi mumkin (path traversal tekshiruvi).
   - Tayyor: bitta op ikki marta yuborilsa dublikat paydo bo'lmaydi; AE smoke-test skripti bor.
 - [ ] **P1.13 — Dev WS.** Server `/ws/agent` (vaqtinchalik dev token), panel WS klienti, `hello`/`hello_ack`, `ping`/`pong`, `op.run` → `op.started`/`op.done`/`op.failed`, `log`; dev endpoint `POST /dev/op`.
   - Tayyor: Railway'dagi serverdan yuborilgan op AE'da bajariladi, natija serverga qaytadi.

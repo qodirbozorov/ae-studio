@@ -25,3 +25,9 @@ After Effects 2022 (22.0) yoki undan yangi versiya kerak (CEP 11+).
 
 - Panel konsoli: Chrome'da `http://localhost:8860` (`.debug` fayldagi port) → DevTools.
 - Panel ochilmasa: `PlayerDebugMode` va papka nomini tekshiring, AE'ni qayta ishga tushiring.
+
+## Smoke-test (AE ichida)
+
+Panel o'rnatilgach: AE → **File → Scripts → Run Script File…** → extension papkasidagi `ae-smoke.jsx`.
+Skript oplarni (`ping`, `comp.create`, `layer.add_text`, `item.import`) ikki marta yuboradi va natijani oynada ko'rsatadi:
+ikkinchi marta `reused` bo'lishi (dublikat yo'q) va noto'g'ri yo'llar rad etilishi kerak. Natijani menga yuboring.

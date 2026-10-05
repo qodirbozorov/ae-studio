@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 1 — Poydevor · jarayonda (10/14, P1.08 kutmoqda)
-- **Oxirgi bajarilgan:** P1.11 — panel agent: op runner + live log (2026-10-05)
-- **Keyingi todo:** P1.12 — birinchi 4 op (comp.create, layer.add_text, item.import, layer.add_media)
+- **Faza:** 1 — Poydevor · jarayonda (11/14, P1.08 kutmoqda)
+- **Oxirgi bajarilgan:** P1.12 — birinchi 4 op + AE smoke skripti (2026-10-05)
+- **Keyingi todo:** P1.13 — dev WS (server /ws/agent ↔ panel agent)
 - **Blokerlar:** git remote yo'q (push uchun repo URL kerak) · P1.08 Railway uchun tasdiq kerak
 - **Ochiq qarorlar:** Q1–Q5, Q7–Q10 (phases §9). Yopilgan: Q6 (zod v4)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -162,3 +162,15 @@
   - UI: `lib/agent.ts` (CEP Node `require`), `LiveLog`, `DevTools` (Ping / Comp yaratish / Matn qo'shish).
 - **Tekshiruv:** agent testlari haqiqiy jsx bundle bilan mock-AE vm'da: ping oqimi + log + eventlar; yaroqsiz konvert va yo'l AE'ga yuborilmaydi; timeout; ketma-ketlik; jsx avtomatik yuklanishi; istisnolar. `agent.cjs` oddiy Node'da `require` qilinib, op bajarildi. Repo 146/146 · typecheck (UI + agent@node16 + jsx@ES3) · lint · prettier ✅.
 - **Keyingi:** P1.12
+
+### 2026-10-05 · P1.12 — Birinchi 4 op · ✅ (AE'da sinash 👤)
+- **Qilindi:** ExtendScript oplari:
+  - `comp.create`: o'lcham, fps, davomiylik, `bg` rangi, papka.
+  - `item.import`: `resolveInRoot` ikkinchi qatlami; `ASSET_MISSING` / `ASSET_UNSUPPORTED`.
+  - `layer.add_text`: nuqtali yoki box matn; uslub (font/size/rang/stroke/justify/tracking/leading); `all_caps` matnni katta harfga o'tkazadi, chunki AE 22 da `allCaps` faqat o'qiladi. Pozitsiya va vaqt beriladi.
+  - `layer.add_media`: `fit` (cover/contain/stretch/none) masshtabi, pozitsiya, shaffoflik, `keep_audio` bo'lmasa video ovozi o'chiriladi; faqat audio element → `AE_BAD_PARAMS`.
+
+  Hammasi idempotent: `[aes:<op_id>]` izi bo'lsa `reused: true` qaytadi, dublikat yaratilmaydi. Havola topilmasa `AE_NOT_FOUND`. `lib/ae.ts` yordamchilari. `ae-smoke.jsx`: AE ichida qo'lda ishga tushiriladigan smoke-test (`dist/cep/ae-smoke.jsx`). Ko'rsatma `docs/panel-install.md` da.
+- **Tekshiruv:** `jsx-ops.test.ts` 11 ta test, haqiqiy bundle mock AE'da (yaratish, iz, idempotentlik, cover/contain/stretch masshtablari, xato kodlari, istisnodan keyin undo/dialog yopilishi). Smoke skript ES3 parser'dan o'tadi va mock AE'da "HAMMASI OK" chiqaradi. Repo 159/159 · typecheck · lint · prettier ✅.
+- **Topilgan va tuzatilgan:** Prettier `.jsx` ga trailing comma qo'shgan edi (ES3 sintaksis xatosi), shuning uchun `.jsx` uchun `trailingComma: none`. ES3 testi buni ushladi.
+- **Keyingi:** P1.13

@@ -1,3 +1,9 @@
 {
-  "printWidth": 100
+  "printWidth": 100,
+  "overrides": [
+    {
+      "files": "*.jsx",
+      "options": { "trailingComma": "none" }
+    }
+  ]
 }

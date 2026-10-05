@@ -44,3 +44,41 @@ describe("ExtendScript bundle", () => {
     }
   });
 });
+
+describe("ae-smoke.jsx (AE ichida qo'lda ishga tushiriladi)", () => {
+  it("ES3 parser'dan o'tadi", async () => {
+    const { readFileSync } = await import("node:fs");
+    const smoke = readFileSync(new URL("../src/js/public/ae-smoke.jsx", import.meta.url), "utf8");
+    expect(() => parse(smoke, { ecmaVersion: 3 })).not.toThrow();
+  });
+});
+
+describe("ae-smoke.jsx mock AE'da", () => {
+  it("barcha tekshiruvlar OK", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { createMockAE } = await import("./ae-mock");
+    const smoke = readFileSync(new URL("../src/js/public/ae-smoke.jsx", import.meta.url), "utf8");
+    const ae = createMockAE();
+    const alerts: string[] = [];
+    const ext = "C:/ext/com.aestudio.panel";
+    const context = vm.createContext({
+      ...ae.globals,
+      alert: (text: string) => alerts.push(text),
+      Folder: { temp: { fsName: "C:/Temp" } },
+      File: function (path: string) {
+        return path === ext + "/ae-smoke.jsx"
+          ? { parent: { fsName: ext } }
+          : { fsName: path, exists: path === ext + "/jsx/index.js" };
+      },
+    });
+    vm.runInContext("delete this.JSON;", context);
+    Object.assign(context.$ as object, {
+      fileName: ext + "/ae-smoke.jsx",
+      evalFile: () => vm.runInContext(code, context),
+    });
+    vm.runInContext(smoke, context);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toContain("HAMMASI OK");
+    expect(alerts[0]).not.toContain("FAIL");
+  });
+});
