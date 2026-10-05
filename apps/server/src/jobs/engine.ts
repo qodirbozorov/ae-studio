@@ -236,7 +236,12 @@ export class JobEngine {
     return fail("SYS_INTERNAL", "Plan versiyasi ajratilmadi");
   }
 
-  async create(input: { projectId: string; planVersion?: number }): Promise<Result<JobRow>> {
+  async create(input: {
+    projectId: string;
+    planVersion?: number;
+    /** VERIFY avtomatik tasdiqlanadi (Claude'siz rejim). */
+    autoApprove?: boolean;
+  }): Promise<Result<JobRow>> {
     const project = await this.project(input.projectId);
     if (project === null) return fail("SYS_NOT_FOUND", "Loyiha topilmadi");
     if (project.deviceId === null) {
@@ -262,6 +267,7 @@ export class JobEngine {
           deviceId: project.deviceId,
           planVersion: plan.version,
           state: "CHECK",
+          autoApprove: input.autoApprove === true,
           createdAt: this.ctx.now(),
           updatedAt: this.ctx.now(),
         })
@@ -523,6 +529,15 @@ export class JobEngine {
         case "BUILD":
           return await this.build(job);
         case "VERIFY":
+          if (job.autoApprove) {
+            await this.event(
+              job,
+              "info",
+              "verify.auto",
+              "VERIFY: avtomatik tasdiq (Claude'siz rejim)",
+            );
+            return { kind: "next" };
+          }
           await this.event(
             job,
             "info",

@@ -226,6 +226,8 @@ export const jobs = pgTable(
     oplistHash: text("oplist_hash"),
     /** Live ekranidagi Pause (P2.12): BUILD oplar orasida to'xtaydi. */
     paused: boolean("paused").notNull().default(false),
+    /** Claude'siz rejim (panel Shablonlar, batch): VERIFY avtomatik tasdiqlanadi. */
+    autoApprove: boolean("auto_approve").notNull().default(false),
     error: jsonb("error"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

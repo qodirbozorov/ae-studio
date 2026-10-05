@@ -10,6 +10,7 @@ import { History } from "./History";
 import { Live } from "./Live";
 import { LiveLog } from "./LiveLog";
 import { Settings, Workspace } from "./Workspace";
+import { Templates } from "./Templates";
 
 type Status = "ok" | "off" | "unknown";
 
@@ -139,6 +140,7 @@ function ConnectionPanel({ agent }: { agent: NonNullable<ReturnType<typeof getAg
       <Connection agent={agent} status={status} />
       <Workspace agent={agent} connected={status === "connected"} />
       <Live agent={agent} />
+      <Templates agent={agent} connected={status === "connected"} />
       <Audio agent={agent} connected={status === "connected"} />
       <History agent={agent} connected={status === "connected"} />
       <DevTools agent={agent} />

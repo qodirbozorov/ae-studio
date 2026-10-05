@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (5/14)
-- **Oxirgi bajarilgan:** P5.05 — Format variantlari (2026-10-05)
-- **Keyingi todo:** P5.06 — Panel Shablonlar ekrani
+- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (6/14)
+- **Oxirgi bajarilgan:** P5.06 — Panel Shablonlar ekrani (2026-10-05)
+- **Keyingi todo:** P5.07 — Batch (shablon + CSV)
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -100,6 +100,7 @@
 | 2026-10-05 | P5.03 | preview.gif o'rniga panel galereyasi manifestdan sxematik ko'rinish chizadi; gif ixtiyoriy | gif uchun haqiqiy AE render kerak (👤), galereya esa doim ishlashi kerak |
 | 2026-10-05 | P5.04 | Spec brand default 'default' saqlanmagan bo'lsa brand'siz quriladi | mavjud Spec'lar va snapshot'lar o'zgarmaydi; brand ixtiyoriy qatlam |
 | 2026-10-05 | P5.05 | Variantlar bitta .aep ichida alohida asosiy comp'lar (aes.main.<tag>), footage importi umumiy | bitta build/VERIFY, har format alohida render va gate; asosiy format oplari o'zgarmaydi |
+| 2026-10-05 | P5.06 | Claude'siz job'lar auto_approve bilan (VERIFY avtomatik) | panel/batch'da kadrlarni tekshiradigan Claude yo'q; render gate (±1 kadr) baribir ishlaydi |
 
 ---
 
@@ -1288,3 +1289,21 @@ To'liq to'plam: 467 o'tdi. Typecheck, lint, prettier toza.
 - server `render.test` (+2): 3 ta render ketma-ketligi va qatorlari, `frames_capture` variant comp'ida va noma'lum variant, qayta render; variant xatosi → BLOCKED → resume'da faqat qolgani.
 
 To'liq to'plam: 473 test o'tdi. Typecheck, lint, prettier toza.
+
+### P5.06 — Panel Shablonlar ekrani (Claude'siz rejim) (2026-10-05)
+
+**Nima qilindi:**
+- **Server REST** (`apps/server/src/templates/routes.ts`, qurilma tokeni):
+  - `GET /api/agent/templates` — galereya: qisqa ko'rinish, manifest (fayllarsiz), namuna sahna.
+  - `POST /api/agent/templates/:slug/run` — slotlar, format, qo'shimcha variantlar, davomiylik, brand qabul qiladi. `applyTemplate` bilan darhol tekshiradi, yangi plan (`created_by: user`) va job yaratadi.
+- **`jobs.auto_approve`** (migratsiya `0008_jobs_auto_approve`): Claude'siz job'da VERIFY avtomatik o'tadi (`verify.auto` hodisasi). Batch ham shuni ishlatadi.
+- **Panel:**
+  - `Templates.tsx`: galereya kartalari — `preview.gif` bo'lsa u, bo'lmasa manifest retseptidan SVG sxema. Forma: matn (`max_chars`), media (loyihaning ok assetlari), rang, format va qo'shimcha formatlar, davomiylik. Natija Live bo'limida kuzatiladi.
+  - `agent/templates.ts` — sof funksiyalar: `sketchItems`, `validateSlots`, `slotPayload`, `aspectSize`.
+  - Agent API'ga `templates()`, `projectAssets()`, `runTemplate()` qo'shildi.
+
+**Testlar:** `apps/panel/test/templates-screen.e2e.test.ts`:
+- galereya, sxema, slot tekshiruvi, assetlar;
+- haqiqiy agent + ES3 bundle (mock AE) + ffmpeg + soxta aerender: slotlar → job → VERIFY avtomatik → `out/hook_title_v001.mp4` va `out/hook_title_16x9_v001.mp4`.
+
+To'liq to'plam: 474 o'tdi. `mcp.test` bitta marta yiqildi — pauza paytida mashina uxlagani sabab (15 736 s); qayta ishga tushirilganda o'tdi. Typecheck, lint, panel build toza.

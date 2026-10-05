@@ -57,6 +57,13 @@
       "when": 1791206257231,
       "tag": "0007_render_variants",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791207246860,
+      "tag": "0008_jobs_auto_approve",
+      "breakpoints": true
     }
   ]
 }

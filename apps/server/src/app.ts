@@ -36,6 +36,7 @@ import { projects } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { AgentHub } from "./ws/hub";
 import { TemplateService } from "./templates/service";
+import { registerTemplateRoutes } from "./templates/routes";
 import { BrandService } from "./brands/service";
 import { registerAgentSocket } from "./ws/routes";
 
@@ -173,6 +174,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   engine.attach();
   registerLive(ctx, engine, app.log);
   registerJobRoutes(app, ctx, engine);
+  registerTemplateRoutes(app, ctx, engine);
   const presence = new ClaudePresence(ctx, app.log);
   presence.attach();
   registerMcpRoutes(app, ctx, engine, {

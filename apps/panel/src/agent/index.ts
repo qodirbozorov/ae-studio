@@ -24,6 +24,7 @@ import { ClaudeStatusStore, ElevenStatusStore } from "./claude";
 import { LiveJobStore } from "./live";
 import type { LiveEvent } from "./live";
 import { LogStore } from "./log";
+import type { TemplateRunInput, TemplateView } from "./templates";
 import { createOpRunner } from "./op-runner";
 import type { OpRunner } from "./op-runner";
 import {
@@ -104,6 +105,13 @@ export interface Agent {
   history(): Promise<HistoryJob[]>;
   jobReport(jobId: string): Promise<string | null>;
   renderAgain(jobId: string, preset?: string): Promise<{ ok: boolean; message?: string }>;
+  /** Shablonlar ekrani (P5.06): galereya, loyiha assetlari, ishga tushirish (Claude'siz). */
+  templates(): Promise<TemplateView[]>;
+  projectAssets(projectId: string): Promise<{ key: string; kind: string; status: string }[]>;
+  runTemplate(
+    slug: string,
+    input: TemplateRunInput,
+  ): Promise<{ ok: boolean; message?: string; job_id?: string }>;
   bridge: AeBridge;
   runner: OpRunner;
   getRoot(): string;
@@ -545,6 +553,38 @@ export function createAgent(options: AgentOptions): Agent {
         { headers },
       );
       return res.body.ok ? (res.body.data?.markdown ?? null) : null;
+    },
+    async templates() {
+      const { base, headers } = authed();
+      const res = await getJson<{ ok: boolean; data?: TemplateView[] }>(
+        `${base}/api/agent/templates`,
+        { headers },
+      );
+      return res.body.ok ? (res.body.data ?? []) : [];
+    },
+    async projectAssets(projectId) {
+      const { base, headers } = authed();
+      const res = await getJson<{
+        ok: boolean;
+        data?: { key: string; kind: string; status: string }[];
+      }>(`${base}/api/agent/projects/${encodeURIComponent(projectId)}/assets`, { headers });
+      return res.body.ok ? (res.body.data ?? []) : [];
+    },
+    async runTemplate(slug, input) {
+      const { base, headers } = authed();
+      const res = await postJson<{
+        ok: boolean;
+        data?: { job_id: string };
+        error?: { message?: string; hint?: string };
+      }>(`${base}/api/agent/templates/${encodeURIComponent(slug)}/run`, input, { headers });
+      if (res.body.ok && res.body.data !== undefined) {
+        log.add({ level: "info", message: `🧩 Shablon ishga tushdi: ${slug}` });
+        return { ok: true, job_id: res.body.data.job_id };
+      }
+      return {
+        ok: false,
+        message: res.body.error?.message ?? res.body.error?.hint ?? `HTTP ${res.status}`,
+      };
     },
     async renderAgain(jobId, preset) {
       const { base, headers } = authed();
