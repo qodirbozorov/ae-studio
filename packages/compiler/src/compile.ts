@@ -20,6 +20,8 @@ import { fitScale, round, toPixels } from "./layout";
 import type { Frame } from "./layout";
 import { animOps, transitionOps } from "./motion";
 import type { MotionOp } from "./motion";
+import { expandTemplate } from "./template";
+import type { CompileTemplate, ExpandedTemplate, TokenValue } from "./template";
 import { planTiming, resolveAt, shiftWords, voiceSegments } from "./timing";
 import type { CaptionWord } from "@aes/shared";
 
@@ -45,6 +47,10 @@ export interface CompileContext {
   sceneDurations?: Record<string, number>;
   /** AUDIO holati natijasi (Faza 4): ish papkasidagi fayllar va so'z vaqtlari. */
   audio?: CompileAudio;
+  /** Spec'dagi shablonlar (§11.2): slug → manifest (+ aep fayli). */
+  templates?: Record<string, CompileTemplate>;
+  /** Recipe shablonlari uchun qo'shimcha tokenlar (`brand.*`, P5.04). */
+  tokens?: Record<string, TokenValue>;
 }
 
 /** AUDIO natijalari (fayllar ish papkasiga nisbiy; so'z vaqtlari audio boshiga nisbatan). */
@@ -108,15 +114,41 @@ function refKey(ref: string): string {
 }
 
 /** Spec'dagi media/audio havolalari: mavjud va yaroqli bo'lishi kerak (PLAN/PREFLIGHT gate'i). */
-function checkAssets(spec: VideoSpec, ctx: CompileContext): Result<string[]> {
+function checkAssets(
+  spec: VideoSpec,
+  ctx: CompileContext,
+  expansions: (ExpandedTemplate | null)[],
+): Result<string[]> {
   const keys: string[] = [];
   const seen = new Set<string>();
   for (const [i, scene] of spec.scenes.entries()) {
-    for (const [j, layer] of (scene.layers ?? []).entries()) {
+    const expansion = expansions[i] ?? null;
+    for (const key of expansion?.assets ?? []) {
+      const asset = ctx.assets[key];
+      const path = `/scenes/${i}/slots`;
+      if (asset === undefined) return fail("SPEC_UNKNOWN_ASSET", `${path}: asset:${key} topilmadi`);
+      if (asset.status !== undefined && asset.status !== "ok") {
+        return fail("ASSET_MISSING", `${path}: asset:${key} holati ${asset.status}`);
+      }
+      if (!seen.has(key)) {
+        seen.add(key);
+        keys.push(key);
+      }
+    }
+    const entries: [Layer, string][] = [
+      ...(expansion?.layers ?? []).map((layer, j): [Layer, string] => [
+        layer,
+        `/scenes/${i}/template (layer ${j})`,
+      ]),
+      ...(scene.layers ?? []).map((layer, j): [Layer, string] => [
+        layer,
+        `/scenes/${i}/layers/${j}/src`,
+      ]),
+    ];
+    for (const [layer, path] of entries) {
       if (layer.type !== "media" && layer.type !== "audio") continue;
       const key = refKey(layer.src);
       const asset = ctx.assets[key];
-      const path = `/scenes/${i}/layers/${j}/src`;
       if (asset === undefined) return fail("SPEC_UNKNOWN_ASSET", `${path}: asset:${key} topilmadi`);
       if (asset.status === "missing")
         return fail("ASSET_MISSING", `${path}: ${asset.local_path} yo'q`);
@@ -145,15 +177,6 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
   const fps = spec.format.fps;
   const warnings: string[] = [];
 
-  for (const [i, scene] of spec.scenes.entries()) {
-    if (scene.template !== undefined) {
-      return fail(
-        "SPEC_UNKNOWN_TEMPLATE",
-        `/scenes/${i}/template: shablonlar hali ulanmagan (${scene.template})`,
-      );
-    }
-  }
-
   // Sahna vaqtlari (TTS-first: `vo:a-b` voiceover gaplaridan)
   const vo = ctx.audio?.voiceover;
   const planned = planTiming(
@@ -177,7 +200,27 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
     }
   }
 
-  const assets = checkAssets(spec, ctx);
+  // Shablonli sahnalar: recipe → layerlar, aep → template.instantiate (§11.2).
+  const expansions: (ExpandedTemplate | null)[] = [];
+  for (const [i, scene] of spec.scenes.entries()) {
+    if (scene.template === undefined) {
+      expansions.push(null);
+      continue;
+    }
+    const expanded = expandTemplate(
+      scene,
+      i,
+      ctx.templates ?? {},
+      frame,
+      timing[i]!.duration,
+      ctx.tokens ?? {},
+    );
+    if (!expanded.ok) return expanded;
+    warnings.push(...expanded.data.warnings);
+    expansions.push(expanded.data);
+  }
+
+  const assets = checkAssets(spec, ctx, expansions);
   if (!assets.ok) return assets;
   const audioSpec = spec.audio;
   // Spec audio'dagi asset havolalari (musiqa, SFX, manba, tayyor voiceover) ham import qilinadi.
@@ -222,6 +265,7 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
 
   for (const [i, scene] of spec.scenes.entries()) {
     const time = timing[i]!;
+    const expansion = expansions[i] ?? null;
     const comp = list.add(
       "comp.create",
       time.comp,
@@ -231,17 +275,41 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
         h: frame.h,
         fps,
         dur: time.duration,
-        bg: scene.bg ?? "#000000",
+        bg: scene.bg ?? expansion?.bg ?? "#000000",
         folder: SCENES_FOLDER,
       },
       scene.id,
     );
+    const withSourceAudio = (layer: Layer): Layer =>
+      layer.type === "media" && keepSourceAudio !== null && refKey(layer.src) === keepSourceAudio
+        ? { ...layer, keep_audio: true }
+        : layer;
+    if (expansion?.instantiate !== undefined) {
+      list.add(
+        "template.instantiate",
+        `${scene.id}.tpl`,
+        { ...expansion.instantiate, comp, start: 0, dur: time.duration },
+        scene.id,
+      );
+    }
+    // Shablon layerlari pastda, sahnaning o'z layerlari ustida.
+    for (const [j, layer] of (expansion?.layers ?? []).entries()) {
+      compileLayer(
+        list,
+        withSourceAudio(layer),
+        `${scene.id}.tpl.${layer.id ?? `l${j}`}`,
+        comp,
+        time,
+        scene.id,
+        frame,
+        ctx,
+        warnings,
+      );
+    }
     for (const [j, layer] of (scene.layers ?? []).entries()) {
       compileLayer(
         list,
-        layer.type === "media" && keepSourceAudio !== null && refKey(layer.src) === keepSourceAudio
-          ? { ...layer, keep_audio: true }
-          : layer,
+        withSourceAudio(layer),
         `${scene.id}.${layer.id ?? `l${j}`}`,
         comp,
         time,

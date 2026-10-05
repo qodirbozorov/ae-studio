@@ -8,6 +8,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { jobEvents, jobs, projects } from "../../db/schema";
 import { planAudioTasks } from "../../audio/plan";
+import { compileExtras } from "../../jobs/compile-extras";
 import { aepPath, compileAssets } from "../../jobs/engine";
 import type { JobRow } from "../../jobs/engine";
 import { defineTool } from "../registry";
@@ -63,6 +64,7 @@ async function dryCompile(
     projectPath,
     version,
     ...(audio === null ? {} : { audio }),
+    ...(await compileExtras(ctx.app, project.userId, spec)),
   });
   const pendingAudio = audio === null && spec.scenes.some((scene) => typeof scene.dur === "string");
   return { missing, projectPath, compiled, pendingAudio };

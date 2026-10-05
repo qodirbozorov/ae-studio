@@ -4,6 +4,7 @@ import type { AudioService } from "./audio/service";
 import type { ElevenService } from "./eleven/service";
 import type { Env } from "./env";
 import type { RedisLike } from "./redis";
+import type { TemplateService } from "./templates/service";
 import type { Storage } from "./storage";
 import type { AgentHub } from "./ws/hub";
 
@@ -21,4 +22,6 @@ export interface AppContext {
   eleven: ElevenService;
   /** Audio vazifalari navbati (P4.03). */
   audio: AudioService;
+  /** Shablonlar registri (P5.01). */
+  templates: TemplateService;
 }

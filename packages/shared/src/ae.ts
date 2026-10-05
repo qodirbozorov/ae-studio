@@ -197,14 +197,24 @@ export interface AudioDuckParams {
   fade: number;
 }
 
+export type TemplateSlotBinding =
+  | { type: "text"; layer: string; text: string }
+  | { type: "media"; layer: string; item: Ref; fit: "cover" | "contain" | "stretch" | "none" }
+  | { type: "color"; egp: string; color: HexColor };
+
 export interface TemplateInstantiateParams {
   template: string;
+  version: number;
   /** Shablon `.aep` fayli (ish papkasiga nisbiy). */
   file: RelPath;
-  slots: { [slot: string]: ScalarValue };
+  /** `template.aep` ichidagi asosiy comp nomi. */
+  template_comp: string;
+  slots: TemplateSlotBinding[];
   comp: Ref;
   start: number;
   dur?: number | undefined;
+  stretch: "time_remap" | "none";
+  name?: string | undefined;
 }
 
 export interface FramesCaptureParams {

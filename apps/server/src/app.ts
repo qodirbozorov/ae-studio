@@ -35,6 +35,7 @@ import { findWebDist, isSpaRequest, registerWeb } from "./web";
 import { projects } from "./db/schema";
 import { eq } from "drizzle-orm";
 import { AgentHub } from "./ws/hub";
+import { TemplateService } from "./templates/service";
 import { registerAgentSocket } from "./ws/routes";
 
 declare module "fastify" {
@@ -44,6 +45,7 @@ declare module "fastify" {
     storage: Storage;
     jobs: JobEngine;
     audio: AudioService;
+    templates: TemplateService;
   }
 }
 
@@ -116,6 +118,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   ctx.audio = new AudioService(ctx, app.log, deps.audioOptions ?? {});
   ctx.audio.attach();
   app.decorate("audio", ctx.audio);
+  ctx.templates = new TemplateService(ctx);
+  app.decorate("templates", ctx.templates);
 
   await app.register(cookie);
   // OAuth token/revoke va ruxsat formasi (RFC 6749: application/x-www-form-urlencoded).

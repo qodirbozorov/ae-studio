@@ -11,6 +11,7 @@ import { itemImport } from "./ops/item";
 import { layerAddAudio, layerAddMedia, layerAddShape, layerAddText } from "./ops/layer";
 import { audioDuck, captionsBuild } from "./ops/audio";
 import { framesCapture } from "./ops/frames";
+import { templateInstantiate } from "./ops/template";
 import { info } from "./ops/info";
 import { ping } from "./ops/ping";
 import { projectOpenOrCreate, projectSave } from "./ops/project";
@@ -48,6 +49,7 @@ registerOp("prop.keyframes", propKeyframes as OpHandler);
 registerOp("prop.expression", propExpression as OpHandler);
 registerOp("fx.apply_preset", fxApplyPreset as OpHandler);
 registerOp("fx.add", fxAdd as OpHandler);
+registerOp("template.instantiate", templateInstantiate as OpHandler);
 
 /** O'zgartirmaydigan oplar: undo group ochilmaydi. */
 const READ_ONLY: { [op: string]: boolean | undefined } = { ping: true, info: true };

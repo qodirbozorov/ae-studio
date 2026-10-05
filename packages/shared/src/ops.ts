@@ -256,13 +256,33 @@ const audioDuckParams = z.strictObject({
   fade: z.number().min(0).max(5),
 });
 
+const layerNameSchema = z.string().min(1).max(255);
+
+const templateSlotBinding = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("text"), layer: layerNameSchema, text: z.string().max(2000) }),
+  z.strictObject({
+    type: z.literal("media"),
+    layer: layerNameSchema,
+    item: refSchema,
+    fit: z.enum(["cover", "contain", "stretch", "none"]),
+  }),
+  z.strictObject({ type: z.literal("color"), egp: layerNameSchema, color: hexColorSchema }),
+]);
+
 const templateInstantiateParams = z.strictObject({
   template: slugSchema,
+  /** Shablon versiyasi: import qilingan loyiha papkasi shu bilan belgilanadi (`tpl.<slug>.v<n>`). */
+  version: z.number().int().min(1).max(100_000),
   file: relPathSchema,
-  slots: z.record(z.string().min(1).max(64), scalarSchema),
+  /** `template.aep` ichidagi asosiy comp nomi. */
+  template_comp: layerNameSchema,
+  slots: z.array(templateSlotBinding).max(100),
   comp: refSchema,
   start: timeSchema,
   dur: durSchema.optional(),
+  /** `time_remap` — shablon davomiyligi sahnaga cho'ziladi/qisqaradi. */
+  stretch: z.enum(["time_remap", "none"]),
+  name: layerNameSchema.optional(),
 });
 
 const framesCaptureParams = z.strictObject({

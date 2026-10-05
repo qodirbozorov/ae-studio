@@ -1,0 +1,66 @@
+{
+  "slug": "hook_title",
+  "source": "recipe",
+  "title": "Hook sarlavha",
+  "description": "Birinchi 2–4 soniya: fon video/rasm ustida katta sarlavha, urg'u chizig'i va ixtiyoriy kichik matn.",
+  "tags": ["hook", "intro"],
+  "duration": { "min": 1.5, "max": 6, "stretch": "none" },
+  "formats": ["9:16", "1:1", "16:9"],
+  "bg": "{{brand.background}}",
+  "slots": {
+    "title": { "type": "text", "max_chars": 40, "label": "Sarlavha" },
+    "kicker": { "type": "text", "max_chars": 40, "default": "", "label": "Ustki kichik matn" },
+    "bg": { "type": "media", "fit": "cover", "label": "Fon video yoki rasm" },
+    "accent": { "type": "color", "default": "{{brand.accent}}", "label": "Urg'u rangi" }
+  },
+  "layers": [
+    { "id": "bg", "type": "media", "src": "{{bg}}", "anim": "ken_burns_in" },
+    {
+      "id": "shade",
+      "type": "shape",
+      "kind": "rect",
+      "color": "#000000",
+      "size": { "w": 1, "h": 1 },
+      "opacity": 35
+    },
+    {
+      "if": "kicker",
+      "id": "kicker",
+      "type": "text",
+      "text": "{{kicker}}",
+      "pos": { "x": 0.5, "y": 0.4 },
+      "anim": "fade_in",
+      "style": {
+        "font": "{{brand.body_font}}",
+        "size": 48,
+        "color": "{{accent}}",
+        "all_caps": true
+      }
+    },
+    {
+      "id": "title",
+      "type": "text",
+      "text": "{{title}}",
+      "pos": "center",
+      "anim": "pop",
+      "max_width": 0.85,
+      "style": {
+        "font": "{{brand.heading_font}}",
+        "size": 110,
+        "color": "{{brand.text}}",
+        "stroke_color": "#000000",
+        "stroke_width": 4
+      }
+    },
+    {
+      "id": "underline",
+      "type": "shape",
+      "kind": "rect",
+      "color": "{{accent}}",
+      "size": { "w": 0.4, "h": 0.012 },
+      "pos": { "x": 0.5, "y": 0.58 },
+      "anim": "slide_left",
+      "radius": 6
+    }
+  ]
+}

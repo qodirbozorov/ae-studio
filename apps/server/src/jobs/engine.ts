@@ -56,6 +56,7 @@ import { wordsOfTask } from "../audio/words";
 import { normalizeRootPath } from "../projects/routes";
 import { storageKey } from "../storage";
 import { buildReport, pad3 } from "./report";
+import { compileExtras } from "./compile-extras";
 import { IDLE_STATES, actionAllowed, nextState } from "./machine";
 
 export type JobRow = typeof jobs.$inferSelect;
@@ -98,7 +99,10 @@ const CHECK_PING_TIMEOUT_MS = 15_000;
 /** Bitta drive siklidagi holatlar soni chegarasi (cheksiz aylanishdan himoya). */
 const MAX_STEPS = 64;
 
-export type EngineContext = Pick<AppContext, "db" | "hub" | "now" | "storage" | "eleven" | "audio">;
+export type EngineContext = Pick<
+  AppContext,
+  "db" | "hub" | "now" | "storage" | "eleven" | "audio" | "templates"
+>;
 
 /** Ish papkasidagi lokal nusxalar (§2.10): versiyali, hech biri ustiga yozilmaydi. */
 export function planCopyPath(version: number): string {
@@ -784,13 +788,34 @@ export class JobEngine {
     const audioReady = await this.audioReady(job);
     const version = job.aepVersion ?? (await this.nextAepVersion(project.id));
     const projectPath = aepPath(project, version);
+    const extras = await compileExtras(this.ctx, project.userId, spec.data);
     const compiled = compile(spec.data, {
       assets: assetMap,
       projectPath,
       version,
       ...(audioReady === null ? {} : { audio: audioReady }),
+      ...extras,
     });
     if (!compiled.ok) return { kind: "block", error: compiled.error };
+    // Aep shablon fayllari panelga (BUILD'dagi `template.instantiate` ularni import qiladi).
+    if (extras.templates !== undefined && job.deviceId !== null) {
+      const delivered = await this.ctx.templates.deliver(job.deviceId, extras.templates);
+      if (!delivered.ok) {
+        if (delivered.error.code === "ENV_AGENT_OFFLINE") {
+          return { kind: "wait_agent", reason: "PREFLIGHT: panel uzildi (shablon fayli)" };
+        }
+        return { kind: "block", error: delivered.error };
+      }
+      if (delivered.data.files.length > 0) {
+        await this.event(
+          job,
+          "info",
+          "preflight.templates",
+          `Shablon fayllari: ${delivered.data.files.join(", ")}`,
+          { data: { files: delivered.data.files } },
+        );
+      }
+    }
 
     const hash = createHash("sha256").update(JSON.stringify(compiled.data.ops)).digest("hex");
     if (hash !== job.oplistHash) {

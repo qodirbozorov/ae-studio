@@ -97,6 +97,24 @@ export class MockProperty {
     }
   }
 
+  removeKey(index: number): void {
+    if (index < 1 || index > this.keys.length) throw new Error("Keyframe indeksi noto'g'ri");
+    this.keys.splice(index - 1, 1);
+  }
+
+  /** Chuqur nusxa (comp `duplicate` uchun). */
+  clone(): MockProperty {
+    const copy = new MockProperty(
+      this.matchName,
+      this.value,
+      this.children.map((c) => c.clone()),
+      { name: this.name, addable: this.addable },
+    );
+    copy.expression = this.expression;
+    for (const key of this.keys) copy.keys.push({ ...key, value: copyValue(key.value) });
+    return copy;
+  }
+
   nearestKeyIndex(time: number): number {
     if (this.keys.length === 0) throw new Error("Keyframe yo'q");
     let best = 0;
@@ -210,6 +228,16 @@ const EFFECTS: Record<string, { name: string; params: [string, string, unknown][
   },
 };
 
+/** Shablonlardagi "Color Control" effekti (ko'rinadigan nomi bilan). */
+export function colorControl(name: string, color: number[] = [1, 1, 1, 1]): MockProperty {
+  return new MockProperty(
+    "ADBE Color Control",
+    null,
+    [new MockProperty("ADBE Color Control-0001", color, [], { name: "Color" })],
+    { name },
+  );
+}
+
 function effectFactories(): Record<string, Factory> {
   const out: Record<string, Factory> = {};
   for (const [matchName, spec] of Object.entries(EFFECTS)) {
@@ -319,11 +347,33 @@ export class Layer {
   audioEnabled = true;
   readonly presets: string[] = [];
   readonly root: MockProperty;
+  private remap = false;
+  get timeRemapEnabled(): boolean {
+    return this.remap;
+  }
+  /** AE kabi: yoqilganda 2 kalit (layer boshi → 0, manba oxiri → davomiylik). */
+  set timeRemapEnabled(value: boolean) {
+    if (value === this.remap) return;
+    this.remap = value;
+    if (!value) {
+      const index = this.root.children.findIndex((c) => c.matchName === "ADBE Time Remapping");
+      if (index >= 0) this.root.children.splice(index, 1);
+      return;
+    }
+    const duration = this.source?.duration ?? 0;
+    const prop = new MockProperty("ADBE Time Remapping", 0, [], { name: "Time Remap" });
+    prop.setValueAtTime(this.startTime, 0);
+    prop.setValueAtTime(this.startTime + duration, duration);
+    this.root.children.push(prop);
+  }
+  replaceSource(item: AVItem, _fixExpressions: boolean): void {
+    this.source = item;
+  }
   constructor(
     readonly containingComp: CompItem,
-    readonly source: AVItem | null,
+    public source: AVItem | null,
     name: string,
-    extra: { text?: TextDocument; shape?: boolean } = {},
+    extra: { text?: TextDocument; shape?: boolean; root?: MockProperty } = {},
   ) {
     this.name = name;
     this.outPoint = containingComp.duration;
@@ -351,7 +401,18 @@ export class Layer {
       );
     }
     if (extra.shape === true) groups.push(shapeContents());
-    this.root = new MockProperty("ADBE Layer", null, groups);
+    this.root = extra.root ?? new MockProperty("ADBE Layer", null, groups);
+  }
+  /** Boshqa comp'ga nusxa (comp `duplicate`). */
+  cloneInto(comp: CompItem): Layer {
+    const copy = new Layer(comp, this.source, this.name, { root: this.root.clone() });
+    copy.comment = this.comment;
+    copy.start = this.start;
+    copy.inPoint = this.inPoint;
+    copy.outPoint = this.outPoint;
+    copy.enabled = this.enabled;
+    copy.audioEnabled = this.audioEnabled;
+    return copy;
   }
   get index(): number {
     return this.containingComp.layersList.indexOf(this) + 1;
@@ -378,7 +439,25 @@ export class CompItem extends AVItem {
   }
   bgColor: number[] = [0, 0, 0];
   pixelAspect = 1;
+  /** Loyihaga qo'shish (duplicate uchun; loyiha o'rnatadi). */
+  owner: ((item: Item) => void) | null = null;
   readonly layersList: Layer[] = [];
+  duplicate(): CompItem {
+    const copy = new CompItem(
+      this.name + " 2",
+      this.width,
+      this.height,
+      this.duration,
+      this.frameRate,
+    );
+    copy.bgColor = [...this.bgColor];
+    copy.pixelAspect = this.pixelAspect;
+    copy.owner = this.owner;
+    copy.parentFolder = this.parentFolder;
+    for (const layer of this.layersList) copy.layersList.push(layer.cloneInto(copy));
+    this.owner?.(copy);
+    return copy;
+  }
   readonly layers = {
     addText: (text: string) =>
       this.push(new Layer(this, null, text, { text: new TextDocument(text) })),
@@ -418,6 +497,24 @@ export interface MediaMeta {
   frameRate: number;
   hasVideo: boolean;
   hasAudio: boolean;
+  /** `.aep` shablon: loyiha sifatida import qilinganda yaratiladigan comp'lar. */
+  template: MockTemplateComp[];
+}
+
+/** Mock `.aep` shablon tarkibi. */
+export interface MockTemplateComp {
+  name: string;
+  w: number;
+  h: number;
+  duration: number;
+  fps: number;
+  layers: {
+    name: string;
+    kind: "text" | "solid";
+    text?: string;
+    /** Layer'dagi "Color Control" effektlari nomlari. */
+    colorControls?: string[];
+  }[];
 }
 
 /** 1×1 PNG (mock `saveFrameToPng` haqiqiy diskka yozganda). */
@@ -504,6 +601,7 @@ export interface MockApp {
 
 export interface MockProject {
   file: MockFile | null;
+  rootFolder: FolderItem;
   dirty: boolean;
   itemsList: Item[];
   readonly numItems: number;
@@ -618,6 +716,7 @@ export function createMockAE(
     };
     const project: MockProject = {
       file,
+      rootFolder: new FolderItem("Root"),
       dirty: false,
       itemsList,
       renderQueue: createRenderQueue(),
@@ -633,6 +732,7 @@ export function createMockAE(
         addComp: (name, w, h, pa, dur, fps) => {
           const comp = new CompItem(name, w, h, dur, fps);
           comp.pixelAspect = pa;
+          comp.owner = add;
           return add(comp);
         },
         addFolder: (name) => add(new FolderItem(name)),
@@ -640,6 +740,27 @@ export function createMockAE(
       importFile(io) {
         if (!io.file.exists) throw new Error("File not found: " + io.file.fsName);
         const meta = files.get(io.file.fsName) ?? {};
+        if (io.importAs === ImportAsType.PROJECT) {
+          if (meta.template === undefined) throw new Error("Loyiha emas: " + io.file.fsName);
+          const folder = add(new FolderItem(io.file.name));
+          for (const def of meta.template) {
+            const comp = new CompItem(def.name, def.w, def.h, def.duration, def.fps);
+            comp.owner = add;
+            comp.parentFolder = folder;
+            add(comp);
+            for (const spec of [...def.layers].reverse()) {
+              const layer =
+                spec.kind === "text"
+                  ? comp.layers.addText(spec.text ?? spec.name)
+                  : comp.layers.add(new AVItem("Solid", def.w, def.h, def.duration, def.fps));
+              layer.name = spec.name;
+              const effects = layer.property("ADBE Effect Parade");
+              for (const name of spec.colorControls ?? [])
+                effects.children.push(colorControl(name));
+            }
+          }
+          return folder as unknown as FootageItem;
+        }
         return add(new FootageItem(io.file.name, io.file, meta));
       },
       save(target) {
@@ -705,7 +826,8 @@ export function createMockAE(
     importAs = ImportAsType.FOOTAGE;
     constructor(readonly file: MockFile) {}
     canImportAs(type: number) {
-      return type === ImportAsType.FOOTAGE;
+      const aep = /\.aep$/i.test(this.file.fsName);
+      return aep ? type === ImportAsType.PROJECT : type === ImportAsType.FOOTAGE;
     }
   }
   const FileCtor = function (this: unknown, path: string) {

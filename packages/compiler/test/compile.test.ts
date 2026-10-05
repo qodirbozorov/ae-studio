@@ -207,7 +207,7 @@ describe("compile — xatolar", () => {
     expect(code(CONTEXT, audioAsMedia)).toBe("SPEC_INVALID");
   });
 
-  it("shablon sahnasi hozircha SPEC_UNKNOWN_TEMPLATE", () => {
+  it("noma'lum shablon — SPEC_UNKNOWN_TEMPLATE", () => {
     const input = clone(THREE_SCENES) as Record<string, unknown> & {
       scenes: Record<string, unknown>[];
     };

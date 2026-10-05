@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 4 — ElevenLabs · kod qismi tugadi (15/15; P4.14 real o'lchov 👤 kalit) → 5 boshlanadi
-- **Oxirgi bajarilgan:** P4.15 — Faza 4 gate e2e (2026-10-05)
-- **Keyingi todo:** P5.01 — Shablon tizimi
+- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (1/14)
+- **Oxirgi bajarilgan:** P5.01 — Shablon tizimi (2026-10-05)
+- **Keyingi todo:** P5.02 — Shablon toollari va prompt
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -95,6 +95,7 @@
 | 2026-10-05 | P4.10 | vo:a-b = B[b]-B[a], B[k] = k-gap boshlanishi (pauza oldingi sahnaga), oxiriga 0.3 s | Sahna almashuvi gap boshlanishiga to'g'ri keladi, oxirgi so'z kesilmaydi |
 | 2026-10-05 | P4.11 | karaoke = so'zlar navbat bilan paydo bo'ladi (Source Text hold keyframe'lari), rangli so'z ajratish emas | ES3/AE 22 da belgi diapazoni uslublari yo'q; ishonchli va AE versiyalarida bir xil |
 | 2026-10-05 | P4.15 | Kvota gate'i keshlangan vazifalarni ham baholashga qo'shadi | oddiy va xavfsiz: kam qoldiqda foydalanuvchidan so'raladi; keyin optimallashtirish mumkin |
+| 2026-10-05 | P5.01 | Shablon ikki xil: aep (template.instantiate) va recipe (compiler layerlarga yoyadi) | .aep dizayn faylini bu yerda yaratib bo'lmaydi — boshlang'ich kutubxona qayta yaratsa bo'ladigan recipe; aep yo'li template_save va dizaynerlar uchun |
 
 ---
 
@@ -1152,3 +1153,32 @@
 **Tekshiruv:** `pnpm test` 398 o'tdi / 2 skip · typecheck · lint · prettier · panel build — toza.
 
 **👤 qolgan:** haqiqiy ElevenLabs kaliti bilan va haqiqiy AE'da shu ikki ssenariyni qo'lda o'tkazish (kalit web → Sozlamalar → ElevenLabs).
+
+### P5.01 — Shablon tizimi (2026-10-05)
+
+**Nima qilindi:**
+- **Manifest (`packages/shared/src/template.ts`)** — ikki manba:
+  - `aep`: dizayner `.aep` fayli. `comp`, slot → `layer`, rang → `egp` talab qilinadi; fayl server storage'ida (`files.aep`).
+  - `recipe`: Spec layerlari retsepti, `{{slot}}` / `{{brand.*}}` o'rinbosarlari bilan, `.aep` kerak emas.
+  - Slotlarda `default` va `label`; manifestda `bg`, `tags`, `files.preview` qo'shildi.
+- **Op `template.instantiate`** (shared + jsx `ops/template.ts`):
+  - `.aep` loyiha sifatida bir marta import qilinadi (`Templates` papkasi, iz `tpl.<slug>.v<n>`).
+  - Har sahna shablon comp'ining o'z nusxasini oladi (idempotent: `<op_id>.comp`).
+  - Slotlar: matn → Source Text; media → `replaceSource` + `fit`; rang → Essential Graphics, bo'lmasa shu nomli "Color Control" effekti.
+  - Sahnaga qo'yiladi; `time_remap` bilan shablon davomiyligi sahna davomiyligiga moslanadi.
+- **Compiler (`packages/compiler/src/template.ts`)** — `scene.template` uchun:
+  - slot tekshiruvi: majburiy slot, noma'lum slot, `max_chars`, `asset:` havola, `#RRGGBB`;
+  - recipe → layerlar, op_id `<sahna>.tpl.<id>`, sahna layerlari ostida; `"if": "<slot>"` — slot bo'sh bo'lsa layer chiqmaydi;
+  - aep → `template.instantiate` + media slot assetlari import qilinadi;
+  - format yoki davomiylik manifestga mos kelmasa ogohlantirish;
+  - brand tokenlari: brand bo'lmasa default ranglar ishlatiladi, shrift/logo tokeni olib tashlanadi.
+- **Server:**
+  - `TemplateService` (`ctx.templates`): tizim kutubxonasi (`templates/<slug>/template.json` bundle'ga kiradi) + `templates` jadvali; tartib: foydalanuvchi > umumiy > tizim; versiyalar.
+  - `compileExtras` — engine PREFLIGHT va MCP `preflight` / `dry_run` uchun bir xil kontekst.
+  - PREFLIGHT'da aep fayl storage'dan panelga `templates/<slug>_v<n>.aep` ga yuklanadi (`file.download`, sha256).
+- **Kutubxonaning birinchi shabloni:** `hook_title` (recipe; 9:16 / 1:1 / 16:9).
+- **Mock AE:** `.aep` loyiha importi, `CompItem.duplicate`, `replaceSource`, time remap, `removeKey`, Color Control.
+
+**Testlar:** compiler `template.test` (6), panel `jsx-template.test` (3), server `templates.test` (5). To'liq to'plam 411 o'tdi. `gate3` og'ir yuk ostida bir marta timing sabab yiqildi, alohida o'tdi. Typecheck, lint, prettier, panel build toza.
+
+**👤:** haqiqiy AE'da `.aep` shablon importi va Essential Graphics rangi.
