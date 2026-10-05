@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 4 — ElevenLabs · jarayonda (13/15)
-- **Oxirgi bajarilgan:** P4.13 — MCP promptlar (2026-10-05)
-- **Keyingi todo:** P4.14 — o'zbek tili testi
+- **Faza:** 4 — ElevenLabs · jarayonda (14/15, P4.14 👤)
+- **Oxirgi bajarilgan:** P4.14 — o'zbek tili testi vositasi va hujjati (2026-10-05)
+- **Keyingi todo:** P4.15 — Faza 4 gate
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -1120,3 +1120,18 @@
 - **MCP `instructions`ga audio bo'limi qo'shildi:** spec audio, AUDIO bosqichi, kesh, o'zbekcha model, `el_estimate`, mustaqil toollar, klon faqat rozilik bilan.
 - **Tekshiruv:** `mcp.test.ts` — 3 prompt ro'yxatda; har prompt matni argumentlarni o'z ichiga oladi. Promptlar va `instructions`da tilga olingan har tool (endi `el_*`, `audio_*`, `transcript_*` ham) haqiqatda mavjudligi avtomatik tekshiriladi.
 - **Keyingi:** P4.14 (o'zbek tili testi)
+
+### 2026-10-05 · P4.14 — 🧪 O'zbek tili testi · ⚠️ vosita va hujjat ✅, haqiqiy o'lchov 👤 (kalit)
+- **Q7 (rasmiy hujjat):**
+  - o'zbekcha TTS — faqat `eleven_v4` va `eleven_v4_turbo`; v3, multilingual_v2 va flash'da yo'q;
+  - STT `scribe_v2` — "Good" (WER 10–20%);
+  - dialog default `eleven_v3` o'zbekchani qo'llamaydi, o'zbekcha dialog uchun `model_id: eleven_v4` berish kerak.
+- **Qilindi:**
+  - **`audio/wer.ts`:** o'zbek lotin normalizatsiyasi (kichik harf, tinish belgilarisiz, `ʻ ʼ ' ‘ ’ \`` → `'`) va so'z bo'yicha Levenshtein WER (almashtirish/o'chirish/qo'shish).
+  - **`scripts/uz-quality.mts`:** haqiqiy kalit bilan ishga tushiriladi:
+    - 5 ta o'zbekcha namuna (`oʻ`, `gʻ`, brendlar, undov) → TTS (v4 va v4_turbo, `uz`, brend talaffuz lug'ati);
+    - → STT (`scribe_v2`) → WER va forced alignment loss → markdown jadval.
+  - **`docs/uz-quality.md`:** model jadvali, usul, natijalar bo'limi (kalit kiritilgach), talaffuz lug'ati qoidalari, tavsiyalar (raqamlarni so'z bilan yozish, `transcript_edit`, apostroflar).
+- **Tekshiruv:** `uz-quality.test.ts` 2 ta (normalizatsiya va apostroflar; WER turlari). Skript typecheck'dan o'tadi.
+- **👤 Qoldi:** ElevenLabs kaliti bilan `uz-quality.mts` ni ishga tushirish va jadvalni `docs/uz-quality.md` ga ko'chirish.
+- **Keyingi:** P4.15 (Faza 4 gate)
