@@ -5,7 +5,8 @@
 
 export const PRESIGN_TTL_S = 15 * 60;
 
-export const STORAGE_KINDS = ["thumbs", "frames", "audio-in", "audio-out"] as const;
+/** `docs` — plan va hisobot nusxalari (sha256 nomli, ish papkasidagi `.aestudio/` ga yuklab olinadi). */
+export const STORAGE_KINDS = ["thumbs", "frames", "audio-in", "audio-out", "docs"] as const;
 export type StorageKind = (typeof STORAGE_KINDS)[number];
 
 export interface StoredObject {

@@ -82,6 +82,11 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
     sha256: sha256Schema,
     dest: relPathSchema,
     size: z.number().int().min(0).optional(),
+    /**
+     * Mavjud faylni boshqa tarkib bilan almashtirishga ruxsat (default yo'q: versiyalar ustiga yozilmaydi, §2.10).
+     * Bir xil sha256 li mavjud fayl har doim "saqlangan" hisoblanadi.
+     */
+    overwrite: z.boolean().optional(),
   }),
   z.strictObject({
     /** §10.2 ga qo'shimcha: INGEST — panel `source/` ni skanerlaydi va `asset.scanned` yuboradi. */

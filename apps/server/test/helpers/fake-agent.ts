@@ -44,6 +44,8 @@ export class FakeAgent {
   readonly ran: string[] = [];
   root: string;
   assets: ScannedAsset[];
+  /** `file.download` bilan "saqlangan" fayllar: dest → sha256 (ustiga yozilmaydi, panel kabi). */
+  readonly files = new Map<string, string>();
   onOp: (op: OpEnvelope) => OpReaction | Promise<OpReaction> = () => "ok";
   private socket: FakeSocket | null = null;
 
@@ -124,6 +126,30 @@ export class FakeAgent {
           socket,
         );
       }
+    } else if (message.type === "file.download") {
+      const existing = this.files.get(message.dest);
+      if (existing !== undefined && existing !== message.sha256 && message.overwrite !== true) {
+        this.deliver(
+          {
+            type: "request.failed",
+            request_id: message.request_id,
+            error: makeError("SYS_BAD_REQUEST", `${message.dest} mavjud`),
+          },
+          socket,
+        );
+        return;
+      }
+      this.files.set(message.dest, message.sha256);
+      this.deliver(
+        {
+          type: "file.saved",
+          request_id: message.request_id,
+          dest: message.dest,
+          sha256: message.sha256,
+          size: message.size ?? 0,
+        },
+        socket,
+      );
     } else if (message.type === "assets.scan") {
       if (message.project_root !== this.root) {
         this.deliver(

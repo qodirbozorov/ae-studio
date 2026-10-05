@@ -123,7 +123,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
   - Tayyor: soxta agent bilan to'liq oqim va har bir xato yo'li sinalgan.
 - [x] **P2.12 — Live log va Live ekrani.** `job_events` → WS → panel: holat zanjiri, progress (op soni), joriy sahna, log; Pause / Resume / Cancel / Undo last (`job.pause`, `job.cancel`).
   - Tayyor: 👤 job panelda real vaqtda kuzatiladi va boshqariladi.
-- [ ] **P2.13 — Versiyalash va oddiy REPORT.** `plans` versiyalari, `.aep` vNNN, local nusxalar `.aestudio/plan.vNNN.json`. `reports/` generatori (qurilganlar, yo'llar, tahrir qo'llanmasi, ogohlantirishlar) → `reports` jadvali va `.aestudio/report.md`.
+- [x] **P2.13 — Versiyalash va oddiy REPORT.** `plans` versiyalari, `.aep` vNNN, local nusxalar `.aestudio/plan.vNNN.json`. `reports/` generatori (qurilganlar, yo'llar, tahrir qo'llanmasi, ogohlantirishlar) → `reports` jadvali va `.aestudio/report.md`.
   - Tayyor: hech qaysi versiya ustiga yozilmaydi (test).
 - [ ] **P2.14 — 🧪 Faza 2 gate.**
   - [ ] 👤 panel web kabinetdagi kod orqali ulanadi (M2)

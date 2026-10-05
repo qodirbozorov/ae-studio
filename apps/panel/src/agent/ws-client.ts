@@ -12,7 +12,8 @@ import {
 } from "@aes/shared";
 import type { PanelMessage, ServerMessage } from "@aes/shared";
 import WebSocket from "ws";
-import { TransferError, downloadVerified } from "./files";
+import { existsSync } from "node:fs";
+import { TransferError, downloadVerified, sha256File } from "./files";
 import type { LogStore } from "./log";
 import type { OpRunner, RunnerEvent } from "./op-runner";
 
@@ -121,6 +122,24 @@ export function createWsClient(options: WsClientOptions): WsClient {
       return;
     }
     try {
+      if (existsSync(dest.data)) {
+        const existing = await sha256File(dest.data);
+        if (existing.sha256 === message.sha256) {
+          send({
+            type: "file.saved",
+            request_id: message.request_id,
+            dest: message.dest,
+            ...existing,
+          });
+          return;
+        }
+        if (message.overwrite !== true) {
+          const error = makeError("SYS_BAD_REQUEST", `${message.dest} mavjud — ustiga yozilmaydi`);
+          log.add({ level: "warn", message: `⛔ ${message.dest} mavjud, ustiga yozilmadi` });
+          send({ type: "request.failed", request_id: message.request_id, error });
+          return;
+        }
+      }
       const saved = await downloadVerified(message.url, dest.data, message.sha256);
       log.add({ level: "info", message: `⬇️ ${message.dest} saqlandi` });
       send({ type: "file.saved", request_id: message.request_id, dest: message.dest, ...saved });

@@ -100,3 +100,44 @@ describe("WS: file.download → file.saved", () => {
     expect(replies.r3).toMatchObject({ type: "request.failed", error: { code: "ASSET_CORRUPT" } });
   });
 });
+
+describe("file.download: versiyalar ustiga yozilmaydi (P2.13)", () => {
+  it("bir xil tarkib — saqlangan; boshqa tarkib — rad (overwrite: true bo'lmasa)", async () => {
+    const s = await start();
+    t = s.app;
+    const root = mkdtempSync(join(tmpdir(), "aes-root-"));
+    const p = await pairedAgent(s.app, s.base, undefined, root);
+    agent = p.agent;
+    const put = async (key: string, body: string) => {
+      await s.app.app.storage.putBytes(key, Buffer.from(body));
+      return s.app.app.storage.presignGet(key);
+    };
+    const v1 = await put(`${KEY}.v1`, "PLAN-1");
+    const v2 = await put(`${KEY}.v2`, "PLAN-2");
+    const device = p.credentials.device_id;
+    const download = (request_id: string, url: string, body: string, overwrite?: boolean) =>
+      s.app.app.hub.request(
+        device,
+        {
+          type: "file.download",
+          request_id,
+          url,
+          sha256: sha(body),
+          dest: ".aestudio/plan.v001.json",
+          ...(overwrite === undefined ? {} : { overwrite }),
+        },
+        10_000,
+      );
+
+    expect(await download("a", v1, "PLAN-1")).toMatchObject({
+      ok: true,
+      data: { type: "file.saved" },
+    });
+    expect(await download("b", v1, "PLAN-1")).toMatchObject({ ok: true, data: { size: 6 } });
+    const refused = await download("c", v2, "PLAN-2");
+    expect(refused).toMatchObject({ ok: false, error: { code: "SYS_BAD_REQUEST" } });
+    expect(readFileSync(join(root, ".aestudio", "plan.v001.json"), "utf8")).toBe("PLAN-1");
+    expect((await download("d", v2, "PLAN-2", true)).ok).toBe(true);
+    expect(readFileSync(join(root, ".aestudio", "plan.v001.json"), "utf8")).toBe("PLAN-2");
+  });
+});

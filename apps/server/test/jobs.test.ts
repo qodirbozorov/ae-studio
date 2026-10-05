@@ -5,10 +5,11 @@ import { makeError } from "@aes/shared";
 import { and, asc, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { THREE_SCENES } from "../../../packages/compiler/test/fixtures";
-import { devices, jobEvents, jobs, ops, projects, users } from "../src/db/schema";
+import { devices, jobEvents, jobs, ops, plans, projects, users } from "../src/db/schema";
 import { aepPath, fileBase } from "../src/jobs/engine";
 import { actionAllowed, nextState } from "../src/jobs/machine";
 import { createTestApp, login } from "./helpers/app";
+import { expectPgError } from "./helpers/db";
 import type { TestApp } from "./helpers/app";
 import { FakeAgent } from "./helpers/fake-agent";
 import type { OpReaction, ScannedAsset } from "./helpers/fake-agent";
@@ -537,3 +538,86 @@ async function deviceToken(): Promise<string> {
   });
   return issued.token;
 }
+
+describe("versiyalash (P2.13): hech qaysi versiya ustiga yozilmaydi", () => {
+  it("plan va hisobot nusxalari .aestudio/ da, har versiya alohida fayl", async () => {
+    agent.connect();
+    await addPlan();
+    const first = await startJob();
+    await act(first, "approve");
+    expect(await job(first)).toMatchObject({ state: "DONE" });
+    expect([...agent.files.keys()].sort()).toEqual([
+      ".aestudio/plan.v001.json",
+      ".aestudio/report.v001.md",
+    ]);
+
+    // Ikkinchi job: shu plan, yangi .aep — plan nusxasi o'sha (bir xil tarkib), hisobot yangi fayl.
+    const second = await startJob();
+    const changed = structuredClone(THREE_SCENES);
+    changed.scenes[0]!.dur = 4;
+    await act(second, "patch", { spec: changed });
+    expect(await job(second)).toMatchObject({ state: "VERIFY", aep_version: 3, plan_version: 2 });
+    await act(second, "approve");
+    expect([...agent.files.keys()].sort()).toEqual([
+      ".aestudio/plan.v001.json",
+      ".aestudio/plan.v002.json",
+      ".aestudio/report.v001.md",
+      ".aestudio/report.v003.md",
+    ]);
+    const opens = agent
+      .ofType("op.run")
+      .filter((m) => m.op.op === "project.open_or_create")
+      .map((m) => (m.op.params as { path: string }).path);
+    expect(opens).toEqual(["reel_v001.aep", "reel_v002.aep", "reel_v003.aep"]);
+    const saves = agent
+      .ofType("op.run")
+      .filter((m) => m.op.op === "project.save")
+      .map((m) => (m.op.params as { version: number }).version);
+    expect(new Set(saves)).toEqual(new Set([1, 2, 3]));
+
+    // Hech bir nusxa rad etilmagan (ya'ni hech narsa ustiga yozishga urinilmagan).
+    const failed = await t.db.db
+      .select()
+      .from(jobEvents)
+      .where(eq(jobEvents.type, "file.copy_failed"));
+    expect(failed).toEqual([]);
+    const report = await api("GET", `/api/jobs/${second}/report`);
+    expect(report.body.data.markdown).toContain("reel_v003.aep");
+    expect(report.body.data.markdown).toContain("Patch'lar: 1");
+  });
+
+  it("plan versiyasi DB'da o'zgarmas: takroriy versiya rad etiladi", async () => {
+    expect(await addPlan()).toBe(1);
+    expect(await addPlan()).toBe(2);
+    const code = await expectPgError(
+      t.db.db.insert(plans).values({ projectId, version: 1, spec: {}, createdBy: "user" }),
+    );
+    expect(code).toBe("23505");
+    const list = await api("GET", `/api/projects/${projectId}/plans`);
+    expect(list.body.data.map((p: { version: number }) => p.version)).toEqual([2, 1]);
+  });
+
+  it("aep versiyasi loyiha ichida takrorlanmaydi (DB)", async () => {
+    await addPlan();
+    await t.db.db
+      .insert(jobs)
+      .values({ projectId, deviceId: null, planVersion: 1, state: "DONE", aepVersion: 1 });
+    const code = await expectPgError(
+      t.db.db
+        .insert(jobs)
+        .values({ projectId, deviceId: null, planVersion: 1, state: "DONE", aepVersion: 1 }),
+    );
+    expect(code).toBe("23505");
+  });
+
+  it("panel uzilgan bo'lsa REPORT baribir tugaydi (nusxasiz)", async () => {
+    agent.connect();
+    await addPlan();
+    const id = await startJob();
+    agent.disconnect();
+    await act(id, "cancel");
+    const done = await job(id);
+    expect(done).toMatchObject({ state: "DONE", outcome: "cancelled" });
+    expect(agent.files.has(".aestudio/report.v001.md")).toBe(false);
+  });
+});

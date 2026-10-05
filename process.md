@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · jarayonda (12/14)
-- **Oxirgi bajarilgan:** P2.12 — Live log va Live ekrani (2026-10-05)
-- **Keyingi todo:** P2.13 — versiyalash va REPORT lokal nusxalari
+- **Faza:** 2 — Yadro · jarayonda (13/14)
+- **Oxirgi bajarilgan:** P2.13 — versiyalash va REPORT (2026-10-05)
+- **Keyingi todo:** P2.14 — Faza 2 gate
 - **Blokerlar:** 👤 AE kompyuterida ZXP sinovi · 👤 RESEND_API_KEY (magic link xati hozir server logida) · git remote URL yo'q (push qilinmagan)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -73,6 +73,8 @@
 | 2026-10-05 | P2.11 | Yangi xato kodlari JOB_ACTIVE, JOB_BAD_ACTION (JOB_ prefiksi) | Bitta qurilmada bitta aktiv job va holatga mos bo'lmagan amal uchun |
 | 2026-10-05 | P2.12 | Undo last = tizim opi undo: AE Edit menyusida aynan 'Undo aes:<op_id>' bo'lsagina bajariladi; faqat BUILD pauzasida | Har op o'z undo group'ida; orada qo'lda qilingan amal tasodifan bekor qilinmaydi |
 | 2026-10-05 | P2.12 | job.update ga paused/outcome/error qo'shildi; panel tarixni HTTP (/api/agent/jobs/:id/events) bilan oladi | Live ekrani qayta ulanganda to'liq holatni ko'rsatishi uchun |
+| 2026-10-05 | P2.13 | Lokal hisobot nusxasi .aestudio/report.vNNN.md (aep versiyasi bo'yicha), yagona report.md emas | Hech bir fayl ustiga yozilmaydi (§2.10) |
+| 2026-10-05 | P2.13 | file.download default'da mavjud faylni boshqa tarkib bilan almashtirmaydi (overwrite flag'i); plan/report storage'da docs/<sha256> | Versiyalar himoyasi panel tomonida ham; content-addressed — takroriy yuklash yo'q |
 
 ---
 
@@ -429,3 +431,27 @@
   Repo 267+ · typecheck · lint · prettier · panel build ✅.
 - **👤 AE'da:** Live ekranini va Undo last'ni haqiqiy AE'da ko'rish. AE `findMenuCommandId("Undo aes:…")` ni qanday qo'llashi tekshirilishi kerak; ishlamasa undo `AE_NOT_FOUND` bilan xavfsiz rad etadi.
 - **Keyingi:** P2.13 (versiyalash, plan/report lokal nusxalari)
+
+### 2026-10-05 · P2.13 — Versiyalash va oddiy REPORT · ✅
+- **Versiyalar (hech biri ustiga yozilmaydi):**
+  - **`plans`:** har yangi spec yangi versiya oladi (`plans_project_version_uq`); patch ham yangi versiya yaratadi.
+  - **`.aep` vNNN:** `jobs.aep_version` loyiha bo'yicha unique. Har job, va patch qurilgan versiyadan keyin, yangi raqam oladi; compile `<nom>_vNNN.aep` ga yozadi. jsx `project.save` boshqa mavjud versiya ustiga yozmaydi (P2.09).
+  - **Lokal nusxalar** (`.aestudio/plan.vNNN.json` BUILD'ga har kirishda, `.aestudio/report.vNNN.md` REPORT'da; build bo'lmasa `report.job-<id>.md`):
+    - yo'l: storage (`docs/<sha256>`, yangi kind) → presigned GET → panelga `file.download`;
+    - REPORT panel uzilgan bo'lsa ham tugaydi, faqat nusxasiz.
+  - **Panel himoyasi:** `file.download` mavjud faylni boshqa tarkib bilan almashtirmaydi (yangi `overwrite` flag'i, default yo'q). Bir xil sha256 bo'lsa fayl "saqlangan" hisoblanadi, ya'ni amal idempotent.
+- **REPORT:** `report.ts` (P2.11) hisobotni `reports` jadvaliga va lokal nusxaga yozadi. Ichida:
+  - natija, plan va `.aep` yo'llari, oplar soni, patch'lar;
+  - sahnalar jadvali va tahrir qo'llanmasi;
+  - ogohlantirishlar va oxirgi xato.
+- **Tekshiruv:**
+  - `jobs.test.ts` ga 4 ta test:
+    - ikki job va patch → `plan.v001/v002.json`, `report.v001/v003.md` alohida; `.aep` v001/v002/v003 alohida; birorta ustiga yozish urinishi yo'q;
+    - plan versiyasi DB'da o'zgarmas (23505);
+    - `aep_version` loyiha ichida takrorlanmaydi (23505);
+    - panel uzilgan bo'lsa REPORT nusxasiz tugaydi.
+  - `files.e2e`: bir xil tarkib → saqlangan; boshqa tarkib → rad etiladi, eski fayl joyida; `overwrite: true` → almashtiriladi.
+  - `job.e2e`: diskda `.aestudio/plan.v001.json` va `report.v001.md` paydo bo'ladi (hisobot DB'dagi bilan bir xil).
+
+  Repo 273/273 · typecheck · lint · prettier ✅.
+- **Keyingi:** P2.14 (Faza 2 gate)

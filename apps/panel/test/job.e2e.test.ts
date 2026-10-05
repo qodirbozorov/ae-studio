@@ -2,7 +2,7 @@
  * P2.12 / P2.14: to'liq zanjir — kabinet (plan + job) → server holat mashinasi → WS → agent →
  * ffmpeg INGEST → haqiqiy ES3 bundle (mock AE) → Live ekrani holati → approve → hisobot.
  */
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -118,6 +118,16 @@ describe.skipIf(!FFMPEG_AVAILABLE)("job e2e: plan → server → panel → AE", 
     expect(done.data.outcome).toBe("success");
     const report = await call("GET", `/api/jobs/${jobId}/report`);
     expect(report.data.markdown).toContain(`${project.name}_v001.aep`);
+    // Lokal nusxalar ish papkasida (§2.10).
+    const plan = JSON.parse(readFileSync(join(root, ".aestudio", "plan.v001.json"), "utf8"));
+    expect(plan.output.name).toBe("e2e");
+    await eventually(
+      async () => existsSync(join(root, ".aestudio", "report.v001.md")),
+      (exists) => exists,
+    );
+    expect(readFileSync(join(root, ".aestudio", "report.v001.md"), "utf8")).toBe(
+      report.data.markdown,
+    );
     expect(
       await eventually(
         async () => p.agent.live.current()?.state,

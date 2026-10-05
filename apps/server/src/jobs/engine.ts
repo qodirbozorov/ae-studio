@@ -27,6 +27,7 @@ import { applyScan } from "../assets/routes";
 import type { AppContext } from "../context";
 import { assets, jobEvents, jobs, ops, plans, projects, reports } from "../db/schema";
 import { normalizeRootPath } from "../projects/routes";
+import { storageKey } from "../storage";
 import { buildReport, pad3 } from "./report";
 import { IDLE_STATES, actionAllowed, nextState } from "./machine";
 
@@ -70,7 +71,20 @@ const CHECK_PING_TIMEOUT_MS = 15_000;
 /** Bitta drive siklidagi holatlar soni chegarasi (cheksiz aylanishdan himoya). */
 const MAX_STEPS = 64;
 
-export type EngineContext = Pick<AppContext, "db" | "hub" | "now">;
+export type EngineContext = Pick<AppContext, "db" | "hub" | "now" | "storage">;
+
+/** Ish papkasidagi lokal nusxalar (§2.10): versiyali, hech biri ustiga yozilmaydi. */
+export function planCopyPath(version: number): string {
+  return `.aestudio/plan.v${pad3(version)}.json`;
+}
+
+export function reportCopyPath(job: Pick<JobRow, "id" | "aepVersion">): string {
+  return job.aepVersion === null
+    ? `.aestudio/report.job-${job.id.slice(0, 8)}.md`
+    : `.aestudio/report.v${pad3(job.aepVersion)}.md`;
+}
+
+const COPY_TIMEOUT_MS = 60_000;
 
 /** `.aep` fayl nomi uchun xavfsiz asos (loyiha nomidan). */
 export function fileBase(name: string): string {
@@ -760,6 +774,20 @@ export class JobEngine {
       });
     }
 
+    // Plan nusxasi ish papkasiga (har BUILD kirishida; bir xil tarkib — idempotent).
+    const plan = await this.plan(job.projectId, job.planVersion);
+    if (plan !== null) {
+      const copied = await this.publish(
+        job,
+        planCopyPath(plan.version),
+        `${JSON.stringify(plan.spec, null, 2)}\n`,
+        "json",
+      );
+      if (!copied.ok && copied.error.code === "ENV_AGENT_OFFLINE") {
+        return { kind: "wait_agent", reason: "BUILD: panel uzildi (plan nusxasi)" };
+      }
+    }
+
     const scenes = await this.sceneIds(job);
     for (const row of queue) {
       const current = await this.get(job.id);
@@ -851,11 +879,67 @@ export class JobEngine {
     await this.ctx.db
       .insert(reports)
       .values({ jobId: job.id, markdown, createdAt: this.ctx.now() });
-    await this.event(job, "info", "report.ready", "Hisobot tayyor", { data: { outcome } });
+    // Lokal nusxa — iloji bo'lsa (REPORT panelsiz ham tugaydi).
+    const copy = reportCopyPath(job);
+    const copied = await this.publish(job, copy, markdown, "md");
+    await this.event(job, "info", "report.ready", "Hisobot tayyor", {
+      data: { outcome, local_path: copied.ok ? copy : null },
+    });
     return { kind: "next", set: { outcome, paused: false } };
   }
 
   // ------------------------------------------------------------------ yordamchilar
+
+  /**
+   * Matn faylini ish papkasiga yozdiradi: storage (`docs/<sha256>`) → presigned GET → panel `file.download`.
+   * Panel mavjud faylni boshqa tarkib bilan almashtirmaydi. Xato job'ni to'xtatmaydi (ogohlantirish).
+   */
+  private async publish(
+    job: JobRow,
+    dest: string,
+    content: string,
+    ext: "json" | "md",
+  ): Promise<Result<{ dest: string }>> {
+    const project = await this.project(job.projectId);
+    if (project === null || job.deviceId === null) return fail("SYS_NOT_FOUND", "Loyiha yo'q");
+    if (!this.ctx.hub.isOnline(job.deviceId)) return fail("ENV_AGENT_OFFLINE", "Panel ulanmagan");
+    const data = Buffer.from(content, "utf8");
+    const sha256 = createHash("sha256").update(data).digest("hex");
+    const key = storageKey({
+      userId: project.userId,
+      projectId: project.id,
+      kind: "docs",
+      hash: sha256,
+      ext,
+    });
+    if ((await this.ctx.storage.head(key)) === null) {
+      await this.ctx.storage.putBytes(
+        key,
+        data,
+        ext === "json" ? "application/json" : "text/markdown; charset=utf-8",
+      );
+    }
+    const reply = await this.ctx.hub.request(
+      job.deviceId,
+      {
+        type: "file.download",
+        request_id: randomUUID(),
+        url: await this.ctx.storage.presignGet(key),
+        sha256,
+        dest,
+        size: data.length,
+      },
+      COPY_TIMEOUT_MS,
+    );
+    if (!reply.ok) {
+      await this.event(job, "warn", "file.copy_failed", `${dest}: ${reply.error.code}`, {
+        data: reply.error,
+      });
+      return reply;
+    }
+    await this.event(job, "debug", "file.saved", `${dest} saqlandi`, { data: { dest, sha256 } });
+    return ok({ dest });
+  }
 
   private async project(projectId: string): Promise<ProjectRow | null> {
     const [row] = await this.ctx.db
