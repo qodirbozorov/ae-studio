@@ -323,6 +323,11 @@ const PANEL_MESSAGES: Record<string, unknown> = {
     size: 10,
   },
   "ae.state": { type: "ae.state", ae_version: "25.2", project_path: null, busy: false },
+  "asset.preview.ready": {
+    type: "asset.preview.ready",
+    request_id: "r11",
+    files: [{ storage_key: "u/a/p/b/frames/x.jpg", time: 1.5, size: 1000 }],
+  },
   "project.opened": {
     type: "project.opened",
     request_id: "r10",

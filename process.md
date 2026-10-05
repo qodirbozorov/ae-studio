@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 3 — Claude loop'i · jarayonda (3/12)
-- **Oxirgi bajarilgan:** P3.03 — muhit va loyiha toollari (2026-10-05)
-- **Keyingi todo:** P3.04 — fayl toollari (assets_scan, assets_list, asset_preview)
+- **Faza:** 3 — Claude loop'i · jarayonda (4/12)
+- **Oxirgi bajarilgan:** P3.04 — fayl toollari (2026-10-05)
+- **Keyingi todo:** P3.05 — qurish toollari (preflight, build_start, job_*)
 - **Blokerlar:** 👤 AE kompyuterida: ZXP, kabinet kodi bilan ulanish, Live/Undo, AE'ni o'rtada yopib-ochish · 👤 RESEND_API_KEY (magic link hozir server logida)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -593,3 +593,27 @@
 
   Repo 307 ✅.
 - **Keyingi:** P3.04 (fayl toollari)
+
+### 2026-10-05 · P3.04 — Fayl toollari · ✅
+- **MCP (`src/mcp/tools/assets.ts`):**
+  - **`assets_scan`:** panelga `assets.scan`, javob 90 s gacha kutiladi. So'ng `applyScan` qo'llanadi va qaytadi: holatlar bo'yicha son va muammoli fayllar ro'yxati. Kechiksa `status: running` (kech kelgan javobni umumiy tinglovchi baribir qo'llaydi).
+  - **`assets_list`:** key (`asset:<key>`), tur, holat, o'lcham, davomiylik, fps, audio bor-yo'qligi, xato. Tur va holat bo'yicha filtr.
+  - **`asset_preview`:**
+    - rejimlar: `image` (bitta rasm; videoda 10% dagi kadr) va `frames` (times yoki count, 8 tagacha); `max_px` 128–1280, default 768;
+    - oqim: server pre-signed PUT URL'lar beradi (`frames/p<uuid>.jpg`) → panel `asset.preview.request` → ffmpeg → yuklaydi → `asset.preview.ready` → server storage'dan oladi → MCP **image content** (`image/jpeg`, bir javobda 4 MB gacha);
+    - xatolar: noma'lum key → `SPEC_UNKNOWN_ASSET`; audio/other → `ASSET_UNSUPPORTED`; buzuq → `ASSET_CORRUPT`; panel yo'q → `ENV_AGENT_OFFLINE`.
+  - **`previewImages()`** umumiy yordamchi (P3.06 `frames_capture` ham ishlatadi).
+- **Panel (`agent/preview.ts`):**
+  - `makePreviews` va `previewTimes`: vaqtlar davomiylik ichiga siqiladi, rasmda vaqt `null`.
+  - Yo'l `resolveInsideRoot` bilan tekshiriladi (ish papkasidan tashqariga chiqib bo'lmaydi); vaqtinchalik fayllar o'chiriladi.
+- **Shared:** yangi panel xabari `asset.preview.ready`.
+- **Tekshiruv:** `mcp-assets.e2e.test.ts` (haqiqiy server, agent va ffmpeg):
+  - `previewTimes` birlik testlari;
+  - skan → 6 fayl (4 ok, 1 corrupt, 1 unsupported);
+  - ro'yxat → 4 ta yaroqli key;
+  - rasm preview → 1 ta JPEG (FFD8);
+  - video → 3 kadr (0.333/1/1.667 s);
+  - xato yo'llari va offline.
+
+  Repo 310 ✅.
+- **Keyingi:** P3.05 (qurish toollari)

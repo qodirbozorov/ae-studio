@@ -9,7 +9,9 @@ import { createAeBridge } from "./ae-bridge";
 import type { AeBridge, EvalScript } from "./ae-bridge";
 import { clearCredentials, loadCredentials, saveCredentials } from "./credentials";
 import type { Credentials } from "./credentials";
-import { checkBinaries, resolveBinaries } from "./ffmpeg";
+import { FfmpegError, checkBinaries, resolveBinaries } from "./ffmpeg";
+import { TransferError } from "./files";
+import { makePreviews } from "./preview";
 import { uploadFile } from "./files";
 import { getJson, postJson } from "./http";
 import { scanSource } from "./ingest";
@@ -235,6 +237,29 @@ export function createAgent(options: AgentOptions): Agent {
     });
     client = next;
     next.onMessage(onJobMessage);
+    next.onMessage((message) => {
+      if (message.type !== "asset.preview.request") return;
+      if (root === "") {
+        next.send({
+          type: "request.failed",
+          request_id: message.request_id,
+          error: makeError("ENV_NO_FOLDER", "Ish papkasi tanlanmagan"),
+        });
+        return;
+      }
+      makePreviews(root, resolveBinaries(settings.ffmpeg_dir), message)
+        .then((files) =>
+          next.send({ type: "asset.preview.ready", request_id: message.request_id, files }),
+        )
+        .catch((error: unknown) => {
+          const aes =
+            error instanceof FfmpegError || error instanceof TransferError
+              ? error.error
+              : makeError("SYS_INTERNAL", error instanceof Error ? error.message : String(error));
+          log.add({ level: "warn", message: `🖼 ${message.local_path}: ${aes.code}` });
+          next.send({ type: "request.failed", request_id: message.request_id, error: aes });
+        });
+    });
     next.onMessage((message) => {
       if (message.type !== "project.open") return;
       agent

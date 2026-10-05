@@ -218,6 +218,21 @@ export const panelMessageSchema = z.discriminatedUnion("type", [
     busy: z.boolean(),
   }),
   z.strictObject({
+    /** `asset.preview.request` javobi: yuklangan JPG'lar (tartib bilan). */
+    type: z.literal("asset.preview.ready"),
+    request_id: idSchema,
+    files: z
+      .array(
+        z.strictObject({
+          storage_key: storageKeySchema,
+          time: z.number().min(0).nullable(),
+          size: z.number().int().min(0),
+        }),
+      )
+      .min(1)
+      .max(50),
+  }),
+  z.strictObject({
     type: z.literal("project.opened"),
     request_id: idSchema,
     project: z.strictObject({
