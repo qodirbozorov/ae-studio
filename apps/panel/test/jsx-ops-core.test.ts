@@ -425,3 +425,32 @@ describe("undo (Live ekrani: Undo last)", () => {
     expect(h.ae.app.openUndoGroups).toBe(0);
   });
 });
+
+describe("info (ae_info)", () => {
+  it("comp'lar, loyiha yo'li; shriftlar faqat app.fonts bo'lsa", async () => {
+    const h = await loadJsx(ae());
+    const run = (op: string, id: string, params: object) =>
+      h.run(op as never, id, params as never, { root: ROOT });
+    run("project.open_or_create", "p", { path: "reel_v001.aep" });
+    run("comp.create", "c1", { name: "Main", w: 1080, h: 1920, fps: 30, dur: 5 });
+    const res = run("info", "i1", {});
+    expect(res).toMatchObject({
+      ok: true,
+      data: {
+        info: {
+          project_path: `${ROOT}/reel_v001.aep`,
+          comps: [{ name: "Main", w: 1080, h: 1920, fps: 30, duration: 5, layers: 0 }],
+          fonts: null,
+        },
+      },
+    });
+    expect(h.ae.app.undoGroups.filter((g) => g.includes("i1"))).toEqual([]);
+
+    const withFonts = await loadJsx(createMockAE({ fonts: ["Arial", "Montserrat"] }));
+    const res2 = withFonts.run("info", "i2", {} as never, { root: ROOT });
+    expect(res2).toMatchObject({
+      ok: true,
+      data: { info: { fonts: ["Arial", "Montserrat"], fonts_note: null } },
+    });
+  });
+});

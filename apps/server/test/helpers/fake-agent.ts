@@ -27,7 +27,8 @@ class FakeSocket extends EventEmitter {
   }
 }
 
-export type OpReaction = "ok" | "drop" | AesError;
+/** "ok" — bo'sh info; `{ info }` — natija ma'lumoti bilan; "drop" — javobsiz; AesError — xato. */
+export type OpReaction = "ok" | "drop" | AesError | { info: Record<string, unknown> };
 
 export interface ScannedAsset {
   key: string;
@@ -47,6 +48,9 @@ export class FakeAgent {
   /** `file.download` bilan "saqlangan" fayllar: dest → sha256 (ustiga yozilmaydi, panel kabi). */
   readonly files = new Map<string, string>();
   onOp: (op: OpEnvelope) => OpReaction | Promise<OpReaction> = () => "ok";
+  /** `project.open` (MCP project_create): loyihani ro'yxatdan o'tkazadi. */
+  onProjectOpen:
+    ((root: string) => Promise<{ id: string; name: string; root_path: string }>) | null = null;
   private socket: FakeSocket | null = null;
 
   constructor(
@@ -99,7 +103,13 @@ export class FakeAgent {
       this.ran.push(op.op_id);
       const reaction = await this.onOp(op);
       if (reaction === "drop" || socket.closed) return;
-      if (reaction === "ok") {
+      if (reaction === "ok" || "info" in reaction) {
+        const info =
+          reaction !== "ok"
+            ? reaction.info
+            : op.op === "ping"
+              ? { ae_version: "22.0", project_path: null }
+              : {};
         this.deliver(
           {
             type: "op.done",
@@ -108,7 +118,7 @@ export class FakeAgent {
             result: {
               op_id: op.op_id,
               reused: false,
-              info: op.op === "ping" ? { ae_version: "22.0", project_path: null } : {},
+              info,
             },
             duration_ms: 1,
           },
@@ -120,12 +130,27 @@ export class FakeAgent {
             type: "op.failed",
             job_id: message.job_id,
             op_id: op.op_id,
-            error: reaction,
+            error: reaction as AesError,
             duration_ms: 1,
           },
           socket,
         );
       }
+    } else if (message.type === "project.open") {
+      if (this.onProjectOpen === null) {
+        this.deliver(
+          {
+            type: "request.failed",
+            request_id: message.request_id,
+            error: makeError("ENV_NO_FOLDER", "papka ochilmadi"),
+          },
+          socket,
+        );
+        return;
+      }
+      const project = await this.onProjectOpen(message.root_path);
+      this.root = project.root_path;
+      this.deliver({ type: "project.opened", request_id: message.request_id, project }, socket);
     } else if (message.type === "file.download") {
       const existing = this.files.get(message.dest);
       if (existing !== undefined && existing !== message.sha256 && message.overwrite !== true) {

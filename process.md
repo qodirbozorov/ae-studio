@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 3 — Claude loop'i · jarayonda (2/12)
-- **Oxirgi bajarilgan:** P3.02 — /mcp Streamable HTTP (2026-10-05)
-- **Keyingi todo:** P3.03 — muhit va loyiha toollari
+- **Faza:** 3 — Claude loop'i · jarayonda (3/12)
+- **Oxirgi bajarilgan:** P3.03 — muhit va loyiha toollari (2026-10-05)
+- **Keyingi todo:** P3.04 — fayl toollari (assets_scan, assets_list, asset_preview)
 - **Blokerlar:** 👤 AE kompyuterida: ZXP, kabinet kodi bilan ulanish, Live/Undo, AE'ni o'rtada yopib-ochish · 👤 RESEND_API_KEY (magic link hozir server logida)
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -78,6 +78,8 @@
 | 2026-10-05 | P2.14 | Faza 2 gate'ining kod va prod qismi production smoke testi (prod.smoke.test.ts, mock AE) bilan yopildi; haqiqiy AE bandlari 👤 qoldi | Bu kompyuterda AE yo'q (foydalanuvchi qarori) |
 | 2026-10-05 | P3.01 | OAuth: DCR + CIMD ikkalasi; opaque tokenlar (access 1 soat, refresh 30 kun, rotation + reuse'da oila bekor); ruxsat ekrani server HTML | MCP spec 2025-11-25 (CIMD SHOULD, DCR MAY) va Claude hujjati (ikkalasini ham qo'llaydi) |
 | 2026-10-05 | P3.02 | /mcp stateless (har so'rovga yangi Server, JSON javob), low-level SDK Server + zod v4 toJSONSchema; tool tavsiflari ingliz tilida, xato hint'lari o'zbekcha | Railway bitta nusxa, sessiya holati kerak emas; tavsiflar model uchun aniqroq |
+| 2026-10-05 | P3.03 | Q10 yopildi: ae_info shriftlarni app.fonts (AE 24+) dan oladi, yo'q bo'lsa fonts=null + izoh | Eski AE'da API yo'q, xato emas |
+| 2026-10-05 | P3.03 | project_create faqat mavjud papkani ochadi (subpapkalarni yaratadi), ildiz papkani yaratmaydi | Claude xato yo'l bilan foydalanuvchi diskida keraksiz papka yaratmasligi uchun |
 
 ---
 
@@ -562,3 +564,32 @@
 
   Server bundle SDK bilan yuklanadi. Repo testlari ✅.
 - **Keyingi:** P3.03
+
+### 2026-10-05 · P3.03 — Muhit va loyiha toollari · ✅
+- **MCP toollari (`src/mcp/tools/`):**
+  - **`env_check`:** server, panel online, AE versiyasi, panelda ochiq papka, ffmpeg, ElevenLabs ("Faza 4") va aktiv job. Natija `ready` va `issues[]` (har biri `{code, retryable, hint}`).
+  - **`devices_list`:** qurilmalar (online, AE versiyasi, papka, ochiq `.aep`, ffmpeg).
+  - **`ae_info`:** yangi tizim opi `info` (read-only, undo group'siz). Qaytaradi: AE versiyasi, ochiq `.aep`, `dirty`, comp'lar (200 tagacha), shrift oilalari. **Q10 yopildi:** `app.fonts` faqat AE 24+ da bor; bo'lmasa `fonts: null` va izoh.
+  - **`project_create`:** yangi WS juftligi `project.open` → `project.opened`. Panel mavjud papkada subpapkalarni yaratadi, loyihani ro'yxatdan o'tkazadi va faollashtiradi. Nisbiy yo'l yoki yo'q papka → `ENV_NO_FOLDER`.
+  - **`project_list`, `project_get`:** qurilma holati, assetlar xulosasi (tur/holat bo'yicha), plan versiyalari, oxirgi joblar.
+  - **`plan_write`:** yangi versiya, xulosa (sahnalar, davomiylik, `asset_refs`). `SPEC_INVALID` aniq JSON Pointer path'lar bilan.
+  - **`plan_patch`:** RFC 6902 JSON Patch (`lib/json-patch.ts`: add/remove/replace/move/copy/test, `~0`/`~1`, massiv `-`). Natija yangi versiya; xatoda `op_index` va `path` qaytadi.
+  - **`plan_get`:** spec, xulosa va versiyalar ro'yxati.
+  - **Umumiy (`common.ts`):** qurilma tanlash (berilgan id, yoki yagona online/yagona qurilma; aks holda `device_id` so'raladi), loyiha egaligi.
+- **Panel va agent:**
+  - `ae.state` ga `ffmpeg` (agent `ffmpeg -version` / `ffprobe -version` bilan tekshiradi); hub buni saqlaydi.
+  - Agent `project.open` ga `openProject` bilan javob beradi.
+- **Tekshiruv:**
+  - `mcp-tools.test.ts` 9 ta, soxta panel bilan:
+    - `env_check`: qurilma yo'q, ready holati, ffmpeg yo'q;
+    - bir nechta qurilma → `device_id` so'raladi;
+    - `ae_info` online va offline;
+    - `project_create`, `project_list`, `project_get`;
+    - offline va begona loyiha → `SYS_NOT_FOUND`;
+    - plan write/patch/get, `SPEC_INVALID` path'lari;
+    - JSON Patch: barcha oplar va xatolar.
+  - `jsx-ops-core`: `info` opi (comp'lar, `fonts: null` yoki AE 24+ ro'yxati).
+  - `workspace.e2e`: haqiqiy agent bilan MCP `project_create` → diskda papkalar, agent root almashadi; yo'q papka → `ENV_NO_FOLDER`.
+
+  Repo 307 ✅.
+- **Keyingi:** P3.04 (fayl toollari)

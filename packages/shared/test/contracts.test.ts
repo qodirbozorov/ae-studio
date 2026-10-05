@@ -39,6 +39,7 @@ function paths(result: { ok: boolean; error?: { details?: unknown } }): string[]
 /** Har op uchun bitta valid params namunasi. */
 const VALID_PARAMS: { [N in AeOpName]: OpParamsMap[N] } = {
   ping: {},
+  info: {},
   undo: { op_id: "hook.title" },
   "project.open_or_create": { path: "reel_v001.aep" },
   "project.save": { version: 2, path: "reel_v002.aep" },
@@ -113,6 +114,7 @@ const VALID_PARAMS: { [N in AeOpName]: OpParamsMap[N] } = {
 /** Har op uchun bitta noto'g'ri params va kutilgan xato path. */
 const INVALID_PARAMS: { [N in AeOpName]: [unknown, string] } = {
   ping: [{ echo: 5 }, "/params/echo"],
+  info: [{ x: 1 }, "/params"],
   undo: [{ op_id: "Bad Id" }, "/params/op_id"],
   "project.open_or_create": [{ path: "C:/x/a.aep" }, "/params/path"],
   "project.save": [{ version: 0, path: "a.aep" }, "/params/version"],
@@ -241,6 +243,7 @@ const SERVER_MESSAGES: Record<string, unknown> = {
     dest: "audio/vo.mp3",
   },
   "assets.scan": { type: "assets.scan", request_id: "r9", project_root: "D:/Projects/reel" },
+  "project.open": { type: "project.open", request_id: "r10", root_path: "D:/Projects/reel" },
   "job.pause": { type: "job.pause", job_id: "job-1" },
   "job.cancel": { type: "job.cancel", job_id: "job-1" },
   "job.update": {
@@ -320,6 +323,11 @@ const PANEL_MESSAGES: Record<string, unknown> = {
     size: 10,
   },
   "ae.state": { type: "ae.state", ae_version: "25.2", project_path: null, busy: false },
+  "project.opened": {
+    type: "project.opened",
+    request_id: "r10",
+    project: { id: "p-1", name: "reel", root_path: "D:/Projects/reel" },
+  },
   pong: { type: "pong", ts: 1 },
   "request.failed": {
     type: "request.failed",

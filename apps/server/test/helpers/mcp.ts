@@ -1,7 +1,7 @@
 /** MCP test yordamchilari: user uchun access token va `/mcp` ga JSON-RPC (inject orqali). */
 import { eq } from "drizzle-orm";
 import { issueToken } from "../../src/auth/tokens";
-import { oauthClients, users } from "../../src/db/schema";
+import { devices, oauthClients, users } from "../../src/db/schema";
 import type { TestApp } from "./app";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- testlarda javob shakli assert'larda tekshiriladi
@@ -30,6 +30,9 @@ export async function mcpSession(t: TestApp, email: string): Promise<McpSession>
     clientName: "Test",
     redirectUris: ["https://claude.ai/api/mcp/auth_callback"],
   });
+  // Server o'z resource'ini e'lon qiladi (PUBLIC_URL testga qarab farq qiladi).
+  const resource = (await t.app.inject({ url: "/.well-known/oauth-protected-resource/mcp" })).json()
+    .resource as string;
   const { token } = await issueToken(t.db.db, {
     kind: "access",
     ttlMs: 3_600_000,
@@ -37,7 +40,7 @@ export async function mcpSession(t: TestApp, email: string): Promise<McpSession>
     userId: user.id,
     clientId,
     scope: "mcp",
-    data: { resource: "https://aes.test/mcp" },
+    data: { resource },
   });
   let id = 0;
   const rpc = async (method: string, params?: unknown) => {
@@ -73,4 +76,16 @@ export async function mcpSession(t: TestApp, email: string): Promise<McpSession>
       };
     },
   };
+}
+
+/** Qurilma egasi uchun MCP sessiya (panel e2e testlari: drizzle'ni panelga olib kirmaslik uchun). */
+export async function mcpSessionForDevice(t: TestApp, deviceId: string): Promise<McpSession> {
+  const [row] = await t.db.db
+    .select({ email: users.email })
+    .from(devices)
+    .innerJoin(users, eq(users.id, devices.userId))
+    .where(eq(devices.id, deviceId))
+    .limit(1);
+  if (row === undefined) throw new Error(`qurilma yo'q: ${deviceId}`);
+  return mcpSession(t, row.email);
 }

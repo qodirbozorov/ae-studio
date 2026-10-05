@@ -182,3 +182,16 @@ export async function thumbnail(
     );
   }
 }
+
+/** ffmpeg va ffprobe ishga tushadimi (env_check uchun, 5 s). */
+export async function checkBinaries(bins: Binaries): Promise<boolean> {
+  try {
+    const [a, b] = await Promise.all([
+      run(bins.ffmpeg, ["-version"], 5_000),
+      run(bins.ffprobe, ["-version"], 5_000),
+    ]);
+    return a.code === 0 && b.code === 0;
+  } catch {
+    return false;
+  }
+}

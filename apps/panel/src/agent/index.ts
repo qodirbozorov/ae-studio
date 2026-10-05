@@ -9,7 +9,7 @@ import { createAeBridge } from "./ae-bridge";
 import type { AeBridge, EvalScript } from "./ae-bridge";
 import { clearCredentials, loadCredentials, saveCredentials } from "./credentials";
 import type { Credentials } from "./credentials";
-import { resolveBinaries } from "./ffmpeg";
+import { checkBinaries, resolveBinaries } from "./ffmpeg";
 import { uploadFile } from "./files";
 import { getJson, postJson } from "./http";
 import { scanSource } from "./ingest";
@@ -129,10 +129,12 @@ export function createAgent(options: AgentOptions): Agent {
     const info = res.ok ? (res.data.info ?? {}) : {};
     aeVersion = typeof info.ae_version === "string" ? info.ae_version : null;
     const projectPath = typeof info.project_path === "string" ? info.project_path : null;
+    const ffmpeg = await checkBinaries(resolveBinaries(settings.ffmpeg_dir));
     target.reportAeState({
       ae_version: aeVersion,
       project_path: projectPath,
       project_root: root || null,
+      ffmpeg,
       busy: false,
     });
   }
@@ -234,6 +236,28 @@ export function createAgent(options: AgentOptions): Agent {
     client = next;
     next.onMessage(onJobMessage);
     next.onMessage((message) => {
+      if (message.type !== "project.open") return;
+      agent
+        .openProject(message.root_path)
+        .then((opened) =>
+          next.send({
+            type: "project.opened",
+            request_id: message.request_id,
+            project: { id: opened.id, name: opened.name, root_path: opened.root_path },
+          }),
+        )
+        .catch((error: unknown) =>
+          next.send({
+            type: "request.failed",
+            request_id: message.request_id,
+            error: makeError(
+              "ENV_NO_FOLDER",
+              error instanceof Error ? error.message : String(error),
+            ),
+          }),
+        );
+    });
+    next.onMessage((message) => {
       if (message.type !== "assets.scan") return;
       if (message.project_root !== root) {
         next.send({
@@ -277,7 +301,7 @@ export function createAgent(options: AgentOptions): Agent {
     });
   }
 
-  return {
+  const agent: Agent = {
     log,
     live,
     async jobAction(action) {
@@ -383,6 +407,7 @@ export function createAgent(options: AgentOptions): Agent {
     },
     connection: () => client,
   };
+  return agent;
 }
 
 export { PairingError };

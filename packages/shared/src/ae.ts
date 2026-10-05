@@ -31,6 +31,9 @@ export interface PingParams {
   echo?: string | undefined;
 }
 
+/** `ae_info`: AE versiyasi, ochiq loyiha, comp'lar va shriftlar (parametrsiz). */
+export type InfoParams = { [key: string]: never };
+
 /** Live ekranidagi "Undo last": faqat AE'dagi oxirgi undo group shu op bo'lsa bekor qilinadi. */
 export interface UndoParams {
   op_id: string;
@@ -221,6 +224,7 @@ export interface RenderQueueParams {
 /** Op nomi → parametrlari. `ping`, `undo` — tizim oplari (Spec'dan kompilyatsiya qilinmaydi). */
 export interface OpParamsMap {
   ping: PingParams;
+  info: InfoParams;
   undo: UndoParams;
   "project.open_or_create": ProjectOpenOrCreateParams;
   "project.save": ProjectSaveParams;

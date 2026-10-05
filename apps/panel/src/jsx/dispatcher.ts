@@ -9,6 +9,7 @@ import { compCreate, compNest } from "./ops/comp";
 import { fxAdd, fxApplyPreset } from "./ops/fx";
 import { itemImport } from "./ops/item";
 import { layerAddAudio, layerAddMedia, layerAddShape, layerAddText } from "./ops/layer";
+import { info } from "./ops/info";
 import { ping } from "./ops/ping";
 import { projectOpenOrCreate, projectSave } from "./ops/project";
 import { propExpression, propKeyframes } from "./ops/prop";
@@ -25,6 +26,7 @@ export function registerOp(name: string, handler: OpHandler): void {
 }
 
 registerOp("ping", ping as OpHandler);
+registerOp("info", info as OpHandler);
 registerOp("undo", undo as OpHandler);
 registerOp("comp.create", compCreate as OpHandler);
 registerOp("item.import", itemImport as OpHandler);
@@ -41,7 +43,7 @@ registerOp("fx.apply_preset", fxApplyPreset as OpHandler);
 registerOp("fx.add", fxAdd as OpHandler);
 
 /** O'zgartirmaydigan oplar: undo group ochilmaydi. */
-const READ_ONLY: { [op: string]: boolean | undefined } = { ping: true };
+const READ_ONLY: { [op: string]: boolean | undefined } = { ping: true, info: true };
 
 /** Loyihani ochish/saqlash undo tarixiga kirmaydi (undo group ichida loyiha almashtirilmaydi). */
 const NO_UNDO: { [op: string]: boolean | undefined } = {

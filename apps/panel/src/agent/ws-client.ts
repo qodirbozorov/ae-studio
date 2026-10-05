@@ -47,6 +47,7 @@ export interface WsClient {
     ae_version: string | null;
     project_path: string | null;
     project_root?: string | null;
+    ffmpeg?: boolean | null;
     busy: boolean;
   }): void;
   status(): ConnectionStatus;

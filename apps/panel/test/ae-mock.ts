@@ -448,7 +448,12 @@ export interface MockProject {
 
 /** Yangi mock AE: `files` — mavjud fayllar (yo'l → media metadata). */
 export function createMockAE(
-  options: { version?: string; files?: Record<string, Partial<MediaMeta>> } = {},
+  options: {
+    version?: string;
+    files?: Record<string, Partial<MediaMeta>>;
+    /** AE 24+ `app.fonts` (berilmasa — eski AE kabi yo'q). */
+    fonts?: string[];
+  } = {},
 ): MockAE {
   const files = new Map(Object.entries(options.files ?? {}));
 
@@ -549,6 +554,11 @@ export function createMockAE(
   const FileCtor = function (this: unknown, path: string) {
     return new MockFile(path, files);
   } as unknown as new (path: string) => MockFile;
+  if (options.fonts !== undefined) {
+    (app as unknown as { fonts: unknown }).fonts = {
+      allFonts: options.fonts.map((familyName) => [{ familyName }]),
+    };
+  }
   return {
     app,
     files,

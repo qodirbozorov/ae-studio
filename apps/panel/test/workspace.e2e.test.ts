@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { TestApp } from "../../server/test/helpers/app";
 import type { Agent } from "../src/agent/index";
 import { PROJECT_FOLDERS } from "../src/agent/workspace";
+import { mcpSessionForDevice } from "../../server/test/helpers/mcp";
 import { pairedAgent, start } from "./e2e-helpers";
 
 let t: TestApp | undefined;
@@ -52,5 +53,25 @@ describe("ish papkasi (§11.1.2)", () => {
       log_level: "debug",
       ffmpeg_dir: null,
     });
+  });
+});
+
+describe("MCP project_create → panel (project.open)", () => {
+  it("haqiqiy agent papkani tayyorlaydi va faollashtiradi; yo'q papka → ENV_NO_FOLDER", async () => {
+    const s = await start();
+    t = s.app;
+    const p = await pairedAgent(s.app, s.base);
+    agent = p.agent;
+    const mcp = await mcpSessionForDevice(s.app, p.credentials.device_id);
+
+    const folder = mkdtempSync(join(tmpdir(), "aes-mcp-"));
+    const created = await mcp.call("project_create", { root_path: folder });
+    const normalized = folder.replace(/\\/g, "/");
+    expect(created.result).toMatchObject({ ok: true, data: { root_path: normalized } });
+    for (const sub of PROJECT_FOLDERS) expect(existsSync(join(folder, sub)), sub).toBe(true);
+    expect(p.agent.getRoot()).toBe(normalized);
+
+    const missing = await mcp.call("project_create", { root_path: join(folder, "yoq") });
+    expect(missing.result.error.code).toBe("ENV_NO_FOLDER");
   });
 });

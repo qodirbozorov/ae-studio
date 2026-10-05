@@ -94,6 +94,12 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
     request_id: idSchema,
     project_root: z.string().min(1).max(1024),
   }),
+  z.strictObject({
+    /** MCP `project_create`: panel papkani tayyorlaydi, loyihani ro'yxatdan o'tkazadi va ochadi. */
+    type: z.literal("project.open"),
+    request_id: idSchema,
+    root_path: z.string().min(2).max(1024),
+  }),
   z.strictObject({ type: z.literal("job.pause"), job_id: idSchema }),
   z.strictObject({ type: z.literal("job.cancel"), job_id: idSchema }),
   z.strictObject({
@@ -207,7 +213,18 @@ export const panelMessageSchema = z.discriminatedUnion("type", [
     project_path: z.string().max(1024).nullable(),
     /** Panelda ochiq ish papkasi (job CHECK uni loyiha papkasi bilan solishtiradi). */
     project_root: z.string().max(1024).nullable().optional(),
+    /** ffmpeg/ffprobe ishlaydimi (env_check). */
+    ffmpeg: z.boolean().nullable().optional(),
     busy: z.boolean(),
+  }),
+  z.strictObject({
+    type: z.literal("project.opened"),
+    request_id: idSchema,
+    project: z.strictObject({
+      id: idSchema,
+      name: z.string().min(1).max(200),
+      root_path: z.string().min(1).max(1024),
+    }),
   }),
   z.strictObject({ type: z.literal("pong"), ts: z.number() }),
   z.strictObject({

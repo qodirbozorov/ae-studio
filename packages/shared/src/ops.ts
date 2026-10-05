@@ -30,7 +30,7 @@ export const OP_NAMES = [
 ] as const;
 
 /** Tizim oplari: diagnostika uchun, Spec'dan chiqmaydi. */
-export const SYSTEM_OP_NAMES = ["ping", "undo"] as const;
+export const SYSTEM_OP_NAMES = ["ping", "info", "undo"] as const;
 
 export type OpName = (typeof OP_NAMES)[number];
 
@@ -103,6 +103,8 @@ const propPathSchema = z.union([
 const pingParams = z.strictObject({ echo: z.string().max(200).optional() });
 
 const undoParams = z.strictObject({ op_id: opIdSchema });
+
+const infoParams = z.strictObject({});
 
 const projectOpenOrCreateParams = z.strictObject({ path: relPathSchema });
 
@@ -278,6 +280,7 @@ const renderQueueParams = z.strictObject({
 /** Op nomi → params sxemasi. */
 export const OP_PARAMS_SCHEMAS = {
   ping: pingParams,
+  info: infoParams,
   undo: undoParams,
   "project.open_or_create": projectOpenOrCreateParams,
   "project.save": projectSaveParams,
@@ -318,6 +321,7 @@ export const opEnvelopeSchema = z.discriminatedUnion(
   "op",
   [
     envelope("ping"),
+    envelope("info"),
     envelope("undo"),
     envelope("project.open_or_create"),
     envelope("project.save"),
