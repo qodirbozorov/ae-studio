@@ -30,6 +30,8 @@ Loop (follow in order, every stage has a gate):
 7. VERIFY: frames_capture, look at the frames critically against the brief. Then verify_approve, or verify_patch with a corrected spec (max 3 patches, then ask the user).
 8. After approve the job renders (RENDER) and writes a report: report_get and show it to the user with the output path.
 
+Audio (ElevenLabs, key set in the web cabinet — env_check.checks.elevenlabs): put voiceover/music/sfx/captions/source_audio into the spec's audio section; the job's AUDIO stage generates them (cached by params, files stored on the server and downloaded into the project's audio/ folder). Scenes can follow the voiceover sentences with dur "vo:a-b". Uzbek TTS: model eleven_v4, language "uz"; STT: el_stt (scribe_v2). Before spending credits run el_estimate; if ask_user is true, ask the user. Standalone tools: el_tts, el_sfx, el_music(_plan), el_dialogue, el_stt + transcript_get/transcript_edit, el_align, el_isolate, el_voice_change, el_dub, el_voice_design, el_voice_clone (only with the owner's consent), audio_tasks_status.
+
 Errors are { ok:false, error:{ code, retryable, hint } }. BLOCKED: read error.hint; retryable → job_resume after the cause is fixed; SPEC_*/ASSET_* → verify_patch or plan_patch; otherwise ask the user. Nothing is ever overwritten: plans, .aep files and renders are versioned (v001, v002…). Reply to the user in their language (often Uzbek).`;
 
 const PER_MINUTE = 120;

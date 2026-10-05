@@ -176,7 +176,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P4.10 — TTS-first timing (PREFLIGHT).** Gap chegaralari timestamps'dan olinadi; `dur: "vo:a-b"` soniyaga aylanadi; `duration: "auto"`; musiqa `length: "match_video"`; SFX `at: "s1.end"` langarlari.
 - [x] **P4.11 — Audio oplar.** `captions.build` (so'zlar → matn layerlari; stillar: karaoke_bold, bold_pop, minimal), `audio.duck` (ovoz segmentlari ostida musiqa `amount_db` ga pasayadi), ikkalasi compiler'ga ulanadi.
 - [x] **P4.12 — Panel Audio ekrani.** Generatsiya qilingan fayllar, eshitish, qayta generatsiya.
-- [ ] **P4.13 — MCP promptlar.** `/subtitle-video`, `/dub-video`; `/new-reel` audio bilan yangilanadi.
+- [x] **P4.13 — MCP promptlar.** `/subtitle-video`, `/dub-video`; `/new-reel` audio bilan yangilanadi.
 - [ ] **P4.14 — 🧪 O'zbek tili testi (majburiy, §7.1).** STT namuna matn bilan solishtiriladi. TTS uchun qaysi modellar o'zbekchani qo'llashi rasmiy hujjatdan tekshiriladi (Q7). Brend so'zlar uchun pronunciation dictionary tuziladi. Natijalar `docs/uz-quality.md` ga yoziladi.
 - [ ] **P4.15 — 🧪 Faza 4 gate.**
   - [ ] voiceover + karaoke subtitr + generatsiya qilingan musiqa (ducking bilan) + SFX bilan video (M5)

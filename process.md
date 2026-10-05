@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 4 — ElevenLabs · jarayonda (12/15)
-- **Oxirgi bajarilgan:** P4.12 — panel Audio ekrani (2026-10-05)
-- **Keyingi todo:** P4.13 — MCP promptlar (/subtitle-video, /dub-video, /new-reel)
+- **Faza:** 4 — ElevenLabs · jarayonda (13/15)
+- **Oxirgi bajarilgan:** P4.13 — MCP promptlar (2026-10-05)
+- **Keyingi todo:** P4.14 — o'zbek tili testi
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -1107,3 +1107,16 @@
 
   Panel build ✅.
 - **Keyingi:** P4.13 (MCP promptlar)
+
+### 2026-10-05 · P4.13 — MCP promptlar · ✅
+- **`/new-reel` audio bilan yangilandi:**
+  - voiceover gaplarga bo'linadi, sahnalar `vo:a-b`;
+  - ovoz `el_voices` dan, o'zbekcha uchun `eleven_v4` va `uz`; brend so'zlar `el_pronunciation`;
+  - musiqa `match_video` + `duck_under`; SFX langarlari; subtitr stillari;
+  - plan yozilgach `el_estimate` → `ask_user` bo'lsa ruxsat so'raladi;
+  - ElevenLabs kaliti yo'q bo'lsa audio'siz quriladi va kabinet eslatiladi.
+- **`/subtitle-video`** (video, til, stil): kerak bo'lsa `el_isolate` → `el_stt` → `transcript_get` → `transcript_edit` (o'zbekcha imlo, foydalanuvchi tasdig'i) → spec (`source_audio` + `captions.from = source_audio`) → build → VERIFY → `report_get`.
+- **`/dub-video`** (video, maqsad tili): `el_estimate` (dub, davomiylik bilan) → `el_dub` (`wait_s: 0`, `audio_tasks_status`) → dublyaj fayli asset voiceover sifatida → build.
+- **MCP `instructions`ga audio bo'limi qo'shildi:** spec audio, AUDIO bosqichi, kesh, o'zbekcha model, `el_estimate`, mustaqil toollar, klon faqat rozilik bilan.
+- **Tekshiruv:** `mcp.test.ts` — 3 prompt ro'yxatda; har prompt matni argumentlarni o'z ichiga oladi. Promptlar va `instructions`da tilga olingan har tool (endi `el_*`, `audio_*`, `transcript_*` ham) haqiqatda mavjudligi avtomatik tekshiriladi.
+- **Keyingi:** P4.14 (o'zbek tili testi)
