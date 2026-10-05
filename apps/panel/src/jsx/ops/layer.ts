@@ -10,7 +10,7 @@ import { layerResult, requireAvItem, setLayerTiming, transformProperty } from ".
 import { findLayerInComp, requireComp, requireItem, stampLayer } from "../lib/trace";
 import { hexToRgb, raise } from "../lib/util";
 
-function applyTextStyle(layer: TextLayer, style: TextStyleOp): void {
+export function applyTextStyle(layer: TextLayer, style: TextStyleOp): void {
   const group = layer.property("ADBE Text Properties") as PropertyGroup;
   const prop = group.property("ADBE Text Document") as TextDocumentProperty;
   const doc = prop.value;

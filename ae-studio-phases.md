@@ -172,9 +172,9 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P4.06 — Generatsiya.** `el_dialogue`, `el_sfx`, `el_music`, `el_music_plan` (composition plan, aniq davomiylik, instrumental, bo'limlar).
 - [x] **P4.07 — Tahlil.** `el_stt` (Scribe: so'z timestamp, diarization, audio eventlar), `el_align`, `el_isolate`, `transcript_get` / `transcript_edit`.
 - [x] **P4.08 — Ovozni o'zgartirish.** `el_voice_change`, `el_dub` (yaratish → status poll → natija), `el_voice_design` (+ create), `el_voice_clone` (`consent: true` bo'lmasa rad etiladi).
-- [ ] **P4.09 — AUDIO holati.** Spec `audio` → vazifalar ro'yxati → `el_estimate` gate → bajarish. Har vazifa `done` yoki `skipped(sabab)` bilan tugaydi.
-- [ ] **P4.10 — TTS-first timing (PREFLIGHT).** Gap chegaralari timestamps'dan olinadi; `dur: "vo:a-b"` soniyaga aylanadi; `duration: "auto"`; musiqa `length: "match_video"`; SFX `at: "s1.end"` langarlari.
-- [ ] **P4.11 — Audio oplar.** `captions.build` (so'zlar → matn layerlari; stillar: karaoke_bold, bold_pop, minimal), `audio.duck` (ovoz segmentlari ostida musiqa `amount_db` ga pasayadi), ikkalasi compiler'ga ulanadi.
+- [x] **P4.09 — AUDIO holati.** Spec `audio` → vazifalar ro'yxati → `el_estimate` gate → bajarish. Har vazifa `done` yoki `skipped(sabab)` bilan tugaydi.
+- [x] **P4.10 — TTS-first timing (PREFLIGHT).** Gap chegaralari timestamps'dan olinadi; `dur: "vo:a-b"` soniyaga aylanadi; `duration: "auto"`; musiqa `length: "match_video"`; SFX `at: "s1.end"` langarlari.
+- [x] **P4.11 — Audio oplar.** `captions.build` (so'zlar → matn layerlari; stillar: karaoke_bold, bold_pop, minimal), `audio.duck` (ovoz segmentlari ostida musiqa `amount_db` ga pasayadi), ikkalasi compiler'ga ulanadi.
 - [ ] **P4.12 — Panel Audio ekrani.** Generatsiya qilingan fayllar, eshitish, qayta generatsiya.
 - [ ] **P4.13 — MCP promptlar.** `/subtitle-video`, `/dub-video`; `/new-reel` audio bilan yangilanadi.
 - [ ] **P4.14 — 🧪 O'zbek tili testi (majburiy, §7.1).** STT namuna matn bilan solishtiriladi. TTS uchun qaysi modellar o'zbekchani qo'llashi rasmiy hujjatdan tekshiriladi (Q7). Brend so'zlar uchun pronunciation dictionary tuziladi. Natijalar `docs/uz-quality.md` ga yoziladi.

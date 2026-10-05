@@ -12,7 +12,6 @@ import type {
   OpEnvelope,
   OpParamsMap,
   Result,
-  Scene,
   TextStyle,
   TextStyleOp,
   VideoSpec,
@@ -21,6 +20,8 @@ import { fitScale, round, toPixels } from "./layout";
 import type { Frame } from "./layout";
 import { animOps, transitionOps } from "./motion";
 import type { MotionOp } from "./motion";
+import { planTiming, resolveAt, shiftWords, voiceSegments } from "./timing";
+import type { CaptionWord } from "@aes/shared";
 
 export interface CompileAsset {
   key: string;
@@ -40,8 +41,19 @@ export interface CompileContext {
    */
   projectPath: string;
   version: number;
-  /** TTS-first timing natijasi (Faza 4): sahna id → soniya. Berilsa `dur` o'rniga ishlatiladi. */
+  /** Sahna id → soniya (qo'lda override). Berilsa `dur` o'rniga ishlatiladi. */
   sceneDurations?: Record<string, number>;
+  /** AUDIO holati natijasi (Faza 4): ish papkasidagi fayllar va so'z vaqtlari. */
+  audio?: CompileAudio;
+}
+
+/** AUDIO natijalari (fayllar ish papkasiga nisbiy; so'z vaqtlari audio boshiga nisbatan). */
+export interface CompileAudio {
+  voiceover?: { file: string; words: CaptionWord[]; duration: number | null };
+  music?: { file: string };
+  /** SFX id → generatsiya qilingan fayl (asset SFX lar `assets` dan). */
+  sfx?: Record<string, { file: string }>;
+  source?: { isolatedFile?: string; words?: CaptionWord[] };
 }
 
 export interface CompiledScene {
@@ -76,16 +88,6 @@ class OpList {
   motion(ops: MotionOp[], prefix: string, sceneId?: string): void {
     for (const m of ops) this.add(m.op, `${prefix}.${m.suffix}`, m.params as never, sceneId);
   }
-}
-
-function sceneDuration(scene: Scene, index: number, ctx: CompileContext): Result<number> {
-  const override = ctx.sceneDurations?.[scene.id];
-  if (override !== undefined) return ok(override);
-  if (typeof scene.dur === "number") return ok(scene.dur);
-  return fail(
-    "SPEC_INVALID",
-    `/scenes/${index}/dur: '${scene.dur}' voiceover vaqtlari hisoblangandan keyin aniqlanadi (TTS-first timing)`,
-  );
 }
 
 function textStyle(style: TextStyle, frame: Frame): TextStyleOp {
@@ -152,21 +154,19 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
     }
   }
 
-  // Sahna vaqtlari
-  const timing: CompiledScene[] = [];
-  let cursor = 0;
-  for (const [i, scene] of spec.scenes.entries()) {
-    const dur = sceneDuration(scene, i, ctx);
-    if (!dur.ok) return dur;
-    timing.push({
-      id: scene.id,
-      start: round(cursor),
-      duration: round(dur.data),
-      comp: `${scene.id}.comp`,
-    });
-    cursor += dur.data;
-  }
-  const scenesTotal = round(cursor);
+  // Sahna vaqtlari (TTS-first: `vo:a-b` voiceover gaplaridan)
+  const vo = ctx.audio?.voiceover;
+  const planned = planTiming(
+    spec,
+    vo === undefined ? null : { words: vo.words, duration: vo.duration },
+    ctx.sceneDurations ?? {},
+  );
+  if (!planned.ok) return planned;
+  const timing: CompiledScene[] = planned.data.scenes.map((scene) => ({
+    ...scene,
+    comp: `${scene.id}.comp`,
+  }));
+  const scenesTotal = planned.data.total;
   let duration = scenesTotal;
   if (spec.format.duration !== "auto") {
     duration = spec.format.duration;
@@ -179,6 +179,21 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
 
   const assets = checkAssets(spec, ctx);
   if (!assets.ok) return assets;
+  const audioSpec = spec.audio;
+  // Spec audio'dagi asset havolalari (musiqa, SFX, manba, tayyor voiceover) ham import qilinadi.
+  const audioRefs: string[] = [];
+  if (audioSpec?.voiceover?.kind === "asset") audioRefs.push(audioSpec.voiceover.asset);
+  if (audioSpec?.music?.kind === "asset") audioRefs.push(audioSpec.music.asset);
+  for (const sfx of audioSpec?.sfx ?? []) if (sfx.asset !== undefined) audioRefs.push(sfx.asset);
+  for (const ref of audioRefs) {
+    const key = refKey(ref);
+    const asset = ctx.assets[key];
+    if (asset === undefined) return fail("SPEC_UNKNOWN_ASSET", `/audio: asset:${key} topilmadi`);
+    if (asset.status !== undefined && asset.status !== "ok") {
+      return fail("ASSET_MISSING", `/audio: asset:${key} holati ${asset.status}`);
+    }
+    if (!assets.data.includes(key)) assets.data.push(key);
+  }
 
   const list = new OpList();
   const save = { version: ctx.version, path: ctx.projectPath };
@@ -197,6 +212,13 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
     dur: duration,
     bg: "#000000",
   });
+
+  // Manba audio (intervyu va h.k.) videoda qoladi: tozalanmagan bo'lsa media layer ovozi yoqiladi.
+  const source = audioSpec?.source_audio;
+  const keepSourceAudio =
+    source !== undefined && source.use_in_video && ctx.audio?.source?.isolatedFile === undefined
+      ? refKey(source.asset)
+      : null;
 
   for (const [i, scene] of spec.scenes.entries()) {
     const time = timing[i]!;
@@ -217,7 +239,9 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
     for (const [j, layer] of (scene.layers ?? []).entries()) {
       compileLayer(
         list,
-        layer,
+        layer.type === "media" && keepSourceAudio !== null && refKey(layer.src) === keepSourceAudio
+          ? { ...layer, keep_audio: true }
+          : layer,
         `${scene.id}.${layer.id ?? `l${j}`}`,
         comp,
         time,
@@ -241,6 +265,17 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
     // Oraliq saqlash: resume'da bajarilgan sahnalar diskda bo'ladi.
     list.add("project.save", `${scene.id}.save`, save, scene.id);
   }
+
+  const audioWarnings = compileAudio(
+    list,
+    spec,
+    ctx,
+    timing,
+    planned.data.voOffset,
+    frame,
+    duration,
+  );
+  warnings.push(...audioWarnings);
 
   list.add("project.save", "aes.save", save);
 
@@ -348,6 +383,159 @@ function compileLayer(
       return;
     }
   }
+}
+
+/** Manba asset'ining asosiy timeline'dagi boshlanishi (u qo'yilgan birinchi sahna layer'i). */
+function sourceOffset(spec: VideoSpec, assetRef: string, timing: CompiledScene[]): number {
+  for (const [i, scene] of spec.scenes.entries()) {
+    const layer = (scene.layers ?? []).find(
+      (l) => (l.type === "media" || l.type === "audio") && l.src === assetRef,
+    );
+    if (layer !== undefined) return round(timing[i]!.start + (layer.start ?? 0));
+  }
+  return 0;
+}
+
+/**
+ * Asosiy comp'dagi audio (P4.11): voiceover, tozalangan manba ovoz, musiqa (+ ducking), SFX (langarlar bilan),
+ * subtitrlar (`captions.build`). Hammasi barqaror op_id'lar bilan: `aes.vo`, `aes.music`, `aes.sfx.<id>` …
+ */
+function compileAudio(
+  list: OpList,
+  spec: VideoSpec,
+  ctx: CompileContext,
+  timing: CompiledScene[],
+  voOffset: number,
+  frame: Frame,
+  duration: number,
+): string[] {
+  const warnings: string[] = [];
+  const audio = spec.audio;
+  if (audio === undefined) return warnings;
+  const files = ctx.audio ?? {};
+  const AUDIO_FOLDER = "Audio";
+  const importFile = (opId: string, file: string) =>
+    list.add("item.import", opId, { file, folder: AUDIO_FOLDER });
+
+  let voiceLayer: string | null = null;
+  let voiceWords: CaptionWord[] = [];
+  // Voiceover: TTS/dialog fayli yoki tayyor asset.
+  const voSpec = audio.voiceover;
+  if (voSpec !== undefined) {
+    const item =
+      voSpec.kind === "asset"
+        ? `asset.${refKey(voSpec.asset)}`
+        : files.voiceover !== undefined
+          ? importFile("audio.vo", files.voiceover.file)
+          : null;
+    if (item === null) {
+      warnings.push("Voiceover fayli yo'q (AUDIO bajarilmagan) — ovozsiz quriladi");
+    } else {
+      voiceLayer = list.add("layer.add_audio", "aes.vo", {
+        comp: MAIN_COMP,
+        item,
+        start: voOffset,
+        volume: 0,
+        name: "VOICEOVER",
+      });
+      voiceWords = shiftWords(files.voiceover?.words ?? [], voOffset);
+    }
+  }
+
+  // Manba audio: tozalangan versiya asosiy comp'ga.
+  const source = audio.source_audio;
+  let sourceWords: CaptionWord[] = [];
+  if (source !== undefined) {
+    const offset = sourceOffset(spec, source.asset, timing);
+    sourceWords = shiftWords(files.source?.words ?? [], offset);
+    if (files.source?.isolatedFile !== undefined && source.use_in_video) {
+      const item = importFile("audio.source", files.source.isolatedFile);
+      const layer = list.add("layer.add_audio", "aes.source", {
+        comp: MAIN_COMP,
+        item,
+        start: offset,
+        volume: 0,
+        name: "SOURCE (clean)",
+      });
+      if (voiceLayer === null) voiceLayer = layer;
+    }
+    if (voiceWords.length === 0) voiceWords = sourceWords;
+  }
+
+  // Musiqa (+ ducking).
+  const music = audio.music;
+  if (music !== undefined) {
+    const item =
+      music.kind === "asset"
+        ? `asset.${refKey(music.asset)}`
+        : files.music !== undefined
+          ? importFile("audio.music", files.music.file)
+          : null;
+    if (item === null) warnings.push("Musiqa fayli yo'q (AUDIO bajarilmagan)");
+    else {
+      const layer = list.add("layer.add_audio", "aes.music", {
+        comp: MAIN_COMP,
+        item,
+        start: 0,
+        dur: duration,
+        volume: music.volume_db,
+        name: "MUSIC",
+      });
+      if (music.duck_under === "voiceover" && voiceLayer !== null && voiceWords.length > 0) {
+        list.add("audio.duck", "aes.duck", {
+          music_layer: layer,
+          voice_layer: voiceLayer,
+          amount_db: music.duck_db,
+          segments: voiceSegments(voiceWords),
+          fade: 0.25,
+        });
+      }
+    }
+  }
+
+  // SFX: langar (`s1.end`) yoki soniya.
+  for (const sfx of audio.sfx) {
+    const at = resolveAt(sfx.at, timing);
+    if (at === null) {
+      warnings.push(`SFX ${sfx.id}: langar topilmadi (${String(sfx.at)})`);
+      continue;
+    }
+    const item =
+      sfx.asset !== undefined
+        ? `asset.${refKey(sfx.asset)}`
+        : files.sfx?.[sfx.id] !== undefined
+          ? importFile(`audio.sfx.${sfx.id}`, files.sfx[sfx.id]!.file)
+          : null;
+    if (item === null) {
+      warnings.push(`SFX ${sfx.id} fayli yo'q`);
+      continue;
+    }
+    list.add("layer.add_audio", `aes.sfx.${sfx.id}`, {
+      comp: MAIN_COMP,
+      item,
+      start: Math.min(at, Math.max(0, duration - 0.05)),
+      volume: sfx.volume_db,
+      name: `SFX ${sfx.id}`,
+    });
+  }
+
+  // Subtitrlar.
+  const captions = audio.captions;
+  if (captions !== undefined) {
+    const words = captions.from === "voiceover" ? voiceWords : sourceWords;
+    if (words.length === 0) warnings.push("Subtitr uchun so'z vaqtlari yo'q");
+    else {
+      list.add("captions.build", "aes.captions", {
+        comp: MAIN_COMP,
+        words: words.filter((w) => w.start < duration),
+        style: captions.style,
+        pos: toPixels(captions.pos, frame),
+        max_words: captions.max_words,
+        box_w: Math.round(frame.w * 0.86),
+      });
+    }
+  }
+  return warnings;
 }
 
 /** VERIFY kadrlari: har sahnada animatsiyadan keyin, o'rtasi va oxiri (o'tishdan oldin). */

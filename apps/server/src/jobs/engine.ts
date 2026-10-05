@@ -7,8 +7,8 @@
  * - Vaqtincha: AUDIO → skipped (Faza 4), VERIFY → qo'lda approve (Faza 3), RENDER → skipped (Faza 3).
  */
 import { createHash, randomUUID } from "node:crypto";
-import { MAIN_COMP, compile } from "@aes/compiler";
-import type { CompileAsset } from "@aes/compiler";
+import { MAIN_COMP, compile, planTiming } from "@aes/compiler";
+import type { CompileAsset, CompileAudio } from "@aes/compiler";
 import {
   MAX_PATCHES,
   audioUsesEleven,
@@ -36,7 +36,23 @@ import { and, asc, desc, eq, inArray, max, ne, notInArray } from "drizzle-orm";
 import type { FastifyBaseLogger } from "fastify";
 import { applyScan } from "../assets/routes";
 import type { AppContext } from "../context";
-import { assets, jobEvents, jobs, ops, plans, projects, renders, reports } from "../db/schema";
+import {
+  assets,
+  jobEvents,
+  jobs,
+  ops,
+  plans,
+  projects,
+  pronunciationDicts,
+  renders,
+  reports,
+} from "../db/schema";
+import { estimateCredits } from "../audio/estimate";
+import { extractInput } from "../audio/inputs";
+import { planAudioTasks } from "../audio/plan";
+import type { AudioPlanItem, PronunciationLocator } from "../audio/plan";
+import type { AudioTaskRow, InputRef } from "../audio/service";
+import { wordsOfTask } from "../audio/words";
 import { normalizeRootPath } from "../projects/routes";
 import { storageKey } from "../storage";
 import { buildReport, pad3 } from "./report";
@@ -82,7 +98,7 @@ const CHECK_PING_TIMEOUT_MS = 15_000;
 /** Bitta drive siklidagi holatlar soni chegarasi (cheksiz aylanishdan himoya). */
 const MAX_STEPS = 64;
 
-export type EngineContext = Pick<AppContext, "db" | "hub" | "now" | "storage" | "eleven">;
+export type EngineContext = Pick<AppContext, "db" | "hub" | "now" | "storage" | "eleven" | "audio">;
 
 /** Ish papkasidagi lokal nusxalar (§2.10): versiyali, hech biri ustiga yozilmaydi. */
 export function planCopyPath(version: number): string {
@@ -369,7 +385,8 @@ export class JobEngine {
       .where(and(eq(ops.jobId, job.id), eq(ops.status, "done")))
       .limit(1);
     const updated = await this.transition(job, {
-      state: "PREFLIGHT",
+      // Audio ham yangi plan bo'yicha (kesh: o'zgarmagan qismlar qayta generatsiya qilinmaydi).
+      state: "AUDIO",
       prevState: null,
       planVersion: plan.data.version,
       patchCount: job.patchCount + 1,
@@ -495,8 +512,7 @@ export class JobEngine {
         case "INGEST":
           return await this.ingest(job);
         case "AUDIO":
-          await this.event(job, "info", "audio.skipped", "AUDIO: Faza 4 gacha o'tkazib yuboriladi");
-          return { kind: "next" };
+          return await this.audioStep(job);
         case "PREFLIGHT":
           return await this.preflight(job);
         case "BUILD":
@@ -765,9 +781,15 @@ export class JobEngine {
     if (!spec.ok) return { kind: "block", error: spec.error };
 
     const assetMap = await compileAssets(this.ctx.db, project.id);
+    const audioReady = await this.audioReady(job);
     const version = job.aepVersion ?? (await this.nextAepVersion(project.id));
     const projectPath = aepPath(project, version);
-    const compiled = compile(spec.data, { assets: assetMap, projectPath, version });
+    const compiled = compile(spec.data, {
+      assets: assetMap,
+      projectPath,
+      version,
+      ...(audioReady === null ? {} : { audio: audioReady }),
+    });
     if (!compiled.ok) return { kind: "block", error: compiled.error };
 
     const hash = createHash("sha256").update(JSON.stringify(compiled.data.ops)).digest("hex");
@@ -974,6 +996,261 @@ export class JobEngine {
       data: { outcome, local_path: copied.ok ? copy : null },
     });
     return { kind: "next", set: { outcome, paused: false } };
+  }
+
+  // ------------------------------------------------------------------ AUDIO (P4.09)
+
+  /** Oxirgi `audio.ready` natijasi (PREFLIGHT compile kontekstiga). */
+  private async audioReady(job: JobRow): Promise<CompileAudio | null> {
+    const [row] = await this.ctx.db
+      .select({ data: jobEvents.data })
+      .from(jobEvents)
+      .where(and(eq(jobEvents.jobId, job.id), eq(jobEvents.type, "audio.ready")))
+      .orderBy(desc(jobEvents.id))
+      .limit(1);
+    const data = row?.data as { compile?: CompileAudio; plan_version?: number } | undefined;
+    return data?.compile !== undefined && data.plan_version === job.planVersion
+      ? data.compile
+      : null;
+  }
+
+  /**
+   * AUDIO (§3, §7.1): spec `audio` → vazifalar → kvota gate → bajarish (kesh) → panelga yetkazish.
+   * Tartib: voiceover va boshqalar → TTS-first timing → musiqa (`match_video`). Har vazifa done yoki skipped(sabab).
+   */
+  private async audioStep(job: JobRow): Promise<Step> {
+    const project = await this.project(job.projectId);
+    const plan = await this.plan(job.projectId, job.planVersion);
+    if (project === null || plan === null) {
+      return { kind: "block", error: makeError("SPEC_INVALID", "Loyiha yoki plan yo'q") };
+    }
+    const spec = parseSpec(plan.spec);
+    if (!spec.ok) return { kind: "block", error: spec.error };
+    const dictionaries = await this.dictionaries(project.userId);
+    const items = planAudioTasks(spec.data, { videoDuration: null, dictionaries });
+    if (items.length === 0) {
+      await this.event(job, "info", "audio.skipped", "AUDIO: spec'da ElevenLabs vazifasi yo'q");
+      if (spec.data.audio !== undefined) {
+        await this.event(job, "info", "audio.ready", "AUDIO: tayyor fayllar ishlatiladi", {
+          data: { plan_version: job.planVersion, compile: {} },
+        });
+      }
+      return { kind: "next" };
+    }
+    if (job.deviceId === null) {
+      return { kind: "block", error: makeError("AUTH_DEVICE_REVOKED", "Qurilma bekor qilingan") };
+    }
+    if (!this.ctx.hub.isOnline(job.deviceId)) {
+      return { kind: "wait_agent", reason: "AUDIO: panel ulanmagan" };
+    }
+
+    // Kvota gate (§7.1): taxminiy narx qolgan kvotadan oshsa — ask_user.
+    const assetRows = await this.ctx.db
+      .select()
+      .from(assets)
+      .where(eq(assets.projectId, project.id));
+    const inputSeconds = (key?: string) => {
+      const meta = assetRows.find((row) => row.key === key)?.meta as
+        { duration?: number } | undefined;
+      return typeof meta?.duration === "number" ? meta.duration : null;
+    };
+    const estimate = items.reduce(
+      (sum, item) =>
+        sum +
+        estimateCredits({
+          kind: item.kind,
+          params: item.params,
+          inputSeconds: inputSeconds(item.inputAsset),
+        }),
+      0,
+    );
+    const account = await this.ctx.eleven.account(project.userId);
+    if (account.remaining !== null && estimate > account.remaining) {
+      return {
+        kind: "block",
+        error: makeError(
+          "EL_QUOTA",
+          `Taxminiy ${estimate} kredit, qolgan ${account.remaining}: foydalanuvchidan so'rang (ask_user)`,
+          { estimate, remaining: account.remaining, ask_user: true },
+        ),
+      };
+    }
+    await this.event(
+      job,
+      "info",
+      "audio.started",
+      `AUDIO: ${items.length} vazifa (~${estimate} kredit)`,
+      {
+        data: { items: items.map((item) => ({ role: item.role, kind: item.kind })), estimate },
+      },
+    );
+
+    const runItems = async (list: AudioPlanItem[]): Promise<Map<string, AudioTaskRow> | Step> => {
+      const submitted: { item: AudioPlanItem; id: string }[] = [];
+      for (const item of list) {
+        let inputs: InputRef[] = [];
+        if (item.inputAsset !== undefined) {
+          const asset = assetRows.find((row) => row.key === item.inputAsset);
+          if (asset === undefined || asset.status !== "ok") {
+            return {
+              kind: "block",
+              error: makeError(
+                "SPEC_UNKNOWN_ASSET",
+                `/audio: asset:${item.inputAsset} yo'q yoki yaroqsiz`,
+              ),
+            };
+          }
+          const input = await extractInput(this.ctx, project, asset.localPath);
+          if (!input.ok) {
+            if (input.error.code === "ENV_AGENT_OFFLINE") {
+              return { kind: "wait_agent", reason: "AUDIO: panel uzildi (ovoz ajratish)" };
+            }
+            return { kind: "block", error: input.error };
+          }
+          inputs = [input.data];
+        }
+        const task = await this.ctx.audio.submit({
+          userId: project.userId,
+          projectId: project.id,
+          jobId: job.id,
+          kind: item.kind,
+          label: item.label,
+          params: item.params,
+          inputs,
+        });
+        if (!task.ok) return { kind: "block", error: task.error };
+        submitted.push({ item, id: task.data.id });
+      }
+      const results = new Map<string, AudioTaskRow>();
+      for (const { item, id } of submitted) {
+        const task = await this.ctx.audio.wait(id, 30 * 60_000);
+        if (task === null || task.status !== "done") {
+          const error =
+            (task?.error as AesError | null) ?? makeError("EL_TIMEOUT", `${item.label} tugamadi`);
+          if (item.role.startsWith("sfx:")) {
+            if (task !== null) await this.ctx.audio.skip(task.id, `${item.label}: ${error.code}`);
+            await this.event(
+              job,
+              "warn",
+              "audio.skipped_item",
+              `${item.label} o'tkazib yuborildi: ${error.code}`,
+              {
+                data: error,
+              },
+            );
+            continue;
+          }
+          return {
+            kind: "block",
+            error: { ...error, details: { task_id: id, role: item.role, cause: error.details } },
+          };
+        }
+        results.set(item.role, task);
+      }
+      return results;
+    };
+
+    const first = await runItems(items.filter((item) => item.afterTiming !== true));
+    if (!(first instanceof Map)) return first;
+
+    // TTS-first timing: voiceover so'zlari → video uzunligi (musiqa uchun).
+    const vo = first.get("voiceover") ?? first.get("vo_align");
+    const voWords = vo === undefined ? null : wordsOfTask(vo);
+    const timing = planTiming(
+      spec.data,
+      vo === undefined
+        ? null
+        : { words: voWords ?? [], duration: vo.durationMs === null ? null : vo.durationMs / 1000 },
+    );
+    if (!timing.ok) return { kind: "block", error: timing.error };
+    const later = planAudioTasks(spec.data, {
+      videoDuration: timing.data.total,
+      dictionaries,
+    }).filter((item) => item.afterTiming === true);
+    const second = await runItems(later);
+    if (!(second instanceof Map)) return second;
+    const all = new Map([...first, ...second]);
+
+    // Panelga yetkazish (fayllar ish papkasida bo'lishi shart).
+    for (const task of all.values()) {
+      if (task.storageKey === null) continue;
+      await this.ctx.audio.deliver(task);
+      const fresh = await this.ctx.audio.get(task.id);
+      if (fresh?.localPath == null) {
+        if (!this.ctx.hub.isOnline(job.deviceId)) {
+          return { kind: "wait_agent", reason: "AUDIO: panel uzildi (fayl yetkazish)" };
+        }
+        return {
+          kind: "block",
+          error: makeError("SYS_INTERNAL", `${task.label ?? task.kind}: panelga yetkazilmadi`),
+        };
+      }
+      all.set([...all.entries()].find(([, t]) => t.id === task.id)![0], fresh);
+    }
+
+    const compileAudio: CompileAudio = {};
+    if (vo !== undefined) {
+      const voTask = all.get(vo.kind === "align" ? "vo_align" : "voiceover")!;
+      if (voTask.kind === "align") {
+        // Tayyor asset ovoz: so'zlar alignment'dan, fayl — asset'ning o'zi (compiler asset sifatida qo'yadi).
+        compileAudio.voiceover = { file: "", words: voWords ?? [], duration: null };
+      } else {
+        compileAudio.voiceover = {
+          file: voTask.localPath!,
+          words: voWords ?? [],
+          duration: voTask.durationMs === null ? null : voTask.durationMs / 1000,
+        };
+      }
+    }
+    const musicTask = all.get("music");
+    if (musicTask?.localPath != null) compileAudio.music = { file: musicTask.localPath };
+    const sfx: Record<string, { file: string }> = {};
+    for (const [role, task] of all) {
+      if (role.startsWith("sfx:") && task.localPath !== null)
+        sfx[role.slice(4)] = { file: task.localPath };
+    }
+    if (Object.keys(sfx).length > 0) compileAudio.sfx = sfx;
+    const isolated = all.get("source_isolate");
+    const stt = all.get("source_stt");
+    if (isolated !== undefined || stt !== undefined) {
+      compileAudio.source = {
+        ...(isolated?.localPath != null ? { isolatedFile: isolated.localPath } : {}),
+        ...(stt !== undefined ? { words: wordsOfTask(stt) } : {}),
+      };
+    }
+    const cached = [...all.values()].filter((task) => task.cached).length;
+    await this.event(
+      job,
+      "info",
+      "audio.ready",
+      `AUDIO tayyor: ${all.size} fayl${cached > 0 ? ` (${cached} tasi keshdan)` : ""}, video ${timing.data.total} s`,
+      {
+        data: {
+          plan_version: job.planVersion,
+          compile: compileAudio,
+          tasks: [...all.entries()].map(([role, task]) => ({
+            role,
+            id: task.id,
+            cached: task.cached,
+          })),
+          duration: timing.data.total,
+        },
+      },
+    );
+    return { kind: "next" };
+  }
+
+  private async dictionaries(userId: string): Promise<Record<string, PronunciationLocator>> {
+    const rows = await this.ctx.db
+      .select()
+      .from(pronunciationDicts)
+      .where(eq(pronunciationDicts.userId, userId));
+    return Object.fromEntries(
+      rows.map((row) => [
+        row.slug,
+        { pronunciation_dictionary_id: row.elId, version_id: row.versionId },
+      ]),
+    );
   }
 
   // ------------------------------------------------------------------ RENDER (P3.07)

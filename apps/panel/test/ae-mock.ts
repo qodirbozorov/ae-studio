@@ -41,8 +41,21 @@ export interface MockKey {
 
 type Factory = () => MockProperty;
 
+/** AE'da TextDocument qiymat sifatida ishlaydi: o'qish va yozishda nusxa olinadi. */
+function copyValue(value: unknown): unknown {
+  return value instanceof TextDocument
+    ? Object.assign(Object.create(Object.getPrototypeOf(value) as object) as object, value)
+    : value;
+}
+
 export class MockProperty {
-  value: unknown;
+  private stored: unknown;
+  get value(): unknown {
+    return copyValue(this.stored);
+  }
+  set value(next: unknown) {
+    this.stored = copyValue(next);
+  }
   expression = "";
   readonly keys: MockKey[] = [];
   readonly children: MockProperty[];
@@ -71,7 +84,7 @@ export class MockProperty {
     const existing = this.keys.findIndex((k) => Math.abs(k.time - time) < 1e-6);
     const key: MockKey = {
       time,
-      value,
+      value: copyValue(value),
       inInterp: KeyframeInterpolationType.LINEAR,
       outInterp: KeyframeInterpolationType.LINEAR,
       inEase: null,
@@ -289,9 +302,19 @@ export class FootageItem extends AVItem {
 export class Layer {
   comment = "";
   name: string;
-  startTime = 0;
+  private start = 0;
   inPoint = 0;
   outPoint: number;
+  /** AE kabi: startTime o'zgarsa layer butunlay siljiydi (in/out ham). */
+  get startTime(): number {
+    return this.start;
+  }
+  set startTime(value: number) {
+    const delta = value - this.start;
+    this.start = value;
+    this.inPoint += delta;
+    this.outPoint += delta;
+  }
   enabled = true;
   audioEnabled = true;
   readonly presets: string[] = [];

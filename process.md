@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 4 — ElevenLabs · jarayonda (8/15)
-- **Oxirgi bajarilgan:** P4.08 — ovozni o'zgartirish toollari (2026-10-05)
-- **Keyingi todo:** P4.09 — AUDIO holati
+- **Faza:** 4 — ElevenLabs · jarayonda (11/15)
+- **Oxirgi bajarilgan:** P4.11 — audio oplar (2026-10-05)
+- **Keyingi todo:** P4.12 — panel Audio ekrani
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -91,6 +91,9 @@
 | 2026-10-05 | P4.04 | audio-in yuklash: resumable multipart o'rniga bitta pre-signed PUT + 3 urinish (oldin mono Opus 32k ga siqiladi) | ~15 MB/soat; S3 bitta PUT 5 GB gacha; soddaroq va lokal storage bilan ham ishlaydi |
 | 2026-10-05 | P4.05 | Default TTS modeli eleven_v4; talaffuz lug'atlari pronunciation_dicts jadvalida (slug) | O'zbekcha faqat v4 da; spec slug bilan murojaat qiladi |
 | 2026-10-05 | P4.08 | el_voice_clone: consent literal true (zod) + audit | §7.1: faqat egasining roziligi bilan |
+| 2026-10-05 | P4.09 | AUDIO: SFX xatosi skipped (job davom etadi), voiceover/musiqa/manba xatosi BLOCKED; patch AUDIO'dan qayta boshlanadi | §7.1 'done yoki skipped(sabab)'; asosiy ovozsiz video ma'nosiz |
+| 2026-10-05 | P4.10 | vo:a-b = B[b]-B[a], B[k] = k-gap boshlanishi (pauza oldingi sahnaga), oxiriga 0.3 s | Sahna almashuvi gap boshlanishiga to'g'ri keladi, oxirgi so'z kesilmaydi |
+| 2026-10-05 | P4.11 | karaoke = so'zlar navbat bilan paydo bo'ladi (Source Text hold keyframe'lari), rangli so'z ajratish emas | ES3/AE 22 da belgi diapazoni uslublari yo'q; ishonchli va AE versiyalarida bir xil |
 
 ---
 
@@ -1025,3 +1028,62 @@
 
   `eleven-tools.test.ts` 8/8, repo 378 ✅.
 - **Keyingi:** P4.09 (AUDIO holati)
+
+### 2026-10-05 · P4.09 — AUDIO holati · ✅
+- **Engine `audioStep`:**
+  1. Spec `audio` → `planAudioTasks`. Vazifa bo'lmasa `audio.skipped` (asset audio bo'lsa ham `audio.ready` yoziladi).
+  2. **Kvota gate:** taxminiy kredit (asset davomiyliklari bilan) qolgan kvotadan oshsa → BLOCKED `EL_QUOTA`, `details.ask_user: true`, generatsiya boshlanmaydi.
+  3. **Birinchi bosqich:** voiceover (tts / dialogue / asset+align), SFX, manba audio (isolate, STT). Kirish fayllarini panel ajratadi (`extractInput`). Vazifalar job'ga bog'langan (`job_id`).
+  4. **Natija:** SFX xatosi → `skipped(sabab)` va ogohlantirish; voiceover/musiqa/manba xatosi → BLOCKED (`task_id` va `role` bilan).
+  5. **TTS-first timing** (`planTiming`) → video uzunligi → ikkinchi bosqich: musiqa `match_video` aniq shu uzunlikda.
+  6. Hamma fayllar panelga yetkazilishi shart (panel uzilsa → WAITING_AGENT).
+  7. **`audio.ready` hodisasi** (plan versiyasi bilan): compile uchun fayllar va so'z vaqtlari, vazifalar, kesh soni, davomiylik.
+- **Patch** endi AUDIO'dan qayta boshlanadi (yangi matn → yangi ovoz; o'zgarmagan qismlar keshdan).
+- **Resume:** qayta bajarishda hamma narsa keshdan keladi, kredit sarflanmaydi.
+
+### 2026-10-05 · P4.10 — TTS-first timing (PREFLIGHT) · ✅
+- **Compiler (`timing.ts`):**
+  - **`wordsFromAlignment`:** TTS belgi vaqtlari → so'zlar.
+  - **`sentenceBoundaries`:** gap chegaralari `B[0] = 0`, `B[k]` = k-gap boshlanishi (pauza oldingi sahnaga qo'shiladi), `B[n]` = audio oxiri + 0.3 s.
+  - **`planTiming`:** `vo:a-b` = `B[b] − B[a]`.
+    - Gaplar soni yetmasa `SPEC_INVALID` (`details.sentences` bilan).
+    - Voiceover'dan oldin oddiy sahnalar bo'lsa, voiceover shuncha siljiydi (`voOffset`).
+    - `duration: "auto"` = sahnalar yig'indisi.
+  - **`resolveAt`:** `s1.end`, `s2.start+0.5` langarlari. **`voiceSegments`:** ducking uchun so'zlar oraliqlari birlashtiriladi.
+- **PREFLIGHT:** oxirgi `audio.ready` (shu plan versiyasiga tegishli) → `compile(ctx.audio)` → sahna davomiyliklari voiceover'dan.
+- Musiqa `length: "match_video"` AUDIO'da timing'dan keyin aniq uzunlikda generatsiya qilinadi.
+- SFX `at` langarlari compile'da hal qilinadi.
+
+### 2026-10-05 · P4.11 — Audio oplar · ✅ (AE'da ko'rish 👤)
+- **jsx (`ops/audio.ts`):**
+  - **`captions.build`:**
+    - so'zlar qatorlarga bo'linadi (`max_words`, gap oxiri `.!?`, >0.6 s pauza; qisqa bo'shliqlarda qator keyingisigacha turadi);
+    - har qator — box text layer, in/out so'zlar bo'yicha;
+    - stillar: `karaoke_bold` (katta harf, stroke, so'zlar Source Text keyframe'lari bilan navbatma-navbat), `bold_pop` (sariq, masshtab pop), `minimal` (fade);
+    - idempotent (`<op_id>.<i>` izlari).
+  - **`audio.duck`:** musiqa Audio Levels'iga ovoz oraliqlarida `amount_db` pasayish (fade bilan). Yaqin oraliqlar birlashtiriladi; idempotent.
+  - `applyTextStyle` endi eksport qilinadi.
+- **Compiler (`compileAudio`)** — asosiy comp'da:
+  - `audio.vo` import va `aes.vo` (voOffset'da);
+  - tozalangan manba `aes.source`;
+  - `aes.music` (butun video, `volume_db`) va `duck_under` bo'lsa `aes.duck`;
+  - `aes.sfx.<id>` (langar vaqtida);
+  - `aes.captions` (voiceover yoki manba so'zlari, pozitsiya presetdan, quti eni kadrning 86%).
+  - Spec audio'dagi asset'lar (musiqa, SFX, tayyor voiceover) import qilinadi.
+  - Manba video ovozi: tozalanmagan va `use_in_video` bo'lsa media layer'da `keep_audio`.
+  - Fayl yo'q bo'lsa ogohlantirish beriladi.
+- **Mock AE aniqlashtirildi:**
+  - `startTime` layer'ni siljitadi (in/out);
+  - TextDocument qiymat sifatida ishlaydi (o'qish va yozishda nusxa).
+- **Tekshiruv:**
+  - **Compiler** `audio.test.ts` 5 ta: so'zlar va gaplar; `planTiming` (xato, `voOffset`); langarlar va oraliqlar; to'liq audio oplar; fayl yo'q / manba audio.
+  - **jsx:** subtitr qatorlari va karaoke keyframe'lari, ducking keyframe'lari, reused.
+  - **Server** `audio-job.test.ts` 5 ta:
+    - to'liq AUDIO → VERIFY: 3 vazifa, fayllar panelda (sha256); sahnalar gaplardan; musiqa = video uzunligi; duck, SFX `hook.end` da, subtitr matni = voiceover;
+    - qayta job → hammasi keshdan, generatsiya so'rovi 0;
+    - kvota → `EL_QUOTA` + `ask_user`, generatsiya 0;
+    - SFX xatosi → skipped va davom; voiceover xatosi → BLOCKED;
+    - audio'siz spec o'zgarmagan.
+
+  Repo 390 ✅, panel build ✅.
+- **Keyingi:** P4.12 (panel Audio ekrani)

@@ -102,6 +102,8 @@ export class FakeEleven {
   dubbingPolls = 1;
   /** Navbatdagi javoblar uchun majburiy xato (status). */
   failNext: { status: number; times: number } | null = null;
+  /** Shu yo'llarga doim 422 (imkoniyat xatosini sinash uchun). */
+  readonly failPaths = new Set<string>();
   private dubStatus = new Map<string, number>();
 
   readonly fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
@@ -129,6 +131,12 @@ export class FakeEleven {
       return Response.json(
         { detail: { status: "invalid_api_key", message: "Invalid API key" } },
         { status: 401 },
+      );
+    }
+    if (this.failPaths.has(url.pathname)) {
+      return Response.json(
+        { detail: { status: "invalid", message: "bad prompt" } },
+        { status: 422 },
       );
     }
     if (this.failNext !== null && this.failNext.times > 0) {

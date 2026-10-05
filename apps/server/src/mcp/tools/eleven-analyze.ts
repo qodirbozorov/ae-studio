@@ -3,6 +3,7 @@ import { fail, ok } from "@aes/shared";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { AudioTaskRow } from "../../audio/service";
+import { transcriptOf } from "../../audio/words";
 import { audioTasks } from "../../db/schema";
 import { defineTool } from "../registry";
 import type { ToolContext } from "../registry";
@@ -14,45 +15,6 @@ const sourceArgs = {
   key: z.string().min(1).max(128).describe("Audio or video asset key from assets_list"),
   wait_s: waitArg,
 };
-
-export interface TranscriptWord {
-  text: string;
-  start: number;
-  end: number;
-  speaker_id?: string | null;
-  type?: string;
-}
-
-/** Vazifa natijasidan so'zlar (STT yoki alignment); tahrirlangan versiya ustun. */
-export function transcriptOf(
-  task: AudioTaskRow,
-): { text: string; words: TranscriptWord[]; language: string | null; edited: boolean } | null {
-  const result = (task.result ?? {}) as {
-    transcript?: { text: string; words: TranscriptWord[]; language_code?: string };
-    alignment?: { words: TranscriptWord[] };
-    transcript_edited?: { text: string; words: TranscriptWord[] };
-  };
-  if (result.transcript_edited !== undefined) {
-    return {
-      ...result.transcript_edited,
-      language: result.transcript?.language_code ?? null,
-      edited: true,
-    };
-  }
-  if (result.transcript !== undefined) {
-    return {
-      text: result.transcript.text,
-      words: result.transcript.words.filter((w) => w.type === undefined || w.type === "word"),
-      language: result.transcript.language_code ?? null,
-      edited: false,
-    };
-  }
-  if (result.alignment !== undefined) {
-    const words = result.alignment.words;
-    return { text: words.map((w) => w.text).join(" "), words, language: null, edited: false };
-  }
-  return null;
-}
 
 async function ownTask(ctx: ToolContext, id: string): Promise<AudioTaskRow | null> {
   const [row] = await ctx.app.db

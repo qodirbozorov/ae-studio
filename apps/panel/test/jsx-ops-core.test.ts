@@ -557,3 +557,103 @@ describe("render.queue (Q5 zaxira)", () => {
     expect(bad).toMatchObject({ ok: false, error: { code: "RENDER_FAILED" } });
   });
 });
+
+describe("captions.build va audio.duck (P4.11)", () => {
+  const words = [
+    { text: "Salom", start: 0, end: 0.4 },
+    { text: "dunyo.", start: 0.5, end: 0.9 },
+    { text: "Bu", start: 1.3, end: 1.5 },
+    { text: "sinov", start: 1.6, end: 2.0 },
+    { text: "matni", start: 2.1, end: 2.5 },
+    { text: "edi", start: 3.4, end: 3.7 },
+  ];
+
+  it("subtitr qatorlari: gap oxiri, max_words va pauza bo'yicha; karaoke so'zma-so'z; qayta — reused", async () => {
+    const h = await loadJsx(ae());
+    const run = (op: string, id: string, params: object) =>
+      h.run(op as never, id, params as never, { root: ROOT });
+    run("comp.create", "aes.main", { name: "Main", w: 1080, h: 1920, fps: 30, dur: 5 });
+    const params = {
+      comp: "aes.main",
+      words,
+      style: "karaoke_bold",
+      pos: [540, 1500],
+      max_words: 2,
+      box_w: 900,
+    };
+    const res = run("captions.build", "aes.captions", params);
+    expect(res).toMatchObject({ ok: true, data: { info: { layers: 4 } } });
+    const main = comp(h, "Main");
+    // Yangi qo'shilgan layer tepada: oxirgisi birinchi.
+    const layers = [...main.layersList].reverse();
+    const doc = (layer: (typeof layers)[number]) =>
+      layer.property("ADBE Text Properties").property("ADBE Text Document");
+    expect(layers.map((l) => [l.inPoint, l.outPoint])).toEqual([
+      [0, 0.9],
+      [1.3, 2.1],
+      [2.1, 2.5],
+      [3.4, 3.7],
+    ]);
+    const first = doc(layers[0]!);
+    expect(first.keys.map((k) => [k.time, (k.value as { text: string }).text])).toEqual([
+      [0, "SALOM"],
+      [0.5, "SALOM DUNYO."],
+    ]);
+    expect(run("captions.build", "aes.captions", params)).toMatchObject({
+      ok: true,
+      data: { reused: true },
+    });
+    expect(main.numLayers).toBe(4);
+  });
+
+  it("ducking: ovoz oraliqlarida musiqa pasayadi, yaqin oraliqlar birlashadi", async () => {
+    const h = await loadJsx(ae());
+    const run = (op: string, id: string, params: object) =>
+      h.run(op as never, id, params as never, { root: ROOT });
+    run("comp.create", "aes.main", { name: "Main", w: 1080, h: 1920, fps: 30, dur: 8 });
+    run("item.import", "audio.vo", { file: "audio/vo.mp3", folder: "Source" });
+    run("layer.add_audio", "aes.vo", { comp: "aes.main", item: "audio.vo", start: 0, volume: 0 });
+    run("layer.add_audio", "aes.music", {
+      comp: "aes.main",
+      item: "audio.vo",
+      start: 0,
+      volume: -6,
+    });
+    const res = run("audio.duck", "aes.duck", {
+      music_layer: "aes.music",
+      voice_layer: "aes.vo",
+      amount_db: -12,
+      segments: [
+        { start: 1, end: 2 },
+        { start: 2.2, end: 3 },
+        { start: 5, end: 6 },
+      ],
+      fade: 0.25,
+    });
+    expect(res).toMatchObject({ ok: true, data: { info: { segments: 2 } } });
+    const music = comp(h, "Main").layersList[0]!;
+    const levels = music.property("ADBE Audio Group").property("ADBE Audio Levels");
+    expect(levels.keys.map((k) => [k.time, (k.value as number[])[0]])).toEqual([
+      [0.75, -6],
+      [1, -18],
+      [3, -18],
+      [3.25, -6],
+      [4.75, -6],
+      [5, -18],
+      [6, -18],
+      [6.25, -6],
+    ]);
+    expect(
+      run("audio.duck", "aes.duck", {
+        music_layer: "aes.music",
+        voice_layer: "aes.vo",
+        amount_db: -12,
+        segments: [],
+        fade: 0.25,
+      }),
+    ).toMatchObject({
+      ok: true,
+      data: { reused: true },
+    });
+  });
+});
