@@ -7,6 +7,7 @@ import { z } from "zod";
 import { ERROR_DEFS } from "./errors";
 import type { ErrorCode } from "./errors";
 import { parseWith, slugSchema } from "./common";
+import { AUDIO_KINDS, AUDIO_TASK_STATUSES } from "./audio";
 import { JOB_OUTCOMES, JOB_STATES, LOG_LEVELS } from "./jobs";
 import { OUTPUT_PRESETS } from "./spec";
 import { opEnvelopeSchema, opIdSchema, opResultDataSchema } from "./ops";
@@ -129,6 +130,23 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
     ok: z.boolean(),
     remaining: z.number().int().nullable(),
   }),
+  z.strictObject({
+    /** Audio ekrani (P4.12): vazifa holati o'zgardi. */
+    type: z.literal("audio.update"),
+    task: z.strictObject({
+      id: idSchema,
+      kind: z.enum(AUDIO_KINDS),
+      label: z.string().max(200).nullable(),
+      status: z.enum(AUDIO_TASK_STATUSES),
+      project_id: idSchema.nullable(),
+      job_id: idSchema.nullable(),
+      local_path: relPathSchema.nullable(),
+      duration_s: z.number().min(0).nullable(),
+      cached: z.boolean(),
+      error: aesErrorSchema.nullable(),
+      created_at: z.iso.datetime(),
+    }),
+  }),
   z.strictObject({ type: z.literal("job.pause"), job_id: idSchema }),
   z.strictObject({ type: z.literal("job.cancel"), job_id: idSchema }),
   z.strictObject({
@@ -235,6 +253,8 @@ export const panelMessageSchema = z.discriminatedUnion("type", [
     dest: relPathSchema,
     sha256: sha256Schema,
     size: z.number().int().min(0),
+    /** Audio/video bo'lsa panel ffprobe bilan o'lchagan davomiylik (soniya). */
+    duration_s: z.number().min(0).nullable().optional(),
   }),
   z.strictObject({
     type: z.literal("ae.state"),

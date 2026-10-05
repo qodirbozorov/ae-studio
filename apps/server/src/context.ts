@@ -1,5 +1,6 @@
 import type { Mailer } from "./auth/mailer";
 import type { Db } from "./db/client";
+import type { AudioService } from "./audio/service";
 import type { ElevenService } from "./eleven/service";
 import type { Env } from "./env";
 import type { RedisLike } from "./redis";
@@ -18,4 +19,6 @@ export interface AppContext {
   hub: AgentHub;
   /** ElevenLabs hisobi va klientlari (P4.01). */
   eleven: ElevenService;
+  /** Audio vazifalari navbati (P4.03). */
+  audio: AudioService;
 }

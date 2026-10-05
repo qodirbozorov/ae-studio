@@ -5,6 +5,7 @@ export * from "./common";
 export * from "./spec";
 export type * from "./ae";
 export * from "./ops";
+export * from "./audio";
 export * from "./jobs";
 export * from "./render";
 export * from "./ws";

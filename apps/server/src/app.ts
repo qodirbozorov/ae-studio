@@ -24,12 +24,15 @@ import { registerMcpRoutes } from "./mcp/routes";
 import type { ElevenOptions } from "./eleven/client";
 import { registerElevenRoutes } from "./eleven/routes";
 import { ElevenService } from "./eleven/service";
+import { AudioService, presentTask } from "./audio/service";
 import { registerJobRoutes } from "./jobs/routes";
 import type { RedisLike } from "./redis";
 import { LocalStorage, createStorage } from "./storage";
 import type { Storage } from "./storage";
 import { RateLimiter } from "./lib/rate-limit";
 import { findWebDist, isSpaRequest, registerWeb } from "./web";
+import { projects } from "./db/schema";
+import { eq } from "drizzle-orm";
 import { AgentHub } from "./ws/hub";
 import { registerAgentSocket } from "./ws/routes";
 
@@ -39,6 +42,7 @@ declare module "fastify" {
     hub: AgentHub;
     storage: Storage;
     jobs: JobEngine;
+    audio: AudioService;
   }
 }
 
@@ -55,6 +59,8 @@ export interface AppDeps {
   oauthFetcher?: MetadataFetcher;
   /** ElevenLabs klient sozlamalari (testlar: soxta fetch, tez retry). */
   elevenOptions?: ElevenOptions;
+  /** Audio navbati sozlamalari (testlar: dubbing poll). */
+  audioOptions?: ConstructorParameters<typeof AudioService>[2];
 }
 
 /** Fastify ilovasini yig'adi (tinglamaydi): testlar `app.inject()` bilan chaqiradi. */
@@ -106,6 +112,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   } as AppContext;
   ctx.eleven = new ElevenService(ctx, app.log, deps.elevenOptions ?? {});
   ctx.eleven.attach();
+  ctx.audio = new AudioService(ctx, app.log, deps.audioOptions ?? {});
+  ctx.audio.attach();
+  app.decorate("audio", ctx.audio);
 
   await app.register(cookie);
   // OAuth token/revoke va ruxsat formasi (RFC 6749: application/x-www-form-urlencoded).
@@ -173,6 +182,28 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   registerAuditRoutes(app, ctx);
   registerElevenRoutes(app, ctx);
+  // Audio ekrani: vazifa holati loyiha qurilmasiga (P4.12).
+  ctx.audio.listen((task) => {
+    if (task.projectId === null) return;
+    void ctx.db
+      .select({ deviceId: projects.deviceId })
+      .from(projects)
+      .where(eq(projects.id, task.projectId))
+      .limit(1)
+      .then(([row]) => {
+        if (row?.deviceId)
+          ctx.hub.send(row.deviceId, { type: "audio.update", task: presentTask(task) });
+      })
+      .catch((error: unknown) => app.log.warn({ err: error }, "audio.update yuborilmadi"));
+  });
+  app.addHook("onReady", async () => {
+    try {
+      const requeued = await ctx.audio.recover();
+      if (requeued > 0) app.log.info({ requeued }, "audio vazifalari davom ettirildi");
+    } catch (error) {
+      app.log.warn({ err: error }, "audio vazifalari tiklanmadi");
+    }
+  });
   app.addHook("onReady", async () => {
     // DB hali tayyor bo'lmasa server baribir ko'tariladi (health 503 ko'rsatadi).
     try {
@@ -183,6 +214,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     }
   });
   app.addHook("onClose", async () => {
+    ctx.audio.stop();
     engine.stop();
     hub.close();
     await engine.idle();

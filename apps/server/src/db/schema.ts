@@ -289,30 +289,56 @@ export const audioTasks = pgTable(
   "audio_tasks",
   {
     id: id(),
-    jobId: uuid("job_id")
+    /** Job ichidagi vazifa (AUDIO holati); MCP'dan to'g'ridan-to'g'ri chaqirilganda null. */
+    jobId: uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
       .notNull()
-      .references(() => jobs.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Natija shu loyiha papkasining `audio/` iga yuklab olinadi. */
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
     kind: text("kind").notNull(),
+    /** Odamga tushunarli nom (Audio ekrani, hisobot). */
+    label: text("label"),
     params: jsonb("params").notNull(),
+    /** Kirish fayllari (storage `audio-in`): `{ name, storage_key, sha256 }[]`. */
+    inputs: jsonb("inputs").$type<{ name: string; storage_key: string; sha256: string }[]>(),
     paramsHash: text("params_hash").notNull(),
     status: taskStatusEnum("status").notNull().default("queued"),
     storageKey: text("storage_key"),
+    contentType: text("content_type"),
+    ext: text("ext"),
+    sha256: text("sha256"),
     localPath: text("local_path"),
+    deliveredAt: tstz("delivered_at"),
     durationMs: integer("duration_ms"),
     credits: integer("credits"),
+    /** Keshdan olindi (kredit sarflanmadi). */
+    cached: boolean("cached").notNull().default(false),
+    /** Imkoniyatga xos natija: alignment, transcript, previews, voice_id ... */
+    result: jsonb("result"),
     error: jsonb("error"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("audio_tasks_job_idx").on(t.jobId), index("audio_tasks_hash_idx").on(t.paramsHash)],
+  (t) => [
+    index("audio_tasks_job_idx").on(t.jobId),
+    index("audio_tasks_hash_idx").on(t.paramsHash),
+    index("audio_tasks_project_idx").on(t.projectId),
+  ],
 );
 
 /** Bir xil `params_hash` qayta generatsiya qilinmaydi (§7.1). */
 export const elevenCache = pgTable("eleven_cache", {
   paramsHash: text("params_hash").primaryKey(),
   kind: text("kind").notNull(),
-  storageKey: text("storage_key").notNull(),
+  /** Audio natija (STT/alignment kabi faqat JSON natijalarda null). */
+  storageKey: text("storage_key"),
+  contentType: text("content_type"),
+  ext: text("ext"),
+  sha256: text("sha256"),
   durationMs: integer("duration_ms"),
+  credits: integer("credits"),
+  result: jsonb("result"),
   createdAt: createdAt(),
 });
 

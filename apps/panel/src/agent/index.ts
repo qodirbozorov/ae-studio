@@ -9,7 +9,7 @@ import { createAeBridge } from "./ae-bridge";
 import type { AeBridge, EvalScript } from "./ae-bridge";
 import { clearCredentials, loadCredentials, saveCredentials } from "./credentials";
 import type { Credentials } from "./credentials";
-import { FfmpegError, checkBinaries, resolveBinaries } from "./ffmpeg";
+import { FfmpegError, checkBinaries, probe, resolveBinaries } from "./ffmpeg";
 import { TransferError } from "./files";
 import { makePreviews } from "./preview";
 import { RenderError, renderJob } from "./render";
@@ -275,6 +275,8 @@ export function createAgent(options: AgentOptions): Agent {
       log,
       getRoot: () => root,
       aeVersion: () => aeVersion,
+      probeDuration: async (file) =>
+        (await probe(resolveBinaries(settings.ffmpeg_dir), file)).duration,
     });
     client = next;
     next.onMessage(onJobMessage);

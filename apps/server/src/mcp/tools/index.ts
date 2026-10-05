@@ -1,6 +1,7 @@
 /** Barcha MCP toollari (§8). */
 import type { ToolDef } from "../registry";
 import { assetTools } from "./assets";
+import { audioStatusTools } from "./audio";
 import { buildTools } from "./build";
 import { envTools } from "./env";
 import { projectTools } from "./projects";
@@ -16,6 +17,7 @@ export const TOOLS: readonly ToolDef[] = [
   ...buildTools,
   ...verifyTools,
   ...renderTools,
+  ...audioStatusTools,
   ...reportTools,
   ...specTools,
 ];

@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 4 — ElevenLabs · jarayonda (2/15)
-- **Oxirgi bajarilgan:** P4.02 — eleven/ imkoniyatlar qatlami (2026-10-05)
-- **Keyingi todo:** P4.03 — audio_task va navbat
+- **Faza:** 4 — ElevenLabs · jarayonda (3/15)
+- **Oxirgi bajarilgan:** P4.03 — audio_task va navbat (2026-10-05)
+- **Keyingi todo:** P4.04 — panel audio ajratish (audio-in)
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -86,6 +86,8 @@
 | 2026-10-05 | P3.12 | Faza 3 gate'i skriptlangan Claude (faqat MCP toollari) bilan lokal va production'da yopildi; haqiqiy Claude UI va AE bandlari 👤 | Bu kompyuterda AE yo'q, Claude connector login'i uchun RESEND kaliti kerak |
 | 2026-10-05 | P4.01 | ElevenLabs uchun SDK o'rniga yupqa fetch klient | Aniq nazorat (retry, timeout, xato xaritasi), soxta API bilan to'liq test, bog'liqlik kam |
 | 2026-10-05 | P4.01 | Q7 yopildi: o'zbekcha TTS — eleven_v4 (default), STT — scribe_v2 | Rasmiy models sahifasi: uzb faqat v4/v4_turbo; Scribe 'Good' tier |
+| 2026-10-05 | P4.03 | BullMQ worker o'rniga server ichidagi Postgres asosidagi navbat (recover bilan) | Railway bitta nusxa, Postgres yagona haqiqat manbai, Redis'siz test; keyin kerak bo'lsa alohida worker'ga ajratiladi |
+| 2026-10-05 | P4.03 | ElevenLabs natijalari storage'da (audio-out/<sha256>), panelga file.download bilan audio/<kind>_<sha12>.<ext> ga yetkaziladi | Foydalanuvchi talabi: EL fayllari serverda saqlanadi, panelga olib kelinadi; tarkibga bog'liq nom — ustiga yozmaslik |
 
 ---
 
@@ -905,3 +907,32 @@
   - Xato xaritasi va retry (P4.01) hamma joyda bir xil; user bo'yicha rate limit `ElevenService.client()` da.
 - **Tekshiruv:** `eleven-capabilities.test.ts` 6 ta — har imkoniyat soxta API'ga to'g'ri yo'l, query, JSON yoki multipart maydonlar bilan boradi va javob to'g'ri o'qiladi. Dubbing: 3 poll → audio; timeout → `EL_TIMEOUT`. `sniffAudio` tekshirildi.
 - **Keyingi:** P4.03 (`audio_task` va navbat)
+
+### 2026-10-05 · P4.03 — `audio_task` va navbat · ✅
+- **Qaror (rejadan chetga chiqish):** alohida `apps/worker` (BullMQ) o'rniga server ichidagi navbat; holat Postgres'da.
+  - Railway'da bitta server nusxasi ishlaydi. `jobs`/`audio_tasks` allaqachon yagona haqiqat manbai.
+  - Server qayta ishga tushsa `recover()` tugallanmagan vazifalarni qayta navbatga qo'yadi.
+  - Testlar PGlite bilan ishlaydi (Redis kerak emas). Concurrency 2.
+- **Qilindi (`src/audio/service.ts`, `ctx.audio`):**
+  - **Oqim:** `kind + params (+ kirish fayllarining sha256)` → kanonik JSON → `params_hash` → `eleven_cache`.
+    - Hit bo'lsa: darhol `done`, `cached`, 0 kredit.
+    - Miss bo'lsa: `queued` → `running` (CAS) → ElevenLabs → audio storage'ga (`audio-out/<sha256>.<ext>`, tarkibga bog'liq) → kesh upsert → `done` → panelga yetkazish.
+  - **Turlar:** tts, dialogue, sfx, music, stt, align, isolate, voice_change, dub, voice_design (P4.05–P4.08 toollari shu navbatni ishlatadi).
+  - **Yetkazish:** panel online bo'lsa `file.download` → `audio/<kind>_<sha12>.<ext>` (sha256 tekshiruvi, mavjud fayl ustiga yozilmaydi) → `file.saved` → `local_path`, `delivered_at`.
+    - Panel offline bo'lsa natija storage'da kutadi va `hello` da `deliverPending` yetkazadi.
+    - Davomiylik noma'lum bo'lsa (SFX/dialogue) panel ffprobe natijasidan olinadi (`file.saved.duration_s`) va keshga ham yoziladi.
+  - Kesh kalitida kirish fayllarining sha256 ham bor; `fresh: true` keshni chetlab o'tadi (qayta generatsiya). `retry()` faqat `failed` vazifa uchun, `skip(reason)`.
+  - Kredit bahosi (`estimate.ts`, taxminiy): TTS — belgilar (flash/turbo 0.5×), SFX ~40/s, music ~10/s, isolate/STS ~1000/min, dub ~3000/min.
+  - **DB:** migratsiya `0005` — `audio_tasks` ga user_id, project_id, label, inputs, content_type, ext, sha256, delivered_at, cached, result qo'shildi; `job_id` nullable. `eleven_cache` ga content_type, ext, sha256, credits, result; `storage_key` nullable.
+  - **WS:** `audio.update` (server → panel, Audio ekrani uchun); `file.saved.duration_s`.
+  - **MCP:** `audio_tasks_status` (id'lar, job yoki loyiha bo'yicha; natija qisqartiriladi).
+- **Tekshiruv:** `audio-tasks.test.ts` 6 ta:
+  - kanonik hash;
+  - TTS → storage → panelga `audio/tts_<sha>.wav` (alignment'dan 1.08 s);
+  - qayta chaqiruv → `cached`, 0 kredit, yangi EL so'rovi yo'q; `fresh` → yangi so'rov;
+  - offline → hello'da yetkaziladi, davomiylik paneldan (0.8 s) va keshga;
+  - kalit yo'q → `EL_AUTH` → kalit kiritilgach retry → done;
+  - `recover()`; MCP holat tooli.
+
+  Repo 369 ✅.
+- **Keyingi:** P4.04 (panel: audio ajratish → `audio-in`)

@@ -32,6 +32,8 @@ export interface WsClientOptions {
   aeVersion?: () => string | null;
   /** Qayta ulanish kechikishi (ms): `min(max, base * 2^n)` + jitter. */
   backoff?: { baseMs: number; maxMs: number };
+  /** Yuklab olingan audio/video davomiyligi (ffprobe), `file.saved` ga qo'shiladi. */
+  probeDuration?: (file: string) => Promise<number | null>;
   random?: () => number;
 }
 
@@ -143,7 +145,18 @@ export function createWsClient(options: WsClientOptions): WsClient {
       }
       const saved = await downloadVerified(message.url, dest.data, message.sha256);
       log.add({ level: "info", message: `⬇️ ${message.dest} saqlandi` });
-      send({ type: "file.saved", request_id: message.request_id, dest: message.dest, ...saved });
+      const media = /\.(mp3|wav|ogg|m4a|aac|flac|mp4|mov)$/i.test(message.dest);
+      const duration =
+        media && options.probeDuration !== undefined
+          ? await options.probeDuration(dest.data).catch(() => null)
+          : null;
+      send({
+        type: "file.saved",
+        request_id: message.request_id,
+        dest: message.dest,
+        ...saved,
+        ...(duration === null ? {} : { duration_s: duration }),
+      });
     } catch (error) {
       const failure =
         error instanceof TransferError

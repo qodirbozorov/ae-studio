@@ -261,6 +261,22 @@ const SERVER_MESSAGES: Record<string, unknown> = {
     last_seen_at: "2026-10-05T10:00:00.000Z",
   },
   "elevenlabs.status": { type: "elevenlabs.status", configured: true, ok: true, remaining: 9000 },
+  "audio.update": {
+    type: "audio.update",
+    task: {
+      id: "t-1",
+      kind: "tts",
+      label: "Voiceover",
+      status: "done",
+      project_id: "p-1",
+      job_id: null,
+      local_path: "audio/tts_abc.mp3",
+      duration_s: 3.2,
+      cached: false,
+      error: null,
+      created_at: "2026-10-05T10:00:00.000Z",
+    },
+  },
   "job.pause": { type: "job.pause", job_id: "job-1" },
   "job.cancel": { type: "job.cancel", job_id: "job-1" },
   "job.update": {

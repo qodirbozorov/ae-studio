@@ -47,6 +47,8 @@ export class FakeAgent {
   assets: ScannedAsset[];
   /** `file.download` bilan "saqlangan" fayllar: dest → sha256 (ustiga yozilmaydi, panel kabi). */
   readonly files = new Map<string, string>();
+  /** `file.saved` dagi davomiylik (panel ffprobe o'rniga). */
+  fileDuration: number | null = null;
   onOp: (op: OpEnvelope) => OpReaction | Promise<OpReaction> = () => "ok";
   /** `asset.preview.request`: JPEG'ni to'g'ridan-to'g'ri storage'ga yozadi (berilsa). */
   storage: { putBytes(key: string, data: Buffer, contentType?: string): Promise<void> } | null =
@@ -229,6 +231,7 @@ export class FakeAgent {
           dest: message.dest,
           sha256: message.sha256,
           size: message.size ?? 0,
+          ...(this.fileDuration === null ? {} : { duration_s: this.fileDuration }),
         },
         socket,
       );
