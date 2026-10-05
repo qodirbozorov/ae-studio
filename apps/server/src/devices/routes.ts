@@ -6,7 +6,7 @@
  */
 import { randomInt } from "node:crypto";
 import { fail, ok } from "@aes/shared";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { requireUser } from "../auth/session";
@@ -69,7 +69,8 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
           eq(oauthTokens.kind, "device_code"),
           isNull(oauthTokens.revokedAt),
           sql`${oauthTokens.data}->>'user_code' = ${userCode}`,
-          sql`${oauthTokens.expiresAt} > ${ctx.now()}`,
+          // Date parametri ustun tipi orqali (raw sql ichida postgres.js uni serializatsiya qilmaydi).
+          gt(oauthTokens.expiresAt, ctx.now()),
         ),
       )
       .limit(1);

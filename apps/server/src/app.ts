@@ -13,6 +13,7 @@ import { registerDeviceRoutes } from "./devices/routes";
 import type { Env } from "./env";
 import { registerHealth } from "./health";
 import type { RedisLike } from "./redis";
+import { findWebDist, isSpaRequest, registerWeb } from "./web";
 import { registerDevAgent } from "./ws/dev-agent";
 
 export interface AppDeps {
@@ -37,8 +38,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
 
   // Barcha javoblar §8 formatida: { ok: false, error: { code, retryable, hint } }.
+  const webRoot = findWebDist(deps.env.WEB_DIST);
   app.setNotFoundHandler((request, reply) => {
-    reply.code(404).send(fail("SYS_NOT_FOUND", `${request.method} ${request.url}`));
+    // SPA: kabinet sahifalari (`/device?code=…`) index.html ga; API yo'llari — 404 (§8 formatida).
+    if (webRoot !== null && isSpaRequest(request)) return reply.sendFile("index.html");
+    return reply.code(404).send(fail("SYS_NOT_FOUND", `${request.method} ${request.url}`));
   });
   app.setErrorHandler((error: FastifyError, request, reply) => {
     const status = error.statusCode ?? 500;
@@ -70,6 +74,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     if (request.url.startsWith("/api/")) await loadSession(ctx, request);
   });
 
+  if (webRoot !== null) await registerWeb(app, webRoot);
   registerHealth(app, deps);
   registerAuthRoutes(app, ctx);
   registerDeviceRoutes(app, ctx);

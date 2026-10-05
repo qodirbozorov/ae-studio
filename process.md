@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 2 — Yadro · jarayonda (2/14)
-- **Oxirgi bajarilgan:** P2.03 — device flow RFC 8628 (2026-10-05)
-- **Keyingi todo:** P2.02 — web kabinet (login, device tasdiq, qurilmalar)
+- **Faza:** 2 — Yadro · jarayonda (3/14)
+- **Oxirgi bajarilgan:** P2.02 — web kabinet + SPA static (2026-10-05)
+- **Keyingi todo:** P2.04 — panel Ulanish ekrani + credentials (device flow)
 - **Blokerlar:** 👤 Railway'da servislar yaratishga tasdiq · 👤 AE kompyuterida ZXP sinovi · git remote URL yo'q (push qilinmagan)
 - **Ochiq qarorlar:** Q3–Q5, Q7–Q10. Yopilgan: Q1, Q2 (magic link), Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -58,6 +58,7 @@
 | 2026-10-05 | P2.01 | Faza 1 gate'i (AE va Railway bandlari) ochiq qolgan holda Faza 2 boshlandi | Foydalanuvchi: 'test qilib ko'rishni imkoni bo'lmadi, qolgan ishlarni davom ettiraver' |
 | 2026-10-05 | P2.01 | **Q2 yopildi:** web login — email magic link; xatlar Resend API orqali (`RESEND_API_KEY`), kalit bo'lmasa dev rejimda havola logga chiqadi | Eng sodda, Google OAuth client shart emas |
 | 2026-10-05 | P2.01 | Sessiyalar JWT emas, DB'dagi opaque token (sha256 hash, cookie) | Darhol bekor qilish mumkin, kalit boshqaruvi yo'q; JWT_SIGNING_KEY hozircha ishlatilmaydi |
+| 2026-10-05 | P2.02 | DB oqimlari testlarida production drayveri ham sinaladi: `createWireTestDb()` (PGlite socket + postgres.js) | PGlite drayveri postgres.js xatolarini (Date param) yashirgani aniqlandi |
 
 ---
 
@@ -217,3 +218,15 @@
   - `authenticateDevice()` P2.05 WSS uchun.
 - **Tekshiruv:** `device-flow.test.ts` 5 ta (to'liq oqim, slow_down, bir martalik kod, rad etish, eskirish, revoke tokenni darhol o'ldiradi, begona user revoke qila olmaydi, sessiyasiz 401, noto'g'ri grant). typecheck · lint ✅.
 - **Keyingi:** P2.02
+
+### 2026-10-05 · P2.02 — Web kabinet skeleti · ✅
+- **Qilindi:** `apps/web` (React 19 + Vite 8):
+  - login (magic link so'rash);
+  - `/device?code=` (kodni tekshirish, qurilma nomi, ruxsat berish / rad etish; login'dan keyin `next` bilan shu sahifaga qaytadi);
+  - qurilmalar ro'yxati va bekor qilish;
+  - chiqish; yorug'/qorong'i mavzu. Dev'da `/api`, `/oauth` lokal serverga proksi qilinadi.
+
+  Server: `src/web.ts` (`@fastify/static`; `WEB_DIST` yoki `apps/web/dist` avtomatik topiladi), SPA fallback (noma'lum GET → `index.html`; `/api`, `/oauth`, `/ws`, `/dev`, `/mcp`, `/health` → 404 §8 formatida). `railway.json` build: web + server.
+- **Topilgan va tuzatilgan:** haqiqiy jarayon bilan smoke-test (dev-db PGlite socket + tsx server + curl) qilinganda `/oauth/device/code` postgres.js drayverida 500 berdi: raw `sql` ichidagi `Date` parametri serializatsiya qilinmaydi. PGlite testlari buni ko'rmagan. `gt()` bilan tuzatildi va `createWireTestDb()` qo'shildi (PGlite wire-server + haqiqiy postgres.js). `pg-driver.test.ts` login va device flow'ni production drayveri bilan sinaydi. Xatoni qaytarib tekshirildi, test uni ushlaydi.
+- **Tekshiruv:** jonli smoke: kabinet `/` → HTML; magic link (logdan) → 303 → cookie → `/api/me` → `test@example.com`. Testlar: `web.test.ts` 3 ta, `pg-driver.test.ts` 1 ta. Repo 179/179 · typecheck · lint · prettier ✅. Web build 224 KB.
+- **Keyingi:** P2.04

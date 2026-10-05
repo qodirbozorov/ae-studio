@@ -40,6 +40,9 @@ export const envSchema = z
     RESEND_API_KEY: optionalString,
     MAIL_FROM: z.string().min(3).default("AE Studio <noreply@aestudio.app>"),
 
+    /** Web kabinet build papkasi; berilmasa `apps/web/dist` avtomatik qidiriladi. */
+    WEB_DIST: optionalString,
+
     /** P1.13 dev WS tokeni. P2.05 da device token bilan almashtiriladi. */
     DEV_AGENT_TOKEN: z.string().min(32).optional(),
   })

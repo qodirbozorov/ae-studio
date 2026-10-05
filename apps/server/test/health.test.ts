@@ -79,11 +79,11 @@ describe("GET /health", () => {
 
 describe("xato formati (§8)", () => {
   it("noma'lum yo'l — 404 SYS_NOT_FOUND", async () => {
-    const response = await (await start()).inject("/nope");
+    const response = await (await start()).inject("/api/nope");
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({
       ok: false,
-      error: { code: "SYS_NOT_FOUND", message: "GET /nope" },
+      error: { code: "SYS_NOT_FOUND", message: "GET /api/nope" },
     });
   });
 

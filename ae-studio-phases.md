@@ -101,7 +101,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 
 - [x] **P2.01 — Web login.** ❓ 👤 usulni tanlash: email magic link (Resend/SMTP kaliti) yoki Google OAuth (client ID) (Q2). `users`, sessiya (`JWT_SIGNING_KEY`); dev rejimda link logga chiqadi.
   - Tayyor: login/logout ishlaydi, sessiya testlari bor.
-- [ ] **P2.02 — Web kabinet skeleti (§4.3).** `apps/web` (React + Vite): login, device kodni tasdiqlash, ulangan qurilmalar (revoke). Kabinetni server static qilib beradi; `/api/*` REST sessiya bilan ishlaydi.
+- [x] **P2.02 — Web kabinet skeleti (§4.3).** `apps/web` (React + Vite): login, device kodni tasdiqlash, ulangan qurilmalar (revoke). Kabinetni server static qilib beradi; `/api/*` REST sessiya bilan ishlaydi.
   - Tayyor: kabinet Railway'da ochiladi.
 - [x] **P2.03 — Device flow (§4.2, RFC 8628).** `POST /oauth/device/code` (6 belgili `user_code`), `POST /oauth/device/token` poll (`authorization_pending`, `slow_down`, `expired_token`, `access_denied`), `device_token` (hash holida saqlanadi, uzoq muddatli, bekor qilinadi), `devices` jadvali.
   - Tayyor: to'liq oqim bo'yicha integratsiya testi bor.
