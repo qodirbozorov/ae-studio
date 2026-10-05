@@ -1,0 +1,114 @@
+{
+  "slug": "top3_list",
+  "source": "recipe",
+  "title": "Top-3 ro'yxat",
+  "description": "Sarlavha va ketma-ket chiqadigan uchta band (raqamli belgilar bilan).",
+  "tags": ["list", "education"],
+  "duration": { "min": 3, "max": 12, "stretch": "none" },
+  "formats": ["9:16", "1:1", "16:9"],
+  "bg": "{{brand.background}}",
+  "slots": {
+    "title": { "type": "text", "max_chars": 40, "label": "Sarlavha" },
+    "item1": { "type": "text", "max_chars": 40, "label": "1-band" },
+    "item2": { "type": "text", "max_chars": 40, "label": "2-band" },
+    "item3": { "type": "text", "max_chars": 40, "label": "3-band" },
+    "bg": { "type": "media", "fit": "cover", "default": "", "label": "Fon (ixtiyoriy)" },
+    "accent": { "type": "color", "default": "{{brand.accent}}", "label": "Raqamlar rangi" }
+  },
+  "layers": [
+    { "if": "bg", "id": "bg", "type": "media", "src": "{{bg}}", "opacity": 45 },
+    {
+      "id": "title",
+      "type": "text",
+      "text": "{{title}}",
+      "pos": { "x": 0.5, "y": 0.2 },
+      "anim": "pop",
+      "max_width": 0.86,
+      "style": { "font": "{{brand.heading_font}}", "size": 84, "color": "{{brand.text}}" }
+    },
+    {
+      "id": "n1",
+      "type": "shape",
+      "kind": "ellipse",
+      "color": "{{accent}}",
+      "size": { "w": 0.11, "h": 0.062 },
+      "pos": { "x": 0.14, "y": 0.4 },
+      "anim": "pop",
+      "start": 0.5
+    },
+    {
+      "id": "n1_text",
+      "type": "text",
+      "text": "1",
+      "pos": { "x": 0.14, "y": 0.4 },
+      "start": 0.5,
+      "style": { "font": "{{brand.heading_font}}", "size": 60, "color": "{{brand.background}}" }
+    },
+    {
+      "id": "item1",
+      "type": "text",
+      "text": "{{item1}}",
+      "pos": { "x": 0.57, "y": 0.4 },
+      "anim": "slide_left",
+      "start": 0.5,
+      "max_width": 0.7,
+      "style": { "font": "{{brand.body_font}}", "size": 56, "color": "{{brand.text}}" }
+    },
+    {
+      "id": "n2",
+      "type": "shape",
+      "kind": "ellipse",
+      "color": "{{accent}}",
+      "size": { "w": 0.11, "h": 0.062 },
+      "pos": { "x": 0.14, "y": 0.55 },
+      "anim": "pop",
+      "start": 1.1
+    },
+    {
+      "id": "n2_text",
+      "type": "text",
+      "text": "2",
+      "pos": { "x": 0.14, "y": 0.55 },
+      "start": 1.1,
+      "style": { "font": "{{brand.heading_font}}", "size": 60, "color": "{{brand.background}}" }
+    },
+    {
+      "id": "item2",
+      "type": "text",
+      "text": "{{item2}}",
+      "pos": { "x": 0.57, "y": 0.55 },
+      "anim": "slide_left",
+      "start": 1.1,
+      "max_width": 0.7,
+      "style": { "font": "{{brand.body_font}}", "size": 56, "color": "{{brand.text}}" }
+    },
+    {
+      "id": "n3",
+      "type": "shape",
+      "kind": "ellipse",
+      "color": "{{accent}}",
+      "size": { "w": 0.11, "h": 0.062 },
+      "pos": { "x": 0.14, "y": 0.7 },
+      "anim": "pop",
+      "start": 1.7
+    },
+    {
+      "id": "n3_text",
+      "type": "text",
+      "text": "3",
+      "pos": { "x": 0.14, "y": 0.7 },
+      "start": 1.7,
+      "style": { "font": "{{brand.heading_font}}", "size": 60, "color": "{{brand.background}}" }
+    },
+    {
+      "id": "item3",
+      "type": "text",
+      "text": "{{item3}}",
+      "pos": { "x": 0.57, "y": 0.7 },
+      "anim": "slide_left",
+      "start": 1.7,
+      "max_width": 0.7,
+      "style": { "font": "{{brand.body_font}}", "size": 56, "color": "{{brand.text}}" }
+    }
+  ]
+}

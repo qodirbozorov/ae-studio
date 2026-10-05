@@ -173,7 +173,9 @@ export function expandTemplate(
       values[name] = text;
     } else if (slot.type === "media") {
       if (raw === "" && slot.default !== undefined) values[name] = "";
-      else if (typeof raw !== "string" || !ASSET_REF_RE.test(raw)) {
+      else if (raw === slot.default && typeof raw === "string" && WHOLE_TOKEN_RE.test(raw)) {
+        values[name] = raw;
+      } else if (typeof raw !== "string" || !ASSET_REF_RE.test(raw)) {
         return fail("SPEC_INVALID", `${path}: 'asset:<kalit>' havolasi kerak`);
       } else values[name] = raw;
     } else {

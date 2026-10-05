@@ -1,0 +1,76 @@
+{
+  "slug": "testimonial",
+  "source": "recipe",
+  "title": "Mijoz fikri",
+  "description": "Iqtibos (mijoz fikri), muallif ismi va ixtiyoriy surati.",
+  "tags": ["social_proof", "quote"],
+  "duration": { "min": 3, "max": 10, "stretch": "none" },
+  "formats": ["9:16", "1:1", "16:9"],
+  "bg": "{{brand.background}}",
+  "slots": {
+    "quote": { "type": "text", "max_chars": 160, "label": "Iqtibos" },
+    "author": { "type": "text", "max_chars": 40, "label": "Muallif" },
+    "role": { "type": "text", "max_chars": 48, "default": "", "label": "Kim (shahar, kasb)" },
+    "photo": { "type": "media", "fit": "cover", "default": "", "label": "Muallif surati" },
+    "accent": { "type": "color", "default": "{{brand.accent}}", "label": "Urg'u rangi" }
+  },
+  "layers": [
+    {
+      "if": "photo",
+      "id": "photo",
+      "type": "media",
+      "src": "{{photo}}",
+      "fit": "contain",
+      "scale": 0.24,
+      "pos": { "x": 0.5, "y": 0.2 },
+      "anim": "pop"
+    },
+    {
+      "id": "mark",
+      "type": "text",
+      "text": "“",
+      "pos": { "x": 0.5, "y": 0.34 },
+      "anim": "fade_in",
+      "style": { "font": "{{brand.heading_font}}", "size": 180, "color": "{{accent}}" }
+    },
+    {
+      "id": "quote",
+      "type": "text",
+      "text": "{{quote}}",
+      "pos": { "x": 0.5, "y": 0.5 },
+      "anim": "typewriter",
+      "max_width": 0.84,
+      "style": { "font": "{{brand.body_font}}", "size": 56, "color": "{{brand.text}}" }
+    },
+    {
+      "id": "line",
+      "type": "shape",
+      "kind": "rect",
+      "color": "{{accent}}",
+      "size": { "w": 0.16, "h": 0.006 },
+      "pos": { "x": 0.5, "y": 0.68 },
+      "anim": "slide_left",
+      "start": 0.8
+    },
+    {
+      "id": "author",
+      "type": "text",
+      "text": "{{author}}",
+      "pos": { "x": 0.5, "y": 0.73 },
+      "anim": "slide_up",
+      "start": 1,
+      "style": { "font": "{{brand.heading_font}}", "size": 54, "color": "{{brand.text}}" }
+    },
+    {
+      "if": "role",
+      "id": "role",
+      "type": "text",
+      "text": "{{role}}",
+      "pos": { "x": 0.5, "y": 0.78 },
+      "anim": "fade_in",
+      "start": 1.2,
+      "max_width": 0.8,
+      "style": { "font": "{{brand.body_font}}", "size": 38, "color": "{{accent}}" }
+    }
+  ]
+}

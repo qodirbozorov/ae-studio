@@ -78,7 +78,9 @@ export function layerAddMedia(p: LayerAddMediaParams, opId: string): OpResultDat
 
   const layer = comp.layers.add(item);
   if (p.name !== undefined) layer.name = p.name;
-  transformProperty(layer, "ADBE Scale").setValue(fitScale(p.fit, item, comp));
+  const scale = fitScale(p.fit, item, comp);
+  const mul = p.scale === undefined ? 1 : p.scale;
+  transformProperty(layer, "ADBE Scale").setValue([scale[0] * mul, scale[1] * mul]);
   transformProperty(layer, "ADBE Position").setValue(
     p.pos === undefined ? [comp.width / 2, comp.height / 2] : p.pos,
   );

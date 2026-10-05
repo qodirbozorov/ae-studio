@@ -144,6 +144,8 @@ const mediaLayerSchema = z.strictObject({
   src: assetRefSchema,
   anim: z.enum(ANIMS).default("none"),
   fit: z.enum(FITS).default("cover"),
+  /** `fit` o'lchamiga nisbatan (1 — butun kadr; 0.3 — logo kabi kichik). */
+  scale: z.number().gt(0).max(4).default(1),
   pos: positionSchema.default("center"),
   opacity: z.number().min(0).max(100).default(100),
   /** Video ichidagi ovozni qoldirish. */

@@ -79,6 +79,8 @@ export interface LayerAddMediaParams {
   start: number;
   dur?: number | undefined;
   fit: Fit;
+  /** `fit` natijasiga ko'paytiruvchi. */
+  scale?: number | undefined;
   name?: string | undefined;
   pos?: Vec2 | undefined;
   opacity?: number | undefined;

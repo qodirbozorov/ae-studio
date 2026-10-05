@@ -142,6 +142,8 @@ const layerAddMediaParams = z.strictObject({
   start: timeSchema,
   dur: durSchema.optional(),
   fit: z.enum(["cover", "contain", "stretch", "none"]),
+  /** `fit` natijasiga ko'paytiruvchi (logo, mahsulot kadrning bir qismini egallaydi). */
+  scale: z.number().gt(0).max(4).optional(),
   name: nameSchema.optional(),
   pos: vec2Schema.optional(),
   opacity: z.number().min(0).max(100).optional(),

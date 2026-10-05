@@ -1,0 +1,83 @@
+{
+  "slug": "product_showcase",
+  "source": "recipe",
+  "title": "Mahsulot vitrinasi",
+  "description": "Mahsulot rasmi markazda, nomi, narxi va ixtiyoriy belgi (yangi, -30%).",
+  "tags": ["product", "ecommerce"],
+  "duration": { "min": 2, "max": 8, "stretch": "none" },
+  "formats": ["9:16", "1:1", "16:9"],
+  "bg": "{{brand.background}}",
+  "slots": {
+    "product": { "type": "media", "fit": "contain", "label": "Mahsulot rasmi/videosi" },
+    "name": { "type": "text", "max_chars": 40, "label": "Mahsulot nomi" },
+    "price": { "type": "text", "max_chars": 24, "label": "Narx" },
+    "badge": { "type": "text", "max_chars": 12, "default": "", "label": "Belgi (YANGI, -30%)" },
+    "accent": { "type": "color", "default": "{{brand.accent}}", "label": "Urg'u rangi" }
+  },
+  "layers": [
+    {
+      "id": "glow",
+      "type": "shape",
+      "kind": "ellipse",
+      "color": "{{brand.primary}}",
+      "size": { "w": 0.7, "h": 0.4 },
+      "pos": { "x": 0.5, "y": 0.4 },
+      "opacity": 25,
+      "anim": "fade_in"
+    },
+    {
+      "id": "product",
+      "type": "media",
+      "src": "{{product}}",
+      "fit": "contain",
+      "scale": 0.62,
+      "pos": { "x": 0.5, "y": 0.4 },
+      "anim": "zoom_in"
+    },
+    {
+      "id": "name",
+      "type": "text",
+      "text": "{{name}}",
+      "pos": { "x": 0.5, "y": 0.7 },
+      "anim": "slide_up",
+      "max_width": 0.86,
+      "style": { "font": "{{brand.heading_font}}", "size": 72, "color": "{{brand.text}}" }
+    },
+    {
+      "id": "price",
+      "type": "text",
+      "text": "{{price}}",
+      "pos": { "x": 0.5, "y": 0.79 },
+      "anim": "pop",
+      "start": 0.4,
+      "style": { "font": "{{brand.heading_font}}", "size": 96, "color": "{{accent}}" }
+    },
+    {
+      "if": "badge",
+      "id": "badge_bg",
+      "type": "shape",
+      "kind": "ellipse",
+      "color": "{{accent}}",
+      "size": { "w": 0.2, "h": 0.112 },
+      "pos": { "x": 0.8, "y": 0.18 },
+      "anim": "pop",
+      "start": 0.6
+    },
+    {
+      "if": "badge",
+      "id": "badge",
+      "type": "text",
+      "text": "{{badge}}",
+      "pos": { "x": 0.8, "y": 0.18 },
+      "anim": "fade_in",
+      "start": 0.7,
+      "max_width": 0.18,
+      "style": {
+        "font": "{{brand.heading_font}}",
+        "size": 40,
+        "color": "{{brand.background}}",
+        "all_caps": true
+      }
+    }
+  ]
+}

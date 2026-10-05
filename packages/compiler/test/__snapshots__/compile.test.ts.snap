@@ -311,6 +311,10 @@ exports[`compile — determinizm va barqaror op_id > bir xil kirish → bir xil 
     "op": "layer.add_text",
     "op_id": "point.caption",
     "params": {
+      "box": [
+        972,
+        258,
+      ],
       "comp": "point.comp",
       "name": "caption",
       "pos": [

@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (2/14)
-- **Oxirgi bajarilgan:** P5.02 — Shablon toollari va /from-template (2026-10-05)
-- **Keyingi todo:** P5.03 — Boshlang'ich kutubxona
+- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (3/14)
+- **Oxirgi bajarilgan:** P5.03 — Boshlang'ich kutubxona: 6 shablon (2026-10-05)
+- **Keyingi todo:** P5.04 — Brand kit
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -97,6 +97,7 @@
 | 2026-10-05 | P4.15 | Kvota gate'i keshlangan vazifalarni ham baholashga qo'shadi | oddiy va xavfsiz: kam qoldiqda foydalanuvchidan so'raladi; keyin optimallashtirish mumkin |
 | 2026-10-05 | P5.01 | Shablon ikki xil: aep (template.instantiate) va recipe (compiler layerlarga yoyadi) | .aep dizayn faylini bu yerda yaratib bo'lmaydi — boshlang'ich kutubxona qayta yaratsa bo'ladigan recipe; aep yo'li template_save va dizaynerlar uchun |
 | 2026-10-05 | P5.02 | template_save ikki xil: recipe (Spec sahnasidan, AE'siz) va aep (qurilgan .aep panel orqali storage'ga) | recipe AE'siz qayta yaratiladi va formatlarga moslashadi; aep dizayner ishlovi kerak bo'lganda |
+| 2026-10-05 | P5.03 | preview.gif o'rniga panel galereyasi manifestdan sxematik ko'rinish chizadi; gif ixtiyoriy | gif uchun haqiqiy AE render kerak (👤), galereya esa doim ishlashi kerak |
 
 ---
 
@@ -1207,3 +1208,27 @@
 - `mcp.test`: prompt ro'yxati va tool prefikslari yangilandi.
 
 To'liq to'plam: 418 test o'tdi. `build.e2e` dagi layer nomi kutilmasi yangilandi. Typecheck, lint, prettier toza.
+
+### P5.03 — Boshlang'ich kutubxona (2026-10-05)
+
+**Nima qilindi:**
+- **6 ta recipe shablon** (`templates/<slug>/template.json`, 9:16 / 1:1 / 16:9), hammasi brand tokenlari va ixtiyoriy slotlar (`if`) bilan:
+  - `hook_title`;
+  - `lower_third`;
+  - `cta_outro` — logo default `{{brand.logo}}`;
+  - `product_showcase`;
+  - `testimonial`;
+  - `top3_list` — bandlar ketma-ket chiqadi.
+- Subtitr stillari (`karaoke_bold`, `bold_pop`, `minimal`) va o'tishlar oldingi fazalardan bor. `templates/README.md` da kutubxona, recipe yozish qoidalari, aep yo'li va preview tartibi hujjatlandi.
+- **Spec media `scale`:** `fit` natijasiga ko'paytiruvchi. Logo yoki mahsulot kadrning bir qismini egallaydi. Op parametri, jsx va animatsiya masshtabi shunga moslandi.
+- **Matn `max_width` endi ishlaydi.** Oldin compiler uni e'tiborsiz qoldirardi va uzun matn kadrdan chiqib ketishi mumkin edi. Endi taxminiy eni oshsa paragraf qutisi (`box`) beriladi: balandligi qatorlar soniga qarab, markazi `pos` da. Snapshot'da faqat uzun caption qutiga o'tdi.
+- Media slot default'i brand tokeni bo'lishi mumkin (`{{brand.logo}}`).
+
+**Testlar:** `apps/panel/test/template-library.test.ts` — 37 holat: 6 shablon × 3 format × (brand bilan to'liq slotlar / brand'siz faqat majburiy slotlar). Har holatda:
+- kompilyatsiya ogohlantirishsiz;
+- oplar sxemaga mos;
+- matnlar kadr ichida (taxminiy eni);
+- brand shriftlari qo'llanadi;
+- oplar haqiqiy ES3 bundle'da mock AE'da bajariladi.
+
+**👤:** dizaynni haqiqiy AE'da ko'rib chiqish va `preview.gif` (render + ffmpeg, README'dagi tartib).

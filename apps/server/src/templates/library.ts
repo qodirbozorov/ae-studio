@@ -4,9 +4,14 @@
  */
 import { parseTemplateManifest } from "@aes/shared";
 import type { TemplateManifest } from "@aes/shared";
+import ctaOutro from "../../../../templates/cta_outro/template.json" with { type: "json" };
 import hookTitle from "../../../../templates/hook_title/template.json" with { type: "json" };
+import lowerThird from "../../../../templates/lower_third/template.json" with { type: "json" };
+import productShowcase from "../../../../templates/product_showcase/template.json" with { type: "json" };
+import testimonial from "../../../../templates/testimonial/template.json" with { type: "json" };
+import top3List from "../../../../templates/top3_list/template.json" with { type: "json" };
 
-const RAW: unknown[] = [hookTitle];
+const RAW: unknown[] = [hookTitle, lowerThird, ctaOutro, productShowcase, testimonial, top3List];
 
 function load(): TemplateManifest[] {
   return RAW.map((raw) => {

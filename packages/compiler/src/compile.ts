@@ -109,6 +109,25 @@ function textStyle(style: TextStyle, frame: Frame): TextStyleOp {
   return op;
 }
 
+/**
+ * Matn `max_width` ga sig'masa paragraf qutisi (AE `addBoxText`, markazi `pos` da): eni `max_width`, balandligi
+ * taxminiy qatorlar soni bo'yicha. Kenglik taxmini: belgi ≈ 0.55 × o'lcham (katta harf 0.65). Sig'sa — nuqtali matn.
+ */
+export function textBox(
+  text: string,
+  style: TextStyleOp,
+  maxWidth: number,
+  frame: Frame,
+): [number, number] | null {
+  const size = style.size ?? Math.round(frame.h * 0.045);
+  const upper = style.all_caps === true || text === text.toUpperCase();
+  const estimate = text.length * size * (upper ? 0.65 : 0.55);
+  const width = Math.round(maxWidth * frame.w);
+  if (estimate <= width) return null;
+  const lines = Math.ceil(estimate / width) + (text.includes("\n") ? 1 : 0);
+  return [width, Math.round(lines * size * 1.3 + size * 0.4)];
+}
+
 function refKey(ref: string): string {
   return ref.slice("asset:".length);
 }
@@ -393,6 +412,7 @@ function compileLayer(
       };
       if (layer.opacity !== 100) params.opacity = layer.opacity;
       if (layer.keep_audio) params.keep_audio = true;
+      if (layer.scale !== 1) params.scale = layer.scale;
       list.add("layer.add_media", opId, params, sceneId);
       const clip = asset.meta.duration ?? null;
       if (asset.kind === "video" && clip !== null && clip + 1e-6 < dur) {
@@ -401,7 +421,16 @@ function compileLayer(
       list.motion(
         animOps(
           layer.anim,
-          { layer: opId, kind: "media", pos, scale: fitScale(layer.fit, asset.meta, frame), dur },
+          {
+            layer: opId,
+            kind: "media",
+            pos,
+            scale: fitScale(layer.fit, asset.meta, frame).map((v) => round(v * layer.scale)) as [
+              number,
+              number,
+            ],
+            dur,
+          },
           frame,
         ),
         opId,
@@ -411,6 +440,8 @@ function compileLayer(
     }
     case "text": {
       const pos = toPixels(layer.pos, frame);
+      const style = textStyle(layer.style, frame);
+      const box = textBox(layer.text, style, layer.max_width, frame);
       list.add(
         "layer.add_text",
         opId,
@@ -419,8 +450,9 @@ function compileLayer(
           text: layer.text,
           ...timingParams,
           ...named,
-          style: textStyle(layer.style, frame),
+          style,
           pos,
+          ...(box === null ? {} : { box }),
         },
         sceneId,
       );
