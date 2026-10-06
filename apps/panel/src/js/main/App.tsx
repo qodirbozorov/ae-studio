@@ -11,6 +11,7 @@ import { Live } from "./Live";
 import { LiveLog } from "./LiveLog";
 import { Settings, Workspace } from "./Workspace";
 import { Templates } from "./Templates";
+import { FirstRun } from "./FirstRun";
 
 type Status = "ok" | "off" | "unknown";
 
@@ -135,17 +136,34 @@ export function App() {
 function ConnectionPanel({ agent }: { agent: NonNullable<ReturnType<typeof getAgent>> }) {
   const status = useConnectionStatus(agent);
   const [logLevel, setLogLevel] = useState(agent.settings().log_level);
+  // Birinchi ishga tushirishda faqat sozlash bo'limlari ko'rinadi (P5.11).
+  const [ready, setReady] = useState(agent.onboarding() === "done");
   return (
     <>
+      {ready ? null : <FirstRun agent={agent} onDone={() => setReady(true)} />}
       <Connection agent={agent} status={status} />
       <Workspace agent={agent} connected={status === "connected"} />
+      {ready ? <Workbench agent={agent} status={status} /> : null}
+      <Settings agent={agent} onChange={(s) => setLogLevel(s.log_level)} />
+      <LiveLog store={agent.log} minLevel={logLevel} />
+    </>
+  );
+}
+
+function Workbench({
+  agent,
+  status,
+}: {
+  agent: NonNullable<ReturnType<typeof getAgent>>;
+  status: ReturnType<typeof useConnectionStatus>;
+}) {
+  return (
+    <>
       <Live agent={agent} />
       <Templates agent={agent} connected={status === "connected"} />
       <Audio agent={agent} connected={status === "connected"} />
       <History agent={agent} connected={status === "connected"} />
       <DevTools agent={agent} />
-      <Settings agent={agent} onChange={(s) => setLogLevel(s.log_level)} />
-      <LiveLog store={agent.log} minLevel={logLevel} />
     </>
   );
 }

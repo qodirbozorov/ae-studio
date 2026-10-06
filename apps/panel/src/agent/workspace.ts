@@ -37,6 +37,8 @@ export interface PanelSettings {
   aerender_path: string | null;
   /** aerender output module shabloni (masalan "Lossless"); null — AE default'i. */
   render_om_template: string | null;
+  /** Birinchi ishga tushirish ustasi tugaganmi (P5.11). */
+  onboarded: boolean;
 }
 
 const DEFAULT_SETTINGS: PanelSettings = {
@@ -45,6 +47,7 @@ const DEFAULT_SETTINGS: PanelSettings = {
   ffmpeg_dir: null,
   aerender_path: null,
   render_om_template: null,
+  onboarded: false,
 };
 
 const optionalString = (value: unknown): string | null =>
@@ -71,6 +74,7 @@ export function loadSettings(dataDir: string): PanelSettings {
         typeof raw.ffmpeg_dir === "string" && raw.ffmpeg_dir !== "" ? raw.ffmpeg_dir : null,
       aerender_path: optionalString(raw.aerender_path),
       render_om_template: optionalString(raw.render_om_template),
+      onboarded: raw.onboarded === true,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

@@ -303,3 +303,16 @@ select {
   border: 1px solid #444;
   margin-bottom: 6px;
 }
+
+/* Birinchi ishga tushirish ustasi (P5.11) */
+.onboarding {
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+}
+.steps {
+  list-style: none;
+  padding: 0;
+}
+.steps .current {
+  font-weight: bold;
+}

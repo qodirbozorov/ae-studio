@@ -151,3 +151,26 @@ describe("ffmpeg manbasi (P5.10)", () => {
     expect(licenseOf("configuration: --enable-nonfree").lgpl).toBe(false);
   });
 });
+
+describe("birinchi ishga tushirish ustasi (P5.11)", () => {
+  it("qadamlar: ulanish → papka → muhit → tayyor; muhit qatorlari", async () => {
+    const { environmentItems, onboardingStep } = await import("../src/agent/onboarding");
+    expect(onboardingStep({ paired: false, project: true, onboarded: true })).toBe("connect");
+    expect(onboardingStep({ paired: true, project: false, onboarded: false })).toBe("folder");
+    expect(onboardingStep({ paired: true, project: true, onboarded: false })).toBe("env");
+    expect(onboardingStep({ paired: true, project: true, onboarded: true })).toBe("done");
+    const items = environmentItems({
+      ffmpeg: true,
+      ffmpeg_source: "bundled",
+      aerender: false,
+      aerender_path: null,
+      node: "v15.9.0",
+    });
+    expect(items.map((i) => [i.ok, i.label])).toEqual([
+      [true, "ffmpeg/ffprobe (panel ichida)"],
+      [false, "aerender topilmadi"],
+      [true, "Node v15.9.0"],
+    ]);
+    expect(items[1]!.hint).toMatch(/Render Queue/);
+  });
+});

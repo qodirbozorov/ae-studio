@@ -9,11 +9,13 @@ import { createAeBridge } from "./ae-bridge";
 import type { AeBridge, EvalScript } from "./ae-bridge";
 import { clearCredentials, loadCredentials, saveCredentials } from "./credentials";
 import type { Credentials } from "./credentials";
-import { FfmpegError, checkBinaries, probe, resolveBinaries } from "./ffmpeg";
+import { FfmpegError, bundledFfmpegDir, checkBinaries, probe, resolveBinaries } from "./ffmpeg";
+import { onboardingStep } from "./onboarding";
+import type { EnvironmentReport, OnboardingStep } from "./onboarding";
 import { TransferError } from "./files";
 import { extractAudio } from "./extract";
 import { makePreviews } from "./preview";
-import { RenderError, renderJob } from "./render";
+import { RenderError, findAerender, renderJob } from "./render";
 import { uploadFile } from "./files";
 import { getJson, postJson } from "./http";
 import { scanSource } from "./ingest";
@@ -141,6 +143,11 @@ export interface Agent {
   /** INGEST: `source/` ni skanerlaydi, thumbnail'larni yuklaydi, serverga `asset.scanned` yuboradi. */
   scanAssets(requestId?: string): Promise<ScannedAsset[]>;
   settings(): PanelSettings;
+  /** Birinchi ishga tushirish ustasi (P5.11). */
+  onboarding(): OnboardingStep;
+  finishOnboarding(): void;
+  /** Muhit tekshiruvi: ffmpeg (manbasi bilan), aerender. */
+  environment(): Promise<EnvironmentReport>;
   updateSettings(next: Partial<PanelSettings>): PanelSettings;
   /** Past darajali ulanish (testlar). */
   connect(server: ServerConnection): WsClient;
@@ -562,6 +569,33 @@ export function createAgent(options: AgentOptions): Agent {
         { headers },
       );
       return res.body.ok ? (res.body.data?.markdown ?? null) : null;
+    },
+    onboarding() {
+      return onboardingStep({
+        paired: account !== null,
+        project: project !== null,
+        onboarded: settings.onboarded,
+      });
+    },
+    finishOnboarding() {
+      settings = { ...settings, onboarded: true };
+      saveSettings(dataDir, settings);
+    },
+    async environment() {
+      const ffmpeg = await checkBinaries(resolveBinaries(settings.ffmpeg_dir));
+      const aerender = findAerender(settings.aerender_path, appPath);
+      return {
+        ffmpeg,
+        ffmpeg_source:
+          settings.ffmpeg_dir !== null
+            ? "settings"
+            : bundledFfmpegDir() !== null
+              ? "bundled"
+              : "path",
+        aerender: aerender !== null,
+        aerender_path: aerender,
+        node: process.version,
+      };
     },
     async templates() {
       const { base, headers } = authed();

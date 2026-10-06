@@ -50,6 +50,7 @@ describe("ish papkasi (§11.1.2)", () => {
       ffmpeg_dir: null,
       aerender_path: null,
       render_om_template: null,
+      onboarded: false,
     });
     p.agent.updateSettings({
       device_name: "Studio-PC",
@@ -64,6 +65,7 @@ describe("ish papkasi (§11.1.2)", () => {
       ffmpeg_dir: null,
       aerender_path: "C:/AE/aerender.exe",
       render_om_template: null,
+      onboarded: false,
     });
   });
 });
@@ -85,5 +87,25 @@ describe("MCP project_create → panel (project.open)", () => {
 
     const missing = await mcp.call("project_create", { root_path: join(folder, "yoq") });
     expect(missing.result.error.code).toBe("ENV_NO_FOLDER");
+  });
+});
+
+describe("birinchi ishga tushirish ustasi (P5.11)", () => {
+  it("ulanish → papka → muhit → tayyor; holat saqlanadi", async () => {
+    const s = await start();
+    t = s.app;
+    const dataDir = mkdtempSync(join(tmpdir(), "aes-onb-"));
+    const p = await pairedAgent(s.app, s.base, dataDir);
+    agent = p.agent;
+    expect(p.agent.onboarding()).toBe("folder");
+    await p.agent.openProject(mkdtempSync(join(tmpdir(), "aes-onb-root-")));
+    expect(p.agent.onboarding()).toBe("env");
+    const env = await p.agent.environment();
+    expect(env).toMatchObject({ ffmpeg_source: expect.stringMatching(/settings|bundled|path/) });
+    expect(typeof env.ffmpeg).toBe("boolean");
+    expect(env.node).toBe(process.version);
+    p.agent.finishOnboarding();
+    expect(p.agent.onboarding()).toBe("done");
+    expect(p.agent.settings().onboarded).toBe(true);
   });
 });

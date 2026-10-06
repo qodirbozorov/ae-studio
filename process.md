@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (10/14)
-- **Oxirgi bajarilgan:** P5.10 — Panel production build (2026-10-07)
-- **Keyingi todo:** P5.11 — Installer va birinchi ishga tushirish
+- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (11/14)
+- **Oxirgi bajarilgan:** P5.11 — Installer va birinchi ishga tushirish (2026-10-07)
+- **Keyingi todo:** P5.12 — Hujjatlar
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM · 👤 Claude'da custom connector · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender · 👤 ElevenLabs kaliti (web → Sozlamalar) · 👤 TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -1407,3 +1407,28 @@ Server testlari: 197 o'tdi. Typecheck, lint, web build toza.
 - Q9 — faqat LGPL build.
 
 **👤:** macOS ZXP (Mac kerak); tijoriy sertifikat faqat Adobe Exchange uchun.
+
+### P5.11 — Installer va birinchi ishga tushirish (2026-10-07)
+
+**Nima qilindi:**
+- **O'rnatish skriptlari** (`scripts/install/`): `install-panel.ps1` (Windows), `install-panel.sh` (macOS).
+  - Avval Adobe UnifiedPluginInstallerAgent bilan `--install <zxp>`. UPIA bo'lmasa yoki `-Manual` / `--manual` berilsa, ZXP foydalanuvchi CEP extensions papkasiga ochiladi.
+  - Eski versiya `.old-<sana>` nomi bilan saqlanadi, `manifest.xml` tekshiriladi, macOS'da ffmpeg'ga `+x` beriladi.
+  - ZXP imzolangan, shuning uchun `PlayerDebugMode` kerak emas.
+  - `pnpm zxp` skriptlarni reliz papkasiga ZXP yoniga qo'yadi.
+- **Birinchi ishga tushirish ustasi** (panel `FirstRun.tsx`, mantiq `agent/onboarding.ts`):
+  - qadamlar: ulanish → ish papkasi → muhit tekshiruvi → «Tayyor»;
+  - muhit tekshiruvi: ffmpeg (manbasi: sozlama / panel ichida / PATH), aerender, Node;
+  - topilmasa tushunarli maslahat beriladi;
+  - holat `settings.onboarded` da saqlanadi;
+  - usta tugaguncha faqat sozlash bo'limlari ko'rinadi (Live, Shablonlar, Audio, Tarix — keyin).
+- Agent'ga `onboarding()`, `finishOnboarding()`, `environment()` qo'shildi.
+- **`docs/panel-install.md` qayta yozildi:** foydalanuvchi uchun 10 daqiqalik yo'l, dasturchi yo'li, nosozliklar.
+
+**Tekshiruv:**
+- `install-panel.ps1 -Manual` haqiqiy `ae-studio-0.1.0.zxp` bilan vaqtinchalik extensions papkasiga o'rnatildi (CSXS, agent, jsx, `bin/win32-x64`); qayta o'rnatishda zaxira nusxa yaratildi.
+- `bash -n install-panel.sh` — sintaksis to'g'ri.
+- Testlar: panel `agent.test` (+1: qadamlar, muhit qatorlari), `workspace.e2e` (+1: haqiqiy agent bilan qadamlar, `environment()`, saqlanish).
+- Typecheck, lint, panel build toza.
+
+**👤:** toza kompyuterda 10 daqiqada o'rnatib, birinchi videoni chiqarish (Faza 5 gate, M8); macOS skriptini Mac'da sinash.

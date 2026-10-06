@@ -18,4 +18,11 @@ const target = path.join(outDir, `ae-studio-${pkg.version}.zxp`);
 copyFileSync(source, target);
 const sha = createHash("sha256").update(readFileSync(target)).digest("hex");
 writeFileSync(`${target}.sha256`, `${sha}  ${path.basename(target)}\n`);
+// O'rnatish skriptlari ZXP yonida (P5.11): foydalanuvchi bitta papkani oladi.
+for (const script of ["install-panel.ps1", "install-panel.sh"]) {
+  copyFileSync(
+    path.join(panelDir, "..", "..", "scripts", "install", script),
+    path.join(outDir, script),
+  );
+}
 console.log(`${path.relative(panelDir, target)}  sha256 ${sha}`);

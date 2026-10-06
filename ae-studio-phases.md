@@ -201,7 +201,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P5.08 — Telegram xabarnoma.** 👤 BotFather token. Kabinetdan bog'lash kodi olinadi; render tugaganda yoki job BLOCKED bo'lganda xabar keladi.
 - [x] **P5.09 — Web kabinet to'liq.** Job tarixi va hisobotlar, qurilmalar, ulangan ilovalar (Claude tokenlari), ElevenLabs kaliti, Telegram.
 - [x] **P5.10 — Panel production build.** ffmpeg/ffprobe ZXP ichida (Windows + macOS; ❓ LGPL build, Q9; 👤 macOS sinovi uchun Mac kerak), `pnpm build && pnpm zxp`, ❓ 👤 imzolash sertifikati (Q8), versiyalash.
-- [ ] **P5.11 — Installer va birinchi ishga tushirish.** ZXP Installer / `UnifiedPluginInstallerAgent --install`; panelda birinchi ishga tushirish ustasi (ulanish → papka → env check).
+- [x] **P5.11 — Installer va birinchi ishga tushirish.** ZXP Installer / `UnifiedPluginInstallerAgent --install`; panelda birinchi ishga tushirish ustasi (ulanish → papka → env check).
 - [ ] **P5.12 — Hujjatlar (`docs/`).** Foydalanuvchi qo'llanmasi (o'rnatish, Claude'ga ulash, birinchi video); dasturchi qo'llanmasi (yangi op yoki yangi EL imkoniyat qo'shish, deploy); MCP tool ma'lumotnomasi (zod'dan generatsiya qilinadi); xato kodlari va yechimlari.
 - [ ] **P5.13 — Production tayyorgarlik.** Railway healthcheck/restart, DB backup, loglarni saqlash muddati, xavfsizlik ko'rigi, e2e regressiya to'plami (compiler snapshot + soxta agent bilan server integratsiyasi).
 - [ ] **P5.14 — 🧪 Faza 5 gate (yakuniy).**
