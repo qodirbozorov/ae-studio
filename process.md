@@ -10,10 +10,10 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 5 — kod qismi tugadi (14/14); 👤 toza kompyuterda o'rnatish sinovi qoldi
-- **Oxirgi bajarilgan:** P5.14 — Faza 5 gate, yakuniy (2026-10-07)
-- **Keyingi todo:** 👤 qo'lda sinovlar (AE, kalitlar, Telegram, Mac) — barcha fazalar kod qismi tugadi
-- **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM · 👤 Claude'da custom connector · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender · 👤 ElevenLabs kaliti (web → Sozlamalar) · 👤 TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME
+- **Faza:** Barcha 5 faza — kod qismi tugadi; production'da (2026-10-07)
+- **Oxirgi bajarilgan:** Deploy: Faza 4–5 Railway'da, migratsiyalar 0005–0010, backup ishladi (2026-10-07)
+- **Keyingi todo:** 👤 qo'lda sinovlar va kalitlar (pastdagi Blokerlar)
+- **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati) · 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME (Railway) · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
 - **Bash tool eslatmasi:** shu sessiyada PATH yangilanmagan, har buyruq oldidan: `export PATH="/c/Users/991106847/AppData/Local/Programs/nodejs:/c/Users/991106847/AppData/Local/Programs/ffmpeg/bin:$PATH"`
@@ -1489,3 +1489,13 @@ Server testlari: 197 o'tdi. Typecheck, lint, web build toza.
 3. **To'liq regressiya:** `pnpm test` — 501 o'tdi (2 skip: haqiqiy AE va prod smoke). `pnpm test:regression` — 270/270. Typecheck, lint, prettier, panel/web/server build toza.
 
 **👤 qoldi:** toza kompyuterga 10 daqiqada o'rnatib birinchi videoni chiqarish (M8) — `docs/panel-install.md`, reliz papkasi `apps/panel/release/`.
+
+### Deploy — Faza 4–5 Railway'da (2026-10-07)
+
+- `railway up --service server` → deployment `68c95416…` SUCCESS. Migratsiyalar 0005–0010 qo'llandi (`start` skriptida).
+- Production tekshiruvi:
+  - `/health` → db ok, redis ok;
+  - xavfsizlik sarlavhalari: nosniff, DENY, referrer-policy, HSTS;
+  - yangi endpointlar (`/api/settings/telegram`, `/api/agent/templates`, `/mcp`) auth'siz → 401.
+- **Avtomatik DB backup production'da ishladi** (haqiqiy Postgres, postgres-js): `system/backups/2026-10-06T22-50-09-797Z.ndjson.gz` — 21 jadval, 244 qator, 12 KB. Tozalash ham ishga tushdi.
+- Telegram o'chiq turibdi: `TELEGRAM_BOT_TOKEN` hali yo'q (👤).
