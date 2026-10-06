@@ -1,10 +1,13 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app";
 import type { AppDeps } from "../../src/app";
-import { MemoryMailer } from "../../src/auth/mailer";
+import { SESSION_TTL_MS } from "../../src/auth/session";
+import { issueToken } from "../../src/auth/tokens";
+import { users } from "../../src/db/schema";
 import { loadEnv } from "../../src/env";
 import { createTestDb } from "./db";
 import type { TestDb } from "./db";
@@ -12,19 +15,17 @@ import type { TestDb } from "./db";
 export interface TestApp {
   app: FastifyInstance;
   db: TestDb;
-  mailer: MemoryMailer;
   clock: { now: Date; advance(ms: number): void };
   close(): Promise<void>;
 }
 
-/** Migratsiyalangan PGlite, xotiradagi mailer va boshqariladigan soat bilan ilova. */
+/** Migratsiyalangan PGlite va boshqariladigan soat bilan ilova. */
 export async function createTestApp(
   env: Record<string, string> = {},
   db?: TestDb,
   extra: Pick<AppDeps, "oauthFetcher" | "elevenOptions" | "audioOptions" | "telegramOptions"> = {},
 ): Promise<TestApp> {
   const testDb = db ?? (await createTestDb());
-  const mailer = new MemoryMailer();
   const clock = {
     now: new Date("2026-10-05T10:00:00Z"),
     advance(ms: number) {
@@ -44,14 +45,12 @@ export async function createTestApp(
     }),
     db: testDb.db,
     redis: { ping: async () => "PONG", quit: async () => "OK" },
-    mailer,
     now: () => clock.now,
     ...extra,
   });
   return {
     app,
     db: testDb,
-    mailer,
     clock,
     close: async () => {
       await app.close();
@@ -60,15 +59,20 @@ export async function createTestApp(
   };
 }
 
-/** Magic link oqimi: xat yuboriladi, havola ochiladi → session cookie. */
-export async function login(t: TestApp, email: string): Promise<string> {
-  await t.app.inject({ method: "POST", url: "/api/auth/magic-link", payload: { email } });
-  const mail = t.mailer.sent.at(-1);
-  const link = /https?:\/\/[^/\s]+(\/api\/auth\/verify\?token=[^\s"]+)/.exec(mail?.text ?? "")?.[1];
-  if (link === undefined) throw new Error("magic link topilmadi");
-  const response = await t.app.inject({ method: "GET", url: link });
-  const cookie = response.cookies.find((c) => c.name === "aes_session");
-  if (cookie === undefined) throw new Error("session cookie yo'q: " + response.body);
-  t.clock.advance(31_000);
-  return `aes_session=${cookie.value}`;
+/**
+ * Test foydalanuvchisi va kabinet sessiyasi. `label` (eski testlarda email ko'rinishida) — foydalanuvchini
+ * keyin `users.email` bo'yicha topish uchun. Haqiqiy Telegram kirish oqimi `auth.test.ts` da tekshiriladi.
+ */
+export async function login(t: TestApp, label: string): Promise<string> {
+  let [user] = await t.db.db.select().from(users).where(eq(users.email, label));
+  if (user === undefined) {
+    [user] = await t.db.db.insert(users).values({ email: label, name: label }).returning();
+  }
+  const session = await issueToken(t.db.db, {
+    kind: "session",
+    ttlMs: SESSION_TTL_MS,
+    now: t.clock.now,
+    userId: user!.id,
+  });
+  return `aes_session=${session.token}`;
 }

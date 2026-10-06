@@ -264,7 +264,7 @@ export function registerOAuthRoutes(
           clientId: client.id,
           redirectHost: new URL(params.redirect_uri).host,
           loopbackOnly: client.redirectUris.every(isLoopback),
-          email: request.user.email,
+          email: request.user.name,
           fields,
           csrf: csrfFor(request.user.sessionId),
         }),

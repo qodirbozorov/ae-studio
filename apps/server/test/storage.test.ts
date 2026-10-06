@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { LocalStorage } from "../src/storage";
 import { S3Storage, isValidKey, storageKey } from "../src/storage";
-import { createTestApp } from "./helpers/app";
+import { createTestApp, login } from "./helpers/app";
 import type { TestApp } from "./helpers/app";
 
 const key = storageKey({
@@ -91,10 +91,17 @@ describe("lokal drayver (dev/test)", () => {
   });
 
   it("JSON route'lar storage parseridan ta'sirlanmaydi", async () => {
+    const cookie = await login(t, "json@x.uz");
     const res = await t.app.inject({
-      method: "POST",
-      url: "/api/auth/magic-link",
-      payload: { email: "json@x.uz" },
+      method: "PUT",
+      url: "/api/brands",
+      headers: { cookie },
+      payload: {
+        slug: "default",
+        name: "B",
+        colors: { primary: "#112233" },
+        fonts: { heading: { family: "A" }, body: { family: "B" } },
+      },
     });
     expect(res.json()).toMatchObject({ ok: true });
   });

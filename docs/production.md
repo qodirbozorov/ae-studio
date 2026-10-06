@@ -49,8 +49,8 @@ Server loglari (pino, stdout) Railway'da saqlanadi. `authorization` va `cookie` 
 
 | Soha | Holat |
 |---|---|
-| Maxfiy kalitlar | ElevenLabs kaliti AES-256-GCM bilan (`MASTER_KEY`) saqlanadi. API faqat `…abcd` ni qaytaradi va logga yozilmaydi. Telegram va Resend tokenlari faqat env'da |
-| Autentifikatsiya | Magic link (bir martalik, muddatli). Sessiya cookie: `httpOnly`, `sameSite=lax`, https'da `secure`. Panel — device flow; tokenlar hash bilan saqlanadi va bekor qilinadi |
+| Maxfiy kalitlar | ElevenLabs kaliti AES-256-GCM bilan (`MASTER_KEY`) saqlanadi. API faqat `…abcd` ni qaytaradi va logga yozilmaydi. Telegram bot tokeni faqat env'da |
+| Autentifikatsiya | Telegram bot deep link: bir martalik, 10 daqiqa; kod brauzerdagi httpOnly cookie siriga bog'langan, shuning uchun boshqa brauzer undan foydalana olmaydi. Sessiya cookie: `httpOnly`, `sameSite=lax`, https'da `secure`. Panel — device flow; tokenlar hash bilan saqlanadi va bekor qilinadi |
 | Claude (MCP) | OAuth 2.1 (DCR + CIMD, PKCE majburiy). Har tool foydalanuvchiga bog'langan. Ulanishlar kabinetda bekor qilinadi |
 | Rate limit | Login va qurilma tasdig'i — IP bo'yicha. OAuth register/token, MCP (foydalanuvchi bo'yicha), ElevenLabs — 60/daqiqa |
 | Fayl yo'llari | Op va WS yo'llari server va panelda ish papkasi ichida tekshiriladi (`..` va absolyut yo'l rad etiladi). Storage kalitlari segment bo'yicha tekshiriladi |
@@ -64,7 +64,8 @@ Server loglari (pino, stdout) Railway'da saqlanadi. `authorization` va `cookie` 
 Qolgan tavsiyalar (👤):
 
 - Railway'da `MASTER_KEY` va `JWT_SIGNING_KEY` ni yillik almashtirish tartibi;
-- Resend domenini SPF/DKIM bilan tasdiqlash.
+- Telegram bot tokeni chatda ochiq yuborilgan — doimiy ishlatishdan oldin @BotFather'da `/revoke`
+  qilib, yangisini Railway'ga qo'yish.
 
 ## Regressiya to'plami
 

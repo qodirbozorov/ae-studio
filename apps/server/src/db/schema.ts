@@ -68,7 +68,12 @@ export const planAuthorEnum = pgEnum("plan_author", ["claude", "user", "system"]
 
 export const users = pgTable("users", {
   id: id(),
-  email: text("email").notNull().unique(),
+  /** Eski (email) hisoblar uchun; yangi hisoblar Telegram orqali (email yo'q). */
+  email: text("email").unique(),
+  /** Telegram foydalanuvchi id'si (kirish, P5 — Telegram login). */
+  telegramId: text("telegram_id").unique(),
+  /** Ko'rinadigan nom (Telegram ism / @username). */
+  name: text("name"),
   createdAt: createdAt(),
 });
 
@@ -498,5 +503,22 @@ export const telegramLinks = pgTable("telegram_links", {
   code: text("code").unique(),
   codeExpiresAt: timestamp("code_expires_at", { withTimezone: true }),
   linkedAt: timestamp("linked_at", { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+/** Telegram orqali kirish so'rovlari: brauzer (cookie siri) ↔ bot deep link kodi (bir martalik, 10 daqiqa). */
+export const telegramLogins = pgTable("telegram_logins", {
+  id: id(),
+  /** Deep link'dagi kod (`/start login_<kod>`). */
+  code: text("code").notNull().unique(),
+  /** Brauzer cookie sirining sha256 hash'i (kodni boshqa brauzer ishlata olmaydi). */
+  browserHash: text("browser_hash").notNull().unique(),
+  /** Kirgandan keyin qaytiladigan ichki yo'l. */
+  next: text("next").notNull().default("/"),
+  /** Bot tasdiqlagan foydalanuvchi. */
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: createdAt(),
 });

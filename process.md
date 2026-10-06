@@ -11,9 +11,9 @@
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
 - **Faza:** Barcha 5 faza — kod qismi tugadi; production'da (2026-10-07)
-- **Oxirgi bajarilgan:** Deploy: Faza 4–5 Railway'da, migratsiyalar 0005–0010, backup ishladi (2026-10-07)
+- **Oxirgi bajarilgan:** Kabinetga kirish Telegram orqali, email olib tashlandi (2026-10-07)
 - **Keyingi todo:** 👤 qo'lda sinovlar va kalitlar (pastdagi Blokerlar)
-- **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati) · 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME (Railway) · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
+- **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
 - **Bash tool eslatmasi:** shu sessiyada PATH yangilanmagan, har buyruq oldidan: `export PATH="/c/Users/991106847/AppData/Local/Programs/nodejs:/c/Users/991106847/AppData/Local/Programs/ffmpeg/bin:$PATH"`
@@ -105,6 +105,7 @@
 | 2026-10-07 | P5.08 | Telegram long polling (getUpdates), webhook emas | Railway'da bitta instans; ochiq HTTPS endpoint va secret kerak emas |
 | 2026-10-07 | P5.10 | Q8: self-signed ZXP; Q9: faqat LGPL ffmpeg ZXP ichida (bin/<platform>-<arch>) | shaxsiy tarqatishga yetarli; LGPL o'zgartirilmagan binar bilan tarqatishga ruxsat beradi |
 | 2026-10-07 | P5.13 | DB backup ilova ichida (json_agg → storage), pg_dump emas | Railway konteynerida pg_dump yo'q; JSON orqali turlar aniq tiklanadi va PGlite bilan test qilinadi |
+| 2026-10-07 | Login | Kabinetga kirish faqat Telegram deep link (email/magic link olib tashlandi) | foydalanuvchi talabi; xat xizmati kerak emas, kirish bilan xabarnoma chati ham ulanadi |
 
 ---
 
@@ -1499,3 +1500,37 @@ Server testlari: 197 o'tdi. Typecheck, lint, web build toza.
   - yangi endpointlar (`/api/settings/telegram`, `/api/agent/templates`, `/mcp`) auth'siz → 401.
 - **Avtomatik DB backup production'da ishladi** (haqiqiy Postgres, postgres-js): `system/backups/2026-10-06T22-50-09-797Z.ndjson.gz` — 21 jadval, 244 qator, 12 KB. Tozalash ham ishga tushdi.
 - Telegram o'chiq turibdi: `TELEGRAM_BOT_TOKEN` hali yo'q (👤).
+
+### Kabinetga kirish Telegram orqali (email olib tashlandi) (2026-10-07)
+
+**Talab (foydalanuvchi):** registratsiya pochta orqali emas, Telegram botga deep link orqali; pochta qismini olib tashlash. Vaqtincha bot `@telegrab_app_bot`.
+
+**Nima qilindi:**
+- **Oqim** (`apps/server/src/auth/telegram-login.ts`, `auth/routes.ts`):
+  1. `POST /api/auth/telegram` — deep link `https://t.me/telegrab_app_bot?start=login_<kod>` (kod 18 bayt, 10 daqiqa) va httpOnly cookie siri (DB'da faqat hash) qaytaradi.
+  2. Bot `/start login_<kod>` ni oladi → hisob Telegram id bo'yicha topiladi yoki yaratiladi (ism yangilanadi) → so'rov tasdiqlanadi → shu chat xabarnomalar uchun avtomatik ulanadi.
+  3. `GET /api/auth/telegram/status` — tasdiqlangan bo'lsa bir martalik sessiya cookie'si va `next`.
+  - Kod boshqa brauzerga sessiya bermaydi. Ishlatilgan yoki eskirgan kod rad etiladi. Tashqi `next` qabul qilinmaydi. Rate limit qo'yildi.
+- **DB** (migratsiya `0011_telegram_login`):
+  - `users.email` ixtiyoriy bo'ldi (eski hisoblar saqlanadi);
+  - `users.telegram_id` (unique) va `name` qo'shildi;
+  - yangi jadval `telegram_logins`.
+- **Email butunlay olib tashlandi:** `/api/auth/magic-link`, `/api/auth/verify`, mailer (Resend), `RESEND_API_KEY` / `MAIL_FROM` env, kabinet email formasi. `/api/me` endi `name` qaytaradi.
+- **Web:** «Telegram orqali kirish» tugmasi. Bot yangi oynada ochiladi (popup bloker'dan himoyalangan), sahifa holatni so'raydi va avtomatik kiradi.
+- **Railway:** `TELEGRAM_BOT_TOKEN` va `TELEGRAM_BOT_USERNAME=telegrab_app_bot` qo'yildi (`getMe` → ok, webhook yo'q).
+- Hujjatlar yangilandi: claude-connector, panel-install, user-guide, developer, production, `.env.example`.
+
+**Testlar:** `auth.test` (6) — `FakeTelegram` bilan:
+- to'liq oqim, sessiya cookie bayroqlari, `/api/me`, logout;
+- xabarnoma chati ulanishi;
+- qayta kirish shu hisobga (ism yangilanadi);
+- boshqa brauzer, soxta siri, ishlatilgan va eskirgan kod;
+- hash'lar;
+- open redirect, bot sozlanmagan holat (503);
+- magic link endpointi yo'q (404).
+
+Test yordamchisi `login()` sessiyani to'g'ridan-to'g'ri beradi. To'liq to'plam: 501 o'tdi (`db` va `storage` testlari moslandi).
+
+**👤:**
+- token chatda ochiq yuborildi — doimiy ishlatishdan oldin @BotFather'da `/revoke` qilib yangisini qo'yish;
+- bu bot boshqa ilovada ham polling qilsa, `getUpdates` to'qnashadi (bitta iste'molchi bo'lishi kerak).

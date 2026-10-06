@@ -6,11 +6,12 @@ AE Studio Claude'ga **custom connector** (remote MCP server) sifatida ulanadi. B
 
 ## Oldindan kerak
 
-1. **Kabinetga kirish.** Kirish email'dagi havola orqali bo'ladi.
-   - Hozircha xat yuborish sozlanmagan: `RESEND_API_KEY` yo'q, havola faqat server logiga chiqadi.
-   - Haqiqiy xat kelishi uchun Railway'da `server` servisiga quyidagilarni qo'shing:
-     - `RESEND_API_KEY` — [resend.com](https://resend.com) kaliti;
-     - `MAIL_FROM` — tasdiqlangan domendagi manzil, masalan `AE Studio <noreply@sizning-domen.uz>`.
+1. **Kabinetga kirish.** Kirish va ro'yxatdan o'tish Telegram orqali, email va parol kerak emas:
+   1. kabinetda «Telegram orqali kirish» ni bosing;
+   2. bot ochiladi — **Start** ni bosing;
+   3. sahifa o'zi kiradi.
+
+   Shu chat xabarnomalar uchun ham ulanadi.
 2. **After Effects paneli ulangan bo'lishi.** AE'da AE Studio panelini oching va ko'rsatilgan kodni kabinetda (`/device`) tasdiqlang.
 
 ## Ulash (bir marta)
@@ -18,7 +19,7 @@ AE Studio Claude'ga **custom connector** (remote MCP server) sifatida ulanadi. B
 1. Claude'da **Settings → Connectors → Add custom connector** ni oching.
 2. Nom: `AE Studio`. URL: `https://server-production-9c75.up.railway.app/mcp`. Client ID va secret maydonlarini bo'sh qoldiring.
 3. **Connect** ni bosing. Brauzerda AE Studio ochiladi:
-   - kirmagan bo'lsangiz — email bilan kiring (havola orqali qaytasiz);
+   - kirmagan bo'lsangiz — «Telegram orqali kirish» (botda Start), so'ng shu yerga qaytasiz;
    - ruxsat ekranida qaytish manzili `claude.ai` ekanini ko'ring va **Ruxsat berish** ni bosing.
 4. Claude'da connector yoqilgan bo'lishi kerak: 25 ta tool va `/new-reel` buyrug'i ko'rinadi.
 

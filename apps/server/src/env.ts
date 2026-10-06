@@ -38,11 +38,7 @@ export const envSchema = z
     /** ElevenLabs API manzili (default https://api.elevenlabs.io; testlarda soxta server). */
     ELEVENLABS_BASE_URL: z.url().optional(),
 
-    /** Magic link xatlari (Resend). Berilmasa havola server logiga chiqadi (dev). */
-    RESEND_API_KEY: optionalString,
-    MAIL_FROM: z.string().min(3).default("AE Studio <noreply@aestudio.app>"),
-
-    /** Telegram xabarnoma (P5.08): BotFather tokeni va bot nomi (deep link uchun). */
+    /** Telegram bot (BotFather): kabinetga kirish (deep link) va xabarnomalar; bot nomi deep link uchun. */
     TELEGRAM_BOT_TOKEN: optionalString,
     TELEGRAM_BOT_USERNAME: optionalString,
     /** Telegram Bot API manzili (default https://api.telegram.org; testlarda soxta). */

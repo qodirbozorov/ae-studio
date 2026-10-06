@@ -25,7 +25,7 @@ export const post = <T>(path: string, body?: unknown) =>
 
 export interface Me {
   id: string;
-  email: string;
+  name: string;
 }
 
 export interface Device {

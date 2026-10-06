@@ -9,10 +9,11 @@ panel uni AE'da quradi. ElevenLabs ovoz, musiqa va subtitr beradi. Natija — `o
    (ulanish → ish papkasi → muhit tekshiruvi).
 2. **Claude:** [claude-connector.md](claude-connector.md) — Claude'da custom connector qo'shing (server
    manzili `/mcp`). Birinchi marta brauzerda kabinetga kirib ruxsat berasiz.
-3. **Web kabinet** (server manzili) → Sozlamalar:
+3. **Web kabinet** (server manzili): «Telegram orqali kirish» → botda **Start**. Ro'yxatdan o'tish ham
+   shu, email va parol kerak emas. Shu chat xabarnomalar uchun avtomatik ulanadi. Keyin Sozlamalar:
    - **ElevenLabs** — API kalitingiz. U tekshirilib, shifrlangan holda serverda saqlanadi. Usiz video
      ovozsiz quriladi.
-   - **Telegram** (ixtiyoriy) — «Ulash kodini olish» → botga `/start <kod>`. Video tayyor bo'lganda yoki
+   - **Telegram** — kirishda avtomatik ulanadi (boshqa chatga: «Ulash kodini olish» → botga `/start <kod>`). Video tayyor bo'lganda yoki
      to'xtaganda xabar keladi.
    - **Brand kit** (ixtiyoriy) — ranglar, shriftlar, logo, subtitr stili, default ovoz. `default` slug'li
      brand barcha videolarga qo'llanadi.

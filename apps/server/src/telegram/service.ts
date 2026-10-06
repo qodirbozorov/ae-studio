@@ -15,6 +15,8 @@ import { jobs, projects, telegramLinks } from "../db/schema";
 import type { BatchRow, BatchService } from "../batch/service";
 import { presentBatch } from "../batch/service";
 import type { JobEngine, JobRow } from "../jobs/engine";
+import { LOGIN_START_RE, confirmTelegramLogin } from "../auth/telegram-login";
+import type { TelegramUser } from "../auth/telegram-login";
 
 const CODE_TTL_MS = 15 * 60_000;
 const POLL_TIMEOUT_S = 25;
@@ -31,6 +33,7 @@ interface Update {
   update_id: number;
   message?: {
     chat: { id: number; title?: string; username?: string; first_name?: string };
+    from?: TelegramUser;
     text?: string;
   };
 }
@@ -191,13 +194,26 @@ export class TelegramService {
   private async handle(update: Update): Promise<void> {
     const message = update.message;
     if (message?.text === undefined) return;
-    const match = /^(?:\/start\s+)?([0-9A-Fa-f]{10})\s*$/.exec(message.text.trim());
     const chatId = String(message.chat.id);
+    // Kabinetga kirish: `/start login_<kod>` (deep link).
+    const login = LOGIN_START_RE.exec(message.text.trim());
+    if (login !== null) {
+      const from = message.from ?? { id: message.chat.id, first_name: message.chat.first_name };
+      const result = await confirmTelegramLogin(this.ctx, login[1]!, from, chatId);
+      await this.send(
+        chatId,
+        result === "ok"
+          ? "✅ Kirish tasdiqlandi — brauzerga qayting. Xabarnomalar ham shu chatga keladi."
+          : "❌ Kirish havolasi eskirgan yoki ishlatilgan. Kabinetda «Telegram orqali kirish»ni qayta bosing.",
+      );
+      return;
+    }
+    const match = /^(?:\/start\s+)?([0-9A-Fa-f]{10})\s*$/.exec(message.text.trim());
     if (match === null) {
       if (message.text.startsWith("/start")) {
         await this.send(
           chatId,
-          "AE Studio: kabinet → Sozlamalar → Telegram'dan olingan kodni yuboring.",
+          "AE Studio: kabinetga kirish uchun saytdagi «Telegram orqali kirish» tugmasini bosing.",
         );
       }
       return;

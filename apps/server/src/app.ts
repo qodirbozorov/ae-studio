@@ -5,8 +5,6 @@ import Fastify from "fastify";
 import type { FastifyError, FastifyInstance } from "fastify";
 import { registerAssetRoutes } from "./assets/routes";
 import { audit, registerAuditRoutes } from "./audit";
-import { ConsoleMailer, ResendMailer } from "./auth/mailer";
-import type { Mailer } from "./auth/mailer";
 import { registerAuthRoutes } from "./auth/routes";
 import { loadSession } from "./auth/session";
 import type { AppContext } from "./context";
@@ -66,8 +64,6 @@ export interface AppDeps {
   env: Env;
   db: Db;
   redis: RedisLike;
-  /** Berilmasa: RESEND_API_KEY bo'lsa Resend, aks holda log (dev). */
-  mailer?: Mailer;
   now?: () => Date;
   /** Berilmasa env bo'yicha (S3 yoki lokal). */
   storage?: Storage;
@@ -122,11 +118,6 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     db: deps.db,
     redis: deps.redis,
     now,
-    mailer:
-      deps.mailer ??
-      (deps.env.RESEND_API_KEY !== undefined
-        ? new ResendMailer(deps.env.RESEND_API_KEY, deps.env.MAIL_FROM)
-        : new ConsoleMailer(app.log)),
   } as AppContext;
   ctx.eleven = new ElevenService(ctx, app.log, deps.elevenOptions ?? {});
   ctx.eleven.attach();
@@ -151,7 +142,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   // Login va qurilma ulash: IP bo'yicha chegaralar (brute force / spam'ga qarshi, P3.10).
   const authLimiter = new RateLimiter(30, 10 * 60_000, () => now().getTime());
-  const limited = new Set(["/api/auth/magic-link", "/oauth/device/code", "/api/devices/confirm"]);
+  const limited = new Set(["/api/auth/telegram", "/oauth/device/code", "/api/devices/confirm"]);
   // Xavfsizlik sarlavhalari (P5.13): MIME sniffing, clickjacking, referer sizishi, HTTPS (production).
   app.addHook("onSend", async (_request, reply) => {
     reply.header("x-content-type-options", "nosniff");

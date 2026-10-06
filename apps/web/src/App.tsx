@@ -43,7 +43,7 @@ export function App() {
         <a href="/" className="brand">
           AE Studio
         </a>
-        <span className="muted">{me.email}</span>
+        <span className="muted">{me.name}</span>
         <button className="link" onClick={logout}>
           Chiqish
         </button>

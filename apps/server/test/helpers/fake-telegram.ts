@@ -14,6 +14,11 @@ export class FakeTelegram {
     });
   }
 
+  /** Ixtiyoriy shakldagi xabar (masalan `from` bilan). */
+  updatesPush(message: Record<string, unknown>): void {
+    this.updates.push({ update_id: this.nextId++, message });
+  }
+
   readonly fetch: typeof fetch = async (input, init) => {
     if (this.failNext) {
       this.failNext = false;

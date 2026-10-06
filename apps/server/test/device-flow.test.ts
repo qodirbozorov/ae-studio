@@ -121,7 +121,6 @@ describe("device flow (§4.2, RFC 8628)", () => {
       env: {} as never,
       db: t.db.db,
       redis: {} as never,
-      mailer: {} as never,
       now: () => t.clock.now,
     };
     expect(await authenticateDevice(ctx, `Bearer ${access_token}`)).not.toBeNull();

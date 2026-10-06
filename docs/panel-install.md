@@ -26,7 +26,8 @@ Reliz papkasida quyidagi fayllar bor:
    `PlayerDebugMode` kerak emas.
 3. AE → **Window → Extensions → AE Studio**. Birinchi ishga tushirish ustasi 3 qadamda olib boradi:
    1. **Serverga ulanish.** Manzilni kiriting (masalan `https://server-production-9c75.up.railway.app`) va
-      «Ulash» bosing. Brauzerda kabinet ochiladi: email orqali kiring va kodni tasdiqlang.
+      «Ulash» bosing. Brauzerda kabinet ochiladi: «Telegram orqali kirish» (botda Start) va kodni
+      tasdiqlang.
    2. **Ish papkasi.** Videolar uchun papka tanlang. Ichida `source/`, `audio/`, `out/` yaratiladi.
       Fayllaringizni `source/` ga qo'ying.
    3. **Muhit tekshiruvi.** ffmpeg (panel ichida) va aerender topilganini ko'rasiz, so'ng «Tayyor» bosing.

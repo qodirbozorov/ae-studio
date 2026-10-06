@@ -1,4 +1,3 @@
-import type { Mailer } from "./auth/mailer";
 import type { Db } from "./db/client";
 import type { AudioService } from "./audio/service";
 import type { ElevenService } from "./eleven/service";
@@ -16,7 +15,6 @@ export interface AppContext {
   env: Env;
   db: Db;
   redis: RedisLike;
-  mailer: Mailer;
   now: () => Date;
   storage: Storage;
   /** Ulangan panellar (WS). */

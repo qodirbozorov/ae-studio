@@ -84,8 +84,8 @@ Testlar Vitest bilan yoziladi. Turlari:
   - healthcheck: `/health` (DB va Redis holati).
 - Muhit o'zgaruvchilari: `apps/server/src/env.ts`. Production'da `PUBLIC_URL`, `DATABASE_URL`,
   `REDIS_URL`, `MASTER_KEY` (32 bayt base64), `JWT_SIGNING_KEY` (OAuth CSRF), storage (`S3_*` yoki volume'da
-  `STORAGE_DIR`) kerak. Ixtiyoriylari: `RESEND_API_KEY`, `MAIL_FROM`, `TELEGRAM_BOT_TOKEN`,
-  `TELEGRAM_BOT_USERNAME`.
+  `STORAGE_DIR`) kerak. Kabinetga kirish uchun `TELEGRAM_BOT_TOKEN` va
+  `TELEGRAM_BOT_USERNAME` majburiy: login Telegram deep link orqali.
 - Migratsiya: `apps/server/src/db/schema.ts` → `cd apps/server && npx drizzle-kit generate --name <nom>`.
 - Panel relizi: [release-panel.md](release-panel.md). Production tayyorgarligi:
   [production.md](production.md).

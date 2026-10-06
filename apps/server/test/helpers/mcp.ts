@@ -87,5 +87,6 @@ export async function mcpSessionForDevice(t: TestApp, deviceId: string): Promise
     .where(eq(devices.id, deviceId))
     .limit(1);
   if (row === undefined) throw new Error(`qurilma yo'q: ${deviceId}`);
+  if (row.email === null) throw new Error(`test foydalanuvchisi emas: ${deviceId}`);
   return mcpSession(t, row.email);
 }

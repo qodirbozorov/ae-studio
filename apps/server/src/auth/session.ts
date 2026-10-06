@@ -13,8 +13,21 @@ export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export interface SessionUser {
   id: string;
-  email: string;
+  /** Ko'rinadigan nom: Telegram ismi, bo'lmasa email (eski hisoblar). */
+  name: string;
   sessionId: string;
+}
+
+export function displayName(user: {
+  name: string | null;
+  email: string | null;
+  telegramId: string | null;
+}): string {
+  return (
+    user.name ??
+    user.email ??
+    (user.telegramId === null ? "foydalanuvchi" : `tg:${user.telegramId}`)
+  );
 }
 
 declare module "fastify" {
@@ -41,7 +54,8 @@ export async function loadSession(ctx: AppContext, request: FastifyRequest): Pro
   const row = await findActiveToken(ctx.db, "session", token, ctx.now());
   if (row === null || row.userId === null) return;
   const [user] = await ctx.db.select().from(users).where(eq(users.id, row.userId)).limit(1);
-  if (user !== undefined) request.user = { id: user.id, email: user.email, sessionId: row.id };
+  if (user !== undefined)
+    request.user = { id: user.id, name: displayName(user), sessionId: row.id };
 }
 
 /** preHandler: sessiya bo'lmasa 401 AUTH_EXPIRED. */

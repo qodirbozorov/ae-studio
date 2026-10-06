@@ -51,7 +51,13 @@ describe("migratsiyalar", () => {
       "select table_name from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE'",
     );
     // §5 ga qo'shimcha: audit_log (P3.10, qarorlar jurnalida).
-    const extra = ["audit_log", "batches", "pronunciation_dicts", "telegram_links"];
+    const extra = [
+      "audit_log",
+      "batches",
+      "pronunciation_dicts",
+      "telegram_links",
+      "telegram_logins",
+    ];
     expect(rows.map((r) => r.table_name).sort()).toEqual([...fromPlan, ...extra].sort());
   });
 
