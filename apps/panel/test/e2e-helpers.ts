@@ -27,10 +27,11 @@ export async function start(
   port?: number,
   db?: TestApp["db"],
   extra: Parameters<typeof createTestApp>[2] = {},
+  env: Record<string, string> = {},
 ) {
   const listenPort = port ?? (await freePort());
   const base = `http://127.0.0.1:${listenPort}`;
-  const app = await createTestApp({ PUBLIC_URL: base }, db, extra);
+  const app = await createTestApp({ PUBLIC_URL: base, ...env }, db, extra);
   await app.app.listen({ port: listenPort, host: "127.0.0.1" });
   return { app, base };
 }

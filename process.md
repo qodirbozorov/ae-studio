@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (13/14)
-- **Oxirgi bajarilgan:** P5.13 — Production tayyorgarlik (2026-10-07)
-- **Keyingi todo:** P5.14 — Faza 5 gate (yakuniy)
+- **Faza:** 5 — kod qismi tugadi (14/14); 👤 toza kompyuterda o'rnatish sinovi qoldi
+- **Oxirgi bajarilgan:** P5.14 — Faza 5 gate, yakuniy (2026-10-07)
+- **Keyingi todo:** 👤 qo'lda sinovlar (AE, kalitlar, Telegram, Mac) — barcha fazalar kod qismi tugadi
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM · 👤 Claude'da custom connector · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender · 👤 ElevenLabs kaliti (web → Sozlamalar) · 👤 TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -1471,3 +1471,21 @@ Server testlari: 197 o'tdi. Typecheck, lint, web build toza.
 - `pnpm test:regression`: 270/270. Typecheck, lint toza.
 
 **👤:** Railway Postgres volume snapshot'larini yoqish; `MASTER_KEY` ni alohida xavfsiz joyda saqlash.
+
+### P5.14 — 🧪 Faza 5 gate, yakuniy (2026-10-07)
+
+**Kod qismi** — `apps/panel/test/gate5.e2e.test.ts`. Ishlatilgan muhit: haqiqiy server, haqiqiy agent, ffmpeg, ES3 bundle (mock AE, AE 24+ shriftlari bilan), soxta aerender; Claude oqimi MCP orqali.
+
+1. **Bitta Spec → 9:16, 1:1, 16:9, brand kit bilan (M7).** Shablonlar `hook_title` + `cta_outro`, brand `acme`.
+   - AE'da uchta asosiy comp: 1080×1920, 1080×1080, 1920×1080.
+   - Brand qo'llandi: sahna foni, sarlavha shrifti va rangi, logo.
+   - Body shrifti AE'da yo'q → fallback ArialMT ishlatildi.
+   - `frames_capture` variant comp'ida ishladi.
+   - Natija: `launch_v001.mp4`, `launch_1x1_v001.mp4`, `launch_16x9_v001.mp4`; hisobotda barchasi bor.
+2. **Shablon + CSV (3 qator) → 3 ta video + Telegram.**
+   - Telegram kabinet kodi va `/start` bilan bog'landi.
+   - `batch_start` (`top3_list`, 1:1) → `ovqat_v001.mp4`, `sport_v002.mp4`, `kitob_v003.mp4`.
+   - Telegram'ga bitta umumiy xabar keldi (3/3, fayl yo'llari bilan).
+3. **To'liq regressiya:** `pnpm test` — 501 o'tdi (2 skip: haqiqiy AE va prod smoke). `pnpm test:regression` — 270/270. Typecheck, lint, prettier, panel/web/server build toza.
+
+**👤 qoldi:** toza kompyuterga 10 daqiqada o'rnatib birinchi videoni chiqarish (M8) — `docs/panel-install.md`, reliz papkasi `apps/panel/release/`.
