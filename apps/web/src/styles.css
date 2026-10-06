@@ -187,3 +187,31 @@ h2 {
   gap: 4px;
   margin: 8px 0 12px;
 }
+
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 2px;
+  border: 1px solid #0003;
+  vertical-align: middle;
+}
+.report {
+  white-space: pre-wrap;
+  max-height: 400px;
+  overflow: auto;
+  background: #f4f4f5;
+  padding: 8px;
+  font-size: 12px;
+}
+.error-text {
+  color: #b91c1c;
+}
+.list {
+  list-style: none;
+  padding: 0;
+}
+.list li {
+  padding: 8px 0;
+  border-bottom: 1px solid #e4e4e7;
+}

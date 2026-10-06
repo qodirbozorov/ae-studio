@@ -43,6 +43,7 @@ import { registerBatchRoutes } from "./batch/routes";
 import { TelegramService } from "./telegram/service";
 import type { TelegramOptions } from "./telegram/service";
 import { registerTelegramRoutes } from "./telegram/routes";
+import { registerCabinetRoutes } from "./cabinet/routes";
 import { registerAgentSocket } from "./ws/routes";
 
 declare module "fastify" {
@@ -192,6 +193,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerTemplateRoutes(app, ctx, engine);
   registerBatchRoutes(app, ctx);
   registerTelegramRoutes(app, ctx);
+  registerCabinetRoutes(app, ctx, engine);
   const presence = new ClaudePresence(ctx, app.log);
   presence.attach();
   registerMcpRoutes(app, ctx, engine, {

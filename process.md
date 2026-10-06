@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (8/14)
-- **Oxirgi bajarilgan:** P5.08 — Telegram xabarnoma (2026-10-07)
-- **Keyingi todo:** P5.09 — Web kabinet to'liq
+- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (9/14)
+- **Oxirgi bajarilgan:** P5.09 — Web kabinet to'liq (2026-10-07)
+- **Keyingi todo:** P5.10 — Panel production build
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM · 👤 Claude'da custom connector · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender · 👤 ElevenLabs kaliti (web → Sozlamalar) · 👤 TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -1359,3 +1359,25 @@ To'liq to'plam: 482 o'tdi. `jobs.test` dagi bitta yiqilish mashina uxlagani saba
 To'liq to'plam: 487 o'tdi.
 
 **👤:** BotFather'da bot yaratib, `TELEGRAM_BOT_TOKEN` va `TELEGRAM_BOT_USERNAME` ni Railway'ga qo'yish.
+
+### P5.09 — Web kabinet to'liq (2026-10-07)
+
+**Nima qilindi:**
+- **Server** (`apps/server/src/cabinet/routes.ts`, sessiya cookie):
+  - `GET /api/jobs` — barcha loyihalardagi oxirgi 50 ta job: loyiha nomi, holat, natija, batch, renderlar (variant bilan);
+  - `GET /api/batches`;
+  - `GET/PUT /api/brands`, `DELETE /api/brands/:slug` (audit bilan).
+  - Hisobot uchun avvaldan bor `GET /api/jobs/:id/report` ishlatiladi.
+- **Web kabinet** — bo'limlar:
+  - Qurilmalar va Ulangan ilovalar (Claude tokenlari) — avvaldan bor;
+  - **Tarix** (yangi `JobsPage`): batch'lar; joblar, holat, xato, render fayllari, ochiladigan markdown hisobot;
+  - **Sozlamalar:**
+    - ElevenLabs kaliti;
+    - **Telegram**: holat, bog'lash kodi va deep link, uzish;
+    - **Brand kit**: ro'yxat, rang namunalari, JSON tahrir — `brand_save` bilan bir xil sxema.
+
+**Testlar:** server `cabinet.test` (2):
+- tarix (renderlar, hisobot), boshqa foydalanuvchiga bo'sh/404, auth'siz 401;
+- brand: saqlash, ro'yxat, xato, o'chirish, izolyatsiya.
+
+Server testlari: 197 o'tdi. Typecheck, lint, web build toza.

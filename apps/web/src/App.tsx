@@ -4,6 +4,7 @@ import type { Me } from "./api";
 import { ConnectionsPage } from "./pages/ConnectionsPage";
 import { DevicePage } from "./pages/DevicePage";
 import { DevicesPage } from "./pages/DevicesPage";
+import { JobsPage } from "./pages/JobsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
@@ -51,6 +52,9 @@ export function App() {
         <a href="/" className={path === "/" ? "active" : undefined}>
           Qurilmalar
         </a>
+        <a href="/jobs" className={path === "/jobs" ? "active" : undefined}>
+          Tarix
+        </a>
         <a href="/connections" className={path === "/connections" ? "active" : undefined}>
           Ulangan ilovalar
         </a>
@@ -60,6 +64,8 @@ export function App() {
       </nav>
       {path === "/device" ? (
         <DevicePage />
+      ) : path === "/jobs" ? (
+        <JobsPage />
       ) : path === "/connections" ? (
         <ConnectionsPage />
       ) : path === "/settings" ? (
