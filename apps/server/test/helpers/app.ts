@@ -21,7 +21,7 @@ export interface TestApp {
 export async function createTestApp(
   env: Record<string, string> = {},
   db?: TestDb,
-  extra: Pick<AppDeps, "oauthFetcher" | "elevenOptions" | "audioOptions"> = {},
+  extra: Pick<AppDeps, "oauthFetcher" | "elevenOptions" | "audioOptions" | "telegramOptions"> = {},
 ): Promise<TestApp> {
   const testDb = db ?? (await createTestDb());
   const mailer = new MemoryMailer();

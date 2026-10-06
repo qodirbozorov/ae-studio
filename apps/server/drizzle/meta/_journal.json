@@ -71,6 +71,13 @@
       "when": 1791225005081,
       "tag": "0009_batches",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791318565585,
+      "tag": "0010_telegram",
+      "breakpoints": true
     }
   ]
 }

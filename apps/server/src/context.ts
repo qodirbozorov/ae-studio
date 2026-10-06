@@ -7,6 +7,7 @@ import type { RedisLike } from "./redis";
 import type { TemplateService } from "./templates/service";
 import type { BrandService } from "./brands/service";
 import type { BatchService } from "./batch/service";
+import type { TelegramService } from "./telegram/service";
 import type { Storage } from "./storage";
 import type { AgentHub } from "./ws/hub";
 
@@ -30,4 +31,6 @@ export interface AppContext {
   brands: BrandService;
   /** Batch: shablon + CSV (P5.07). */
   batches: BatchService;
+  /** Telegram xabarnoma (P5.08). */
+  telegram: TelegramService;
 }

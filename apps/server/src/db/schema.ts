@@ -484,3 +484,19 @@ export const pronunciationDicts = pgTable(
   },
   (t) => [unique("pronunciation_dicts_user_slug_uq").on(t.userId, t.slug)],
 );
+
+// ---------------------------------------------------------------- Telegram (P5.08)
+
+export const telegramLinks = pgTable("telegram_links", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  /** Bog'langan chat (null — hali bog'lanmagan, faqat kod bor). */
+  chatId: text("chat_id"),
+  chatTitle: text("chat_title"),
+  /** Bir martalik bog'lash kodi va muddati. */
+  code: text("code").unique(),
+  codeExpiresAt: timestamp("code_expires_at", { withTimezone: true }),
+  linkedAt: timestamp("linked_at", { withTimezone: true }),
+  createdAt: createdAt(),
+});

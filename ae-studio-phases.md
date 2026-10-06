@@ -198,7 +198,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P5.05 — Format variantlari (§11.4.1).** Bitta Spec'dan 9:16 / 1:1 / 16:9: formatga nisbiy joylashuv, safe area, media `fit`, har variant alohida render qilinadi.
 - [x] **P5.06 — Panel Shablonlar ekrani (Claude'siz rejim).** Galereya (preview gif), slotlarni qo'lda to'ldirish, job REST orqali ishga tushadi.
 - [x] **P5.07 — Batch (§11.4.3).** Shablon + CSV → N ta video (ustun ↔ slot, har qator uchun progress va hisobot).
-- [ ] **P5.08 — Telegram xabarnoma.** 👤 BotFather token. Kabinetdan bog'lash kodi olinadi; render tugaganda yoki job BLOCKED bo'lganda xabar keladi.
+- [x] **P5.08 — Telegram xabarnoma.** 👤 BotFather token. Kabinetdan bog'lash kodi olinadi; render tugaganda yoki job BLOCKED bo'lganda xabar keladi.
 - [ ] **P5.09 — Web kabinet to'liq.** Job tarixi va hisobotlar, qurilmalar, ulangan ilovalar (Claude tokenlari), ElevenLabs kaliti, Telegram.
 - [ ] **P5.10 — Panel production build.** ffmpeg/ffprobe ZXP ichida (Windows + macOS; ❓ LGPL build, Q9; 👤 macOS sinovi uchun Mac kerak), `pnpm build && pnpm zxp`, ❓ 👤 imzolash sertifikati (Q8), versiyalash.
 - [ ] **P5.11 — Installer va birinchi ishga tushirish.** ZXP Installer / `UnifiedPluginInstallerAgent --install`; panelda birinchi ishga tushirish ustasi (ulanish → papka → env check).

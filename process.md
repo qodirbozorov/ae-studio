@@ -10,10 +10,10 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (7/14)
-- **Oxirgi bajarilgan:** P5.07 — Batch: shablon + CSV (2026-10-07)
-- **Keyingi todo:** P5.08 — Telegram xabarnoma
-- **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
+- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (8/14)
+- **Oxirgi bajarilgan:** P5.08 — Telegram xabarnoma (2026-10-07)
+- **Keyingi todo:** P5.09 — Web kabinet to'liq
+- **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM · 👤 Claude'da custom connector · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender · 👤 ElevenLabs kaliti (web → Sozlamalar) · 👤 TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
 - **Bash tool eslatmasi:** shu sessiyada PATH yangilanmagan, har buyruq oldidan: `export PATH="/c/Users/991106847/AppData/Local/Programs/nodejs:/c/Users/991106847/AppData/Local/Programs/ffmpeg/bin:$PATH"`
@@ -102,6 +102,7 @@
 | 2026-10-05 | P5.05 | Variantlar bitta .aep ichida alohida asosiy comp'lar (aes.main.<tag>), footage importi umumiy | bitta build/VERIFY, har format alohida render va gate; asosiy format oplari o'zgarmaydi |
 | 2026-10-05 | P5.06 | Claude'siz job'lar auto_approve bilan (VERIFY avtomatik) | panel/batch'da kadrlarni tekshiradigan Claude yo'q; render gate (±1 kadr) baribir ishlaydi |
 | 2026-10-07 | P5.07 | Batch qatorlari oldindan to'liq tekshiriladi, BLOCKED qator bekor qilinib keyingisiga o'tiladi | yarim yo'lda to'xtab qolgan batch'dan ko'ra xato qatorlar hisobotda ko'rinadigan to'liq natija foydaliroq |
+| 2026-10-07 | P5.08 | Telegram long polling (getUpdates), webhook emas | Railway'da bitta instans; ochiq HTTPS endpoint va secret kerak emas |
 
 ---
 
@@ -1330,3 +1331,31 @@ To'liq to'plam: 474 o'tdi. `mcp.test` bitta marta yiqildi — pauza paytida mash
 - panel `templates-screen.e2e`: haqiqiy agent bilan CSV (2 qator) → 2 ta mp4.
 
 To'liq to'plam: 482 o'tdi. `jobs.test` dagi bitta yiqilish mashina uxlagani sabab (89 302 s), alohida qayta ishga tushirilganda 26/26 o'tdi. Typecheck, lint toza.
+
+### P5.08 — Telegram xabarnoma (2026-10-07)
+
+**Nima qilindi:**
+- **`TelegramService` (`ctx.telegram`)**, env: `TELEGRAM_BOT_TOKEN` (👤 BotFather), `TELEGRAM_BOT_USERNAME`, `TELEGRAM_API_URL`.
+  - **Bog'lash:**
+    - kabinetda bir martalik kod beriladi (15 daqiqa, deep link `https://t.me/<bot>?start=<kod>`);
+    - foydalanuvchi botga `/start <kod>` yoki kodning o'zini yuboradi;
+    - server long polling (`getUpdates`) bilan uni o'qiydi va `chat_id` ni saqlaydi; webhook kerak emas;
+    - noto'g'ri yoki eskirgan kodga javob qaytariladi; kod bir martalik.
+  - **Xabarlar:**
+    - render tugadi (`🎬`, ushbu `.aep` versiyasidagi barcha fayllar, variantlar ham);
+    - job BLOCKED (`⚠️`, xato kodi va matni);
+    - batch yakuni (`📦`, qatorlar bo'yicha bitta umumiy xabar; batch qatorlari alohida xabar bermaydi).
+    - Takrorlanmaydi (dedup). Yuborish xatosi log'ga yoziladi va job'ga ta'sir qilmaydi.
+  - Token yo'q bo'lsa xizmat o'chiq turadi.
+- **Jadval `telegram_links`** (migratsiya `0010_telegram`).
+- **REST:** `GET /api/settings/telegram`, `POST /api/settings/telegram/code`, `DELETE /api/settings/telegram` (audit bilan).
+
+**Testlar:** server `telegram.test` (4) — `FakeTelegram` (Bot API: `getUpdates` / `sendMessage`):
+- bog'lash: deep link, noto'g'ri, bir martalik va eskirgan kod, uzish;
+- render → xabar (fayl yo'li), BLOCKED → xabar;
+- batch → bitta umumiy xabar;
+- token yo'q → o'chiq.
+
+To'liq to'plam: 487 o'tdi.
+
+**👤:** BotFather'da bot yaratib, `TELEGRAM_BOT_TOKEN` va `TELEGRAM_BOT_USERNAME` ni Railway'ga qo'yish.

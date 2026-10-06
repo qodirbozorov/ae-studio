@@ -40,6 +40,9 @@ import { registerTemplateRoutes } from "./templates/routes";
 import { BrandService } from "./brands/service";
 import { BatchService } from "./batch/service";
 import { registerBatchRoutes } from "./batch/routes";
+import { TelegramService } from "./telegram/service";
+import type { TelegramOptions } from "./telegram/service";
+import { registerTelegramRoutes } from "./telegram/routes";
 import { registerAgentSocket } from "./ws/routes";
 
 declare module "fastify" {
@@ -52,6 +55,7 @@ declare module "fastify" {
     templates: TemplateService;
     brands: BrandService;
     batches: BatchService;
+    telegram: TelegramService;
   }
 }
 
@@ -70,6 +74,8 @@ export interface AppDeps {
   elevenOptions?: ElevenOptions;
   /** Audio navbati sozlamalari (testlar: dubbing poll). */
   audioOptions?: ConstructorParameters<typeof AudioService>[2];
+  /** Telegram (testlar: soxta fetch, polling'siz). */
+  telegramOptions?: TelegramOptions;
 }
 
 /** Fastify ilovasini yig'adi (tinglamaydi): testlar `app.inject()` bilan chaqiradi. */
@@ -178,10 +184,14 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   ctx.batches = new BatchService(ctx, engine, app.log);
   ctx.batches.attach();
   app.decorate("batches", ctx.batches);
+  ctx.telegram = new TelegramService(ctx, app.log, deps.telegramOptions ?? {});
+  ctx.telegram.attach(engine, ctx.batches);
+  app.decorate("telegram", ctx.telegram);
   registerLive(ctx, engine, app.log);
   registerJobRoutes(app, ctx, engine);
   registerTemplateRoutes(app, ctx, engine);
   registerBatchRoutes(app, ctx);
+  registerTelegramRoutes(app, ctx);
   const presence = new ClaudePresence(ctx, app.log);
   presence.attach();
   registerMcpRoutes(app, ctx, engine, {
@@ -237,6 +247,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.addHook("onClose", async () => {
     ctx.audio.stop();
     ctx.batches.stop();
+    await ctx.telegram.stop();
     engine.stop();
     hub.close();
     await engine.idle();

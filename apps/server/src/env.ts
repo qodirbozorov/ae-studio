@@ -42,6 +42,12 @@ export const envSchema = z
     RESEND_API_KEY: optionalString,
     MAIL_FROM: z.string().min(3).default("AE Studio <noreply@aestudio.app>"),
 
+    /** Telegram xabarnoma (P5.08): BotFather tokeni va bot nomi (deep link uchun). */
+    TELEGRAM_BOT_TOKEN: optionalString,
+    TELEGRAM_BOT_USERNAME: optionalString,
+    /** Telegram Bot API manzili (default https://api.telegram.org; testlarda soxta). */
+    TELEGRAM_API_URL: z.url().optional(),
+
     /** Lokal storage drayveri papkasi (S3 berilmaganda). */
     STORAGE_DIR: optionalString,
 
