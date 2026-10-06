@@ -94,8 +94,22 @@ function removeBuildSymlink(): Plugin {
   };
 }
 
+/**
+ * ZXP'da `.debug` (CEP remote debug portlari) bo'lmasligi kerak (P5.10): cep plugin uni har build'da chiqaradi,
+ * imzolashdan oldin bundle'dan olib tashlanadi. Dev build'da qoladi.
+ */
+function dropDebugFile(): Plugin {
+  return {
+    name: "aes-drop-debug-file",
+    apply: "build",
+    generateBundle(_options, bundle) {
+      if (isPackage) delete bundle[".debug"];
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [nativeBundles(), react(), cep(cepOptions), removeBuildSymlink()],
+  plugins: [nativeBundles(), react(), cep(cepOptions), dropDebugFile(), removeBuildSymlink()],
   root,
   clearScreen: false,
   server: { port: cepConfig.port },

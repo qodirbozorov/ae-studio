@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { CEP_Config } from "vite-cep-plugin";
 import pkg from "./package.json" with { type: "json" };
 import { MIN_AE_VERSION, NS } from "./src/shared/constants";
@@ -53,7 +55,8 @@ const config: CEP_Config = {
     jsxBin: "off",
   },
   installModules: [],
-  copyAssets: [],
+  // ffmpeg/ffprobe (P5.10): `scripts/bundle-ffmpeg.mjs` `src/bin` ga qo'ygan bo'lsa ZXP'ga kiradi.
+  copyAssets: existsSync(fileURLToPath(new URL("./src/bin", import.meta.url))) ? ["bin"] : [],
   copyZipAssets: [],
 };
 

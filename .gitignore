@@ -18,5 +18,9 @@ Thumbs.db
 # Lokal dev Postgres (PGlite) ma'lumotlari
 .pglite/
 
+# Panel: ZXP'ga qo'shiladigan ffmpeg binarlari va reliz fayllari (P5.10)
+apps/panel/src/bin/
+apps/panel/release/
+
 # Lokal storage drayveri (dev/test)
 .storage/

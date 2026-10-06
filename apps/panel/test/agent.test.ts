@@ -112,3 +112,42 @@ describe("qayta ulanish kechikishi (backoff + jitter)", () => {
     expect(reconnectDelay(0, 1000, 30_000, 1)).toBe(1200);
   });
 });
+
+describe("ffmpeg manbasi (P5.10)", () => {
+  it("sozlama → ZXP ichidagi bin/<platform>-<arch> → PATH", async () => {
+    const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+    const os = await import("node:os");
+    const nodePath = await import("node:path");
+    const { bundledFfmpegDir, platformTag, resolveBinaries } = await import("../src/agent/ffmpeg");
+    const exe = process.platform === "win32" ? ".exe" : "";
+    const ext = mkdtempSync(nodePath.join(os.tmpdir(), "aes-ext-"));
+    const agentDir = nodePath.join(ext, "agent");
+    mkdirSync(agentDir);
+    expect(bundledFfmpegDir(agentDir)).toBeNull();
+    const bin = nodePath.join(ext, "bin", platformTag());
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(nodePath.join(bin, `ffmpeg${exe}`), "");
+    expect(bundledFfmpegDir(agentDir)).toBeNull();
+    writeFileSync(nodePath.join(bin, `ffprobe${exe}`), "");
+    expect(bundledFfmpegDir(agentDir)).toBe(bin);
+
+    expect(resolveBinaries(null, bin).ffmpeg).toBe(nodePath.join(bin, `ffmpeg${exe}`));
+    expect(resolveBinaries("C:/tools", bin).ffprobe).toBe(
+      nodePath.join("C:/tools", `ffprobe${exe}`),
+    );
+    expect(resolveBinaries("", null)).toEqual({ ffmpeg: "ffmpeg", ffprobe: "ffprobe" });
+  });
+
+  it("bundle-ffmpeg: faqat LGPL build qabul qilinadi (Q9)", async () => {
+    // @ts-expect-error — .mjs skript, tiplar yo'q
+    const { licenseOf } = (await import("../scripts/bundle-ffmpeg.mjs")) as {
+      licenseOf: (v: string) => { lgpl: boolean; gpl: boolean; nonfree: boolean };
+    };
+    expect(licenseOf("configuration: --enable-shared --enable-libopus").lgpl).toBe(true);
+    expect(licenseOf("configuration: --enable-gpl --enable-libx264")).toMatchObject({
+      gpl: true,
+      lgpl: false,
+    });
+    expect(licenseOf("configuration: --enable-nonfree").lgpl).toBe(false);
+  });
+});

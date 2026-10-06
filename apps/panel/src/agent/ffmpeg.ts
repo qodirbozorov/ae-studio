@@ -3,6 +3,7 @@
  * Binarlar: sozlamadagi papka yoki PATH (P5.10 da ZXP ichiga qo'shiladi).
  */
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { makeError } from "@aes/shared";
 import type { AesError } from "@aes/shared";
@@ -23,10 +24,35 @@ export interface Binaries {
   ffprobe: string;
 }
 
-export function resolveBinaries(dir: string | null | undefined): Binaries {
+/** Platforma tegi: ZXP ichidagi `bin/<platform>-<arch>/` papkasi (P5.10). */
+export function platformTag(): string {
+  return `${process.platform}-${process.arch}`;
+}
+
+/** ZXP bilan kelgan ffmpeg papkasi (agent `agent/agent.cjs` dan `../bin/<tag>`); bo'lmasa null. */
+export function bundledFfmpegDir(base: string = __dirname): string | null {
   const exe = process.platform === "win32" ? ".exe" : "";
-  if (dir === null || dir === undefined || dir === "")
+  const dir = path.resolve(base, "..", "bin", platformTag());
+  return existsSync(path.join(dir, `ffmpeg${exe}`)) && existsSync(path.join(dir, `ffprobe${exe}`))
+    ? dir
+    : null;
+}
+
+/** Sozlamadagi papka → ZXP ichidagi binarlar → PATH. */
+export function resolveBinaries(
+  dir: string | null | undefined,
+  bundled: string | null = bundledFfmpegDir(),
+): Binaries {
+  const exe = process.platform === "win32" ? ".exe" : "";
+  if (dir === null || dir === undefined || dir === "") {
+    if (bundled !== null) {
+      return {
+        ffmpeg: path.join(bundled, `ffmpeg${exe}`),
+        ffprobe: path.join(bundled, `ffprobe${exe}`),
+      };
+    }
     return { ffmpeg: "ffmpeg", ffprobe: "ffprobe" };
+  }
   return { ffmpeg: path.join(dir, `ffmpeg${exe}`), ffprobe: path.join(dir, `ffprobe${exe}`) };
 }
 

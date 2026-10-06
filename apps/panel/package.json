@@ -8,6 +8,8 @@
     "dev": "vite",
     "build": "cross-env NODE_ENV=production vite build --watch false",
     "zxp": "cross-env NODE_ENV=production ZXP_PACKAGE=true vite build --watch false",
+    "bundle:ffmpeg": "node scripts/bundle-ffmpeg.mjs",
+    "release": "node scripts/bundle-ffmpeg.mjs && pnpm run zxp && node scripts/name-zxp.mjs",
     "symlink": "cross-env BOLT_ACTION=symlink vite",
     "delsymlink": "cross-env BOLT_ACTION=delsymlink vite",
     "typecheck": "tsc -p tsconfig.json && tsc -p src/agent/tsconfig.json && tsc -p src/jsx/tsconfig.json"
