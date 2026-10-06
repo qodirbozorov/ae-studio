@@ -197,7 +197,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P5.04 — Brand kit (§11.3).** `brands/` + `brands` jadvali, `brands_list`, `brand_save`. Compiler qo'llaydi: ranglar, shriftlar (+ fallback; PREFLIGHT'da `AE_FONT_MISSING`), logo, subtitr stili, default ovoz va musiqa uslubi.
 - [x] **P5.05 — Format variantlari (§11.4.1).** Bitta Spec'dan 9:16 / 1:1 / 16:9: formatga nisbiy joylashuv, safe area, media `fit`, har variant alohida render qilinadi.
 - [x] **P5.06 — Panel Shablonlar ekrani (Claude'siz rejim).** Galereya (preview gif), slotlarni qo'lda to'ldirish, job REST orqali ishga tushadi.
-- [ ] **P5.07 — Batch (§11.4.3).** Shablon + CSV → N ta video (ustun ↔ slot, har qator uchun progress va hisobot).
+- [x] **P5.07 — Batch (§11.4.3).** Shablon + CSV → N ta video (ustun ↔ slot, har qator uchun progress va hisobot).
 - [ ] **P5.08 — Telegram xabarnoma.** 👤 BotFather token. Kabinetdan bog'lash kodi olinadi; render tugaganda yoki job BLOCKED bo'lganda xabar keladi.
 - [ ] **P5.09 — Web kabinet to'liq.** Job tarixi va hisobotlar, qurilmalar, ulangan ilovalar (Claude tokenlari), ElevenLabs kaliti, Telegram.
 - [ ] **P5.10 — Panel production build.** ffmpeg/ffprobe ZXP ichida (Windows + macOS; ❓ LGPL build, Q9; 👤 macOS sinovi uchun Mac kerak), `pnpm build && pnpm zxp`, ❓ 👤 imzolash sertifikati (Q8), versiyalash.

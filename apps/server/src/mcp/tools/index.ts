@@ -14,6 +14,7 @@ import { reportTools } from "./report";
 import { specTools } from "./spec";
 import { templateTools } from "./templates";
 import { brandTools } from "./brands";
+import { batchTools } from "./batch";
 import { verifyTools } from "./verify";
 
 export const TOOLS: readonly ToolDef[] = [
@@ -30,6 +31,7 @@ export const TOOLS: readonly ToolDef[] = [
   ...elevenTransformTools,
   ...templateTools,
   ...brandTools,
+  ...batchTools,
   ...reportTools,
   ...specTools,
 ];

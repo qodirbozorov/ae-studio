@@ -38,6 +38,8 @@ import { AgentHub } from "./ws/hub";
 import { TemplateService } from "./templates/service";
 import { registerTemplateRoutes } from "./templates/routes";
 import { BrandService } from "./brands/service";
+import { BatchService } from "./batch/service";
+import { registerBatchRoutes } from "./batch/routes";
 import { registerAgentSocket } from "./ws/routes";
 
 declare module "fastify" {
@@ -49,6 +51,7 @@ declare module "fastify" {
     audio: AudioService;
     templates: TemplateService;
     brands: BrandService;
+    batches: BatchService;
   }
 }
 
@@ -172,9 +175,13 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const engine = new JobEngine(ctx, app.log);
   app.decorate("jobs", engine);
   engine.attach();
+  ctx.batches = new BatchService(ctx, engine, app.log);
+  ctx.batches.attach();
+  app.decorate("batches", ctx.batches);
   registerLive(ctx, engine, app.log);
   registerJobRoutes(app, ctx, engine);
   registerTemplateRoutes(app, ctx, engine);
+  registerBatchRoutes(app, ctx);
   const presence = new ClaudePresence(ctx, app.log);
   presence.attach();
   registerMcpRoutes(app, ctx, engine, {
@@ -221,15 +228,19 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     try {
       const resumed = await engine.recover();
       if (resumed > 0) app.log.info({ resumed }, "yakunlanmagan joblar davom ettirildi");
+      const batchesResumed = await ctx.batches.recover();
+      if (batchesResumed > 0) app.log.info({ batchesResumed }, "batch'lar davom ettirildi");
     } catch (error) {
       app.log.warn({ err: error }, "joblarni tiklab bo'lmadi");
     }
   });
   app.addHook("onClose", async () => {
     ctx.audio.stop();
+    ctx.batches.stop();
     engine.stop();
     hub.close();
     await engine.idle();
+    await ctx.batches.idle();
   });
 
   return app;

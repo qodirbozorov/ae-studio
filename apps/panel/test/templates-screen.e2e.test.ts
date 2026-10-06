@@ -108,4 +108,37 @@ describe("Shablonlar ekrani (Claude'siz)", () => {
     },
     300_000,
   );
+
+  it.skipIf(!FFMPEG_AVAILABLE)(
+    "batch: CSV (2 qator) → 2 ta video",
+    async () => {
+      const { agent: a, project, root } = await setup();
+      process.env.AES_FAKE_RENDER_S = "3";
+      const res = await a.runBatch({
+        project_id: project.id,
+        template: "lower_third",
+        csv: "name,name_col\n",
+      });
+      expect(res.ok).toBe(false);
+      const ok = await a.runBatch({
+        project_id: project.id,
+        template: "hook_title",
+        csv: [
+          "name,title,bg",
+          "birinchi,Birinchi video,asset:clip_01",
+          "ikkinchi,Ikkinchi video,asset:photo",
+        ].join("\n"),
+        dur: 3,
+      });
+      expect(ok).toMatchObject({ ok: true, total: 2 });
+      await eventually(
+        async () => (await a.history()).filter((j) => j.state === "DONE").length,
+        (n) => n === 2,
+        180_000,
+      );
+      expect(existsSync(join(root, "out", "birinchi_v001.mp4"))).toBe(true);
+      expect(existsSync(join(root, "out", "ikkinchi_v002.mp4"))).toBe(true);
+    },
+    300_000,
+  );
 });

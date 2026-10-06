@@ -64,6 +64,13 @@
       "when": 1791207246860,
       "tag": "0008_jobs_auto_approve",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791225005081,
+      "tag": "0009_batches",
+      "breakpoints": true
     }
   ]
 }

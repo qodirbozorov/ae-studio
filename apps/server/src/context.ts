@@ -6,6 +6,7 @@ import type { Env } from "./env";
 import type { RedisLike } from "./redis";
 import type { TemplateService } from "./templates/service";
 import type { BrandService } from "./brands/service";
+import type { BatchService } from "./batch/service";
 import type { Storage } from "./storage";
 import type { AgentHub } from "./ws/hub";
 
@@ -27,4 +28,6 @@ export interface AppContext {
   templates: TemplateService;
   /** Brand kit'lar (P5.04). */
   brands: BrandService;
+  /** Batch: shablon + CSV (P5.07). */
+  batches: BatchService;
 }

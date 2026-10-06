@@ -112,6 +112,15 @@ export interface Agent {
     slug: string,
     input: TemplateRunInput,
   ): Promise<{ ok: boolean; message?: string; job_id?: string }>;
+  /** Batch (P5.07): shablon + CSV → N ta video. */
+  runBatch(input: {
+    project_id: string;
+    template: string;
+    csv: string;
+    format?: string;
+    variants?: string[];
+    dur?: number;
+  }): Promise<{ ok: boolean; message?: string; batch_id?: string; total?: number }>;
   bridge: AeBridge;
   runner: OpRunner;
   getRoot(): string;
@@ -580,6 +589,22 @@ export function createAgent(options: AgentOptions): Agent {
       if (res.body.ok && res.body.data !== undefined) {
         log.add({ level: "info", message: `🧩 Shablon ishga tushdi: ${slug}` });
         return { ok: true, job_id: res.body.data.job_id };
+      }
+      return {
+        ok: false,
+        message: res.body.error?.message ?? res.body.error?.hint ?? `HTTP ${res.status}`,
+      };
+    },
+    async runBatch(input) {
+      const { base, headers } = authed();
+      const res = await postJson<{
+        ok: boolean;
+        data?: { id: string; total: number };
+        error?: { message?: string; hint?: string };
+      }>(`${base}/api/agent/batches`, input, { headers });
+      if (res.body.ok && res.body.data !== undefined) {
+        log.add({ level: "info", message: `🧩 Batch: ${res.body.data.total} ta video navbatda` });
+        return { ok: true, batch_id: res.body.data.id, total: res.body.data.total };
       }
       return {
         ok: false,

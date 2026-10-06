@@ -241,6 +241,7 @@ export class JobEngine {
     planVersion?: number;
     /** VERIFY avtomatik tasdiqlanadi (Claude'siz rejim). */
     autoApprove?: boolean;
+    batchId?: string;
   }): Promise<Result<JobRow>> {
     const project = await this.project(input.projectId);
     if (project === null) return fail("SYS_NOT_FOUND", "Loyiha topilmadi");
@@ -268,6 +269,7 @@ export class JobEngine {
           planVersion: plan.version,
           state: "CHECK",
           autoApprove: input.autoApprove === true,
+          batchId: input.batchId ?? null,
           createdAt: this.ctx.now(),
           updatedAt: this.ctx.now(),
         })

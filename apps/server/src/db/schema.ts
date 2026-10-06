@@ -204,6 +204,31 @@ export const assets = pgTable(
   (t) => [unique("assets_project_key_uq").on(t.projectId, t.key)],
 );
 
+// ---------------------------------------------------------------- batch (§11.4.3)
+
+export const batches = pgTable(
+  "batches",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    template: text("template").notNull(),
+    /** format, variants, dur, brand. */
+    options: jsonb("options").notNull(),
+    /** Qatorlar: slotlar, holat, job, natija fayllari. */
+    items: jsonb("items").notNull(),
+    /** running | done | failed | cancelled */
+    status: text("status").notNull().default("running"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("batches_project_idx").on(t.projectId)],
+);
+
 // ---------------------------------------------------------------- joblar (§3)
 
 export const jobs = pgTable(
@@ -228,6 +253,8 @@ export const jobs = pgTable(
     paused: boolean("paused").notNull().default(false),
     /** Claude'siz rejim (panel Shablonlar, batch): VERIFY avtomatik tasdiqlanadi. */
     autoApprove: boolean("auto_approve").notNull().default(false),
+    /** Batch qatori bo'lsa (P5.07). */
+    batchId: uuid("batch_id").references(() => batches.id, { onDelete: "set null" }),
     error: jsonb("error"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

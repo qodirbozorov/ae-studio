@@ -73,6 +73,7 @@ export function Templates({ agent, connected }: { agent: Agent; connected: boole
   const [format, setFormat] = useState<Aspect>("9:16");
   const [extra, setExtra] = useState<Aspect[]>([]);
   const [dur, setDur] = useState<string>("");
+  const [csv, setCsv] = useState<string>("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -100,11 +101,32 @@ export function Templates({ agent, connected }: { agent: Agent; connected: boole
     setFormat(t.formats[0] ?? "9:16");
     setExtra([]);
     setDur(String(t.example_scene.dur));
+    setCsv("");
     setMessage(null);
   };
 
   const run = async () => {
     if (template === null || project === null) return;
+    const seconds0 = Number(dur);
+    if (csv.trim() !== "") {
+      // Batch: har CSV qatori — alohida video (ustun nomi = slot nomi, `name` — fayl nomi).
+      setBusy(true);
+      const res = await agent.runBatch({
+        project_id: project.id,
+        template: template.slug,
+        csv,
+        format,
+        ...(extra.length > 0 ? { variants: extra } : {}),
+        ...(Number.isFinite(seconds0) && seconds0 > 0 ? { dur: seconds0 } : {}),
+      });
+      setBusy(false);
+      setMessage(
+        res.ok
+          ? { ok: true, text: `Batch boshlandi: ${res.total ?? 0} ta video navbatda` }
+          : { ok: false, text: res.message ?? "Xato" },
+      );
+      return;
+    }
     const problem = validateSlots(template, values);
     if (problem !== null) {
       setMessage({ ok: false, text: problem });
@@ -245,6 +267,16 @@ export function Templates({ agent, connected }: { agent: Agent; connected: boole
               step={0.5}
               value={dur}
               onChange={(e) => setDur(e.target.value)}
+            />
+          </label>
+          <label htmlFor="tpl-csv">
+            CSV (ixtiyoriy, batch): ustunlar — {Object.keys(template.slots).join(", ")}, name
+            <textarea
+              id="tpl-csv"
+              rows={4}
+              placeholder={`name,${Object.keys(template.slots).join(",")}`}
+              value={csv}
+              onChange={(e) => setCsv(e.target.value)}
             />
           </label>
           {message !== null ? (

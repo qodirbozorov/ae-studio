@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (6/14)
-- **Oxirgi bajarilgan:** P5.06 — Panel Shablonlar ekrani (2026-10-05)
-- **Keyingi todo:** P5.07 — Batch (shablon + CSV)
+- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (7/14)
+- **Oxirgi bajarilgan:** P5.07 — Batch: shablon + CSV (2026-10-07)
+- **Keyingi todo:** P5.08 — Telegram xabarnoma
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM (magic link xati — Claude connector login'i uchun kerak) · 👤 Claude'da custom connector ulash (docs/claude-connector.md) · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender
 - **Ochiq qarorlar:** Q3 (faqat provayder tanlovi: kod R2 va Railway bucket ikkalasini qo'llaydi), Q4, Q5, Q7–Q10. Yopilgan: Q1, Q2, Q6
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -101,6 +101,7 @@
 | 2026-10-05 | P5.04 | Spec brand default 'default' saqlanmagan bo'lsa brand'siz quriladi | mavjud Spec'lar va snapshot'lar o'zgarmaydi; brand ixtiyoriy qatlam |
 | 2026-10-05 | P5.05 | Variantlar bitta .aep ichida alohida asosiy comp'lar (aes.main.<tag>), footage importi umumiy | bitta build/VERIFY, har format alohida render va gate; asosiy format oplari o'zgarmaydi |
 | 2026-10-05 | P5.06 | Claude'siz job'lar auto_approve bilan (VERIFY avtomatik) | panel/batch'da kadrlarni tekshiradigan Claude yo'q; render gate (±1 kadr) baribir ishlaydi |
+| 2026-10-07 | P5.07 | Batch qatorlari oldindan to'liq tekshiriladi, BLOCKED qator bekor qilinib keyingisiga o'tiladi | yarim yo'lda to'xtab qolgan batch'dan ko'ra xato qatorlar hisobotda ko'rinadigan to'liq natija foydaliroq |
 
 ---
 
@@ -1307,3 +1308,25 @@ To'liq to'plam: 473 test o'tdi. Typecheck, lint, prettier toza.
 - haqiqiy agent + ES3 bundle (mock AE) + ffmpeg + soxta aerender: slotlar → job → VERIFY avtomatik → `out/hook_title_v001.mp4` va `out/hook_title_16x9_v001.mp4`.
 
 To'liq to'plam: 474 o'tdi. `mcp.test` bitta marta yiqildi — pauza paytida mashina uxlagani sabab (15 736 s); qayta ishga tushirilganda o'tdi. Typecheck, lint, panel build toza.
+
+### P5.07 — Batch: shablon + CSV → N ta video (2026-10-07)
+
+**Nima qilindi:**
+- **CSV parser** (`apps/server/src/batch/csv.ts`): RFC 4180 (qo'shtirnoq, ichki vergul va qator, `""`), CRLF/LF, BOM. Ajratuvchi avtomatik aniqlanadi (`,` / `;` / tab). Sarlavha majburiy, ko'pi bilan 500 qator.
+- **`BatchService` (`ctx.batches`)** — jadval `batches` va `jobs.batch_id` (migratsiya `0009_batches`):
+  - Ustun ↔ slot: default — bir xil nom, yoki `mapping`. `name` ustuni fayl nomini beradi (tozalanadi, takrorlansa raqam qo'shiladi).
+  - **Barcha qatorlar oldindan tekshiriladi.** Xato bo'lsa hech narsa boshlanmaydi: `SPEC_INVALID`, `details.rows` da qator raqamlari va sabablari.
+  - Qatorlar ketma-ket job bo'ladi (`auto_approve`, qurilmada bitta aktiv job). Qurilma band bo'lsa, job tugashi bilan davom etadi.
+  - Job BLOCKED bo'lsa: xato qatorga yoziladi, job bekor qilinadi, keyingi qatorga o'tiladi.
+  - Har qator natijasi: render qilingan fayllar.
+  - Server qayta ishga tushsa `recover()` davom ettiradi. `batch_cancel` qolgan qatorlarni to'xtatadi.
+  - Yakunda markdown hisobot (jadval) va listener (Telegram uchun).
+- **MCP:** `batch_start`, `batch_status` (qatorlar + hisobot), `batch_cancel`.
+- **REST (panel):** `POST /api/agent/batches`, `GET /api/agent/batches/:id`.
+- **Panel:** Shablonlar formasida "CSV (ixtiyoriy, batch)" maydoni. To'ldirilsa, batch boshlanadi. Agent'ga `runBatch()` qo'shildi.
+
+**Testlar:**
+- server `batch.test` (7): CSV holatlari va xatolari; 3 qator → 3 ta video ketma-ket (render nomlari, natijalar, hisobot, `auto_approve` / `batch_id`); oldindan tekshiruv; BLOCKED → failed va davom etish; bekor qilish; REST auth.
+- panel `templates-screen.e2e`: haqiqiy agent bilan CSV (2 qator) → 2 ta mp4.
+
+To'liq to'plam: 482 o'tdi. `jobs.test` dagi bitta yiqilish mashina uxlagani sabab (89 302 s), alohida qayta ishga tushirilganda 26/26 o'tdi. Typecheck, lint toza.
