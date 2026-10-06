@@ -24,6 +24,10 @@ export interface Storage {
   /** Server o'zi o'qishi uchun (masalan Claude'ga rasm berish). */
   getBytes(key: string): Promise<Buffer | null>;
   putBytes(key: string, data: Buffer, contentType?: string): Promise<void>;
+  /** O'chirish (backup rotatsiyasi, P5.13); yo'q bo'lsa xato emas. */
+  delete(key: string): Promise<void>;
+  /** Prefiks bo'yicha kalitlar (tartiblangan). */
+  list(prefix: string): Promise<string[]>;
 }
 
 const SEGMENT_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;

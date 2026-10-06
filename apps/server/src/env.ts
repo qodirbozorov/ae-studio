@@ -48,6 +48,15 @@ export const envSchema = z
     /** Telegram Bot API manzili (default https://api.telegram.org; testlarda soxta). */
     TELEGRAM_API_URL: z.url().optional(),
 
+    /** Production xizmat ko'rsatish (P5.13): backup oralig'i (soat, 0 — o'chiq), nechta saqlanadi, loglar muddati. */
+    BACKUP_INTERVAL_H: z.coerce
+      .number()
+      .min(0)
+      .max(24 * 30)
+      .default(24),
+    BACKUP_KEEP: z.coerce.number().int().min(1).max(365).default(14),
+    LOG_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
+
     /** Lokal storage drayveri papkasi (S3 berilmaganda). */
     STORAGE_DIR: optionalString,
 

@@ -4,7 +4,7 @@
  */
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fail } from "@aes/shared";
@@ -82,6 +82,29 @@ export class LocalStorage implements Storage {
   }
 
   /** `/storage/*` route'lari: imzo va muddat tekshiriladi. */
+  async delete(key: string): Promise<void> {
+    await rm(this.path(key), { force: true });
+  }
+
+  async list(prefix: string): Promise<string[]> {
+    const out: string[] = [];
+    const walk = async (dir: string, rel: string) => {
+      let entries;
+      try {
+        entries = await readdir(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const key = rel === "" ? entry.name : `${rel}/${entry.name}`;
+        if (entry.isDirectory()) await walk(join(dir, entry.name), key);
+        else if (key.startsWith(prefix) && !entry.name.endsWith(".part")) out.push(key);
+      }
+    };
+    await walk(this.root, "");
+    return out.sort();
+  }
+
   async register(app: FastifyInstance): Promise<void> {
     // Xom oqim faqat shu scope ichida (boshqa route'larda JSON parser o'zgarmaydi).
     await app.register(async (scope) => this.routes(scope));

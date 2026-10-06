@@ -1,7 +1,9 @@
 /** S3-mos drayver: Cloudflare R2 yoki Railway bucket (faqat env bilan farqlanadi, Q3). */
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -88,5 +90,27 @@ export class S3Storage implements Storage {
         ContentType: contentType,
       }),
     );
+  }
+
+  async delete(key: string): Promise<void> {
+    this.check(key);
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.config.bucket, Key: key }));
+  }
+
+  async list(prefix: string): Promise<string[]> {
+    const keys: string[] = [];
+    let token: string | undefined;
+    do {
+      const res = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.config.bucket,
+          Prefix: prefix,
+          ...(token === undefined ? {} : { ContinuationToken: token }),
+        }),
+      );
+      for (const item of res.Contents ?? []) if (item.Key !== undefined) keys.push(item.Key);
+      token = res.IsTruncated === true ? res.NextContinuationToken : undefined;
+    } while (token !== undefined);
+    return keys.sort();
   }
 }

@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (12/14)
-- **Oxirgi bajarilgan:** P5.12 — Hujjatlar (2026-10-07)
-- **Keyingi todo:** P5.13 — Production tayyorgarlik
+- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (13/14)
+- **Oxirgi bajarilgan:** P5.13 — Production tayyorgarlik (2026-10-07)
+- **Keyingi todo:** P5.14 — Faza 5 gate (yakuniy)
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM · 👤 Claude'da custom connector · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender · 👤 ElevenLabs kaliti (web → Sozlamalar) · 👤 TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -104,6 +104,7 @@
 | 2026-10-07 | P5.07 | Batch qatorlari oldindan to'liq tekshiriladi, BLOCKED qator bekor qilinib keyingisiga o'tiladi | yarim yo'lda to'xtab qolgan batch'dan ko'ra xato qatorlar hisobotda ko'rinadigan to'liq natija foydaliroq |
 | 2026-10-07 | P5.08 | Telegram long polling (getUpdates), webhook emas | Railway'da bitta instans; ochiq HTTPS endpoint va secret kerak emas |
 | 2026-10-07 | P5.10 | Q8: self-signed ZXP; Q9: faqat LGPL ffmpeg ZXP ichida (bin/<platform>-<arch>) | shaxsiy tarqatishga yetarli; LGPL o'zgartirilmagan binar bilan tarqatishga ruxsat beradi |
+| 2026-10-07 | P5.13 | DB backup ilova ichida (json_agg → storage), pg_dump emas | Railway konteynerida pg_dump yo'q; JSON orqali turlar aniq tiklanadi va PGlite bilan test qilinadi |
 
 ---
 
@@ -1443,3 +1444,30 @@ Server testlari: 197 o'tdi. Typecheck, lint, web build toza.
 - `docs/README.md` — hujjatlar indeksi.
 
 **Testlar:** server `docs.test` (2) — generatsiya qilingan hujjatlar kod bilan aynan mos (yangi tool yoki xato qo'shilsa test eslatadi); har tool va har kod hujjatda, guruhsiz qolmagan. Typecheck, lint toza.
+
+### P5.13 — Production tayyorgarlik (2026-10-07)
+
+**Nima qilindi:**
+- **Railway:** healthcheck `/health` (DB va Redis), `ON_FAILURE` × 5, SIGTERM'da toza to'xtash — avvaldan bor, tekshirildi. Ishga tushganda joblar, audio va batch'lar tiklanadi.
+- **DB backup** (`apps/server/src/ops/backup.ts`):
+  - Postgres JSON serializatsiyasi (`json_agg`) → gzip NDJSON.
+  - Tiklash `json_populate_recordset` bilan: turlar aniq, FK topologik tartibda, bitta tranzaksiyada. Bo'sh bo'lmagan bazaga yozmaydi.
+  - **Avtomatik:** production'da `MaintenanceService` (`BACKUP_INTERVAL_H=24`) → storage `system/backups/`, rotatsiya `BACKUP_KEEP=14`.
+  - **CLI:** `scripts/backup.mts dump|restore`.
+  - Storage drayverlariga (local, S3) `delete` va `list` qo'shildi.
+- **Loglarni saqlash muddati** (har kuni):
+  - `job_events` — yakunlangan va eski joblar uchun (`LOG_RETENTION_DAYS=90`);
+  - `audit_log` — 365 kun;
+  - eskirgan OAuth tokenlari;
+  - Telegram kodlari.
+- **Xavfsizlik ko'rigi** (`docs/production.md` jadvali): kalitlar, auth va cookie bayroqlari, MCP OAuth, rate limit, yo'llar, pre-signed fayllar, izolyatsiya, audit, ExtendScript, ZXP.
+  - Tuzatish: barcha javoblarga `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`; production'da HSTS.
+- **Regressiya to'plami:** `pnpm test:regression` — compiler snapshot'lari, server integratsiyasi (soxta agent / EL / Telegram), ES3 oplari, shablon kutubxonasi, e2e gate'lar.
+- `.env.example` ga Telegram va backup sozlamalari qo'shildi.
+
+**Testlar:**
+- server `maintenance.test` (3): FK tartibi; backup → rotatsiya → toza PGlite'ga tiklash (`jobs` qatori aynan teng, Date turlari, secrets) va bo'sh bo'lmagan bazaga rad etish; loglar muddati.
+- `security.test` (+1): sarlavhalar.
+- `pnpm test:regression`: 270/270. Typecheck, lint toza.
+
+**👤:** Railway Postgres volume snapshot'larini yoqish; `MASTER_KEY` ni alohida xavfsiz joyda saqlash.

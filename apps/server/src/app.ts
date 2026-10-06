@@ -44,6 +44,7 @@ import { TelegramService } from "./telegram/service";
 import type { TelegramOptions } from "./telegram/service";
 import { registerTelegramRoutes } from "./telegram/routes";
 import { registerCabinetRoutes } from "./cabinet/routes";
+import { MaintenanceService } from "./ops/maintenance";
 import { registerAgentSocket } from "./ws/routes";
 
 declare module "fastify" {
@@ -57,6 +58,7 @@ declare module "fastify" {
     brands: BrandService;
     batches: BatchService;
     telegram: TelegramService;
+    maintenance: MaintenanceService;
   }
 }
 
@@ -150,6 +152,15 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   // Login va qurilma ulash: IP bo'yicha chegaralar (brute force / spam'ga qarshi, P3.10).
   const authLimiter = new RateLimiter(30, 10 * 60_000, () => now().getTime());
   const limited = new Set(["/api/auth/magic-link", "/oauth/device/code", "/api/devices/confirm"]);
+  // Xavfsizlik sarlavhalari (P5.13): MIME sniffing, clickjacking, referer sizishi, HTTPS (production).
+  app.addHook("onSend", async (_request, reply) => {
+    reply.header("x-content-type-options", "nosniff");
+    reply.header("referrer-policy", "strict-origin-when-cross-origin");
+    if (!reply.hasHeader("x-frame-options")) reply.header("x-frame-options", "DENY");
+    if (deps.env.NODE_ENV === "production") {
+      reply.header("strict-transport-security", "max-age=31536000; includeSubDomains");
+    }
+  });
   app.addHook("onRequest", async (request, reply) => {
     if (request.method !== "POST" || !limited.has(request.url.split("?")[0]!)) return;
     if (!authLimiter.take(`${request.ip}:${request.url}`)) {
@@ -188,6 +199,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   ctx.telegram = new TelegramService(ctx, app.log, deps.telegramOptions ?? {});
   ctx.telegram.attach(engine, ctx.batches);
   app.decorate("telegram", ctx.telegram);
+  const maintenance = new MaintenanceService(ctx, app.log);
+  app.decorate("maintenance", maintenance);
+  // Backup va tozalash rejalashtiruvchisi faqat production'da (testlar va dev'da qo'lda chaqiriladi).
+  if (deps.env.NODE_ENV === "production") app.addHook("onReady", async () => maintenance.start());
   registerLive(ctx, engine, app.log);
   registerJobRoutes(app, ctx, engine);
   registerTemplateRoutes(app, ctx, engine);
@@ -250,6 +265,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     ctx.audio.stop();
     ctx.batches.stop();
     await ctx.telegram.stop();
+    await maintenance.stop();
     engine.stop();
     hub.close();
     await engine.idle();

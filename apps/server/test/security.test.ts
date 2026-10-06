@@ -136,3 +136,15 @@ describe("server tomonida yo'l tekshiruvi", () => {
     expect(agent.previews).toEqual([]);
   });
 });
+
+describe("xavfsizlik sarlavhalari (P5.13)", () => {
+  it("nosniff, DENY, referrer-policy har javobda; HSTS faqat production'da", async () => {
+    for (const url of ["/health", "/api/me", "/"]) {
+      const res = await t.app.inject({ url });
+      expect(res.headers["x-content-type-options"], url).toBe("nosniff");
+      expect(res.headers["x-frame-options"], url).toBe("DENY");
+      expect(res.headers["referrer-policy"], url).toBe("strict-origin-when-cross-origin");
+      expect(res.headers["strict-transport-security"], url).toBeUndefined();
+    }
+  });
+});
