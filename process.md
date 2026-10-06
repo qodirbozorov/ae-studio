@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (11/14)
-- **Oxirgi bajarilgan:** P5.11 — Installer va birinchi ishga tushirish (2026-10-07)
-- **Keyingi todo:** P5.12 — Hujjatlar
+- **Faza:** 5 — Shablonlar, brand kit, qadoqlash · jarayonda (12/14)
+- **Oxirgi bajarilgan:** P5.12 — Hujjatlar (2026-10-07)
+- **Keyingi todo:** P5.13 — Production tayyorgarlik
 - **Blokerlar:** 👤 RESEND_API_KEY + MAIL_FROM · 👤 Claude'da custom connector · 👤 AE kompyuterida: ZXP, Live/Undo, saveFrameToPng, aerender · 👤 ElevenLabs kaliti (web → Sozlamalar) · 👤 TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -1432,3 +1432,14 @@ Server testlari: 197 o'tdi. Typecheck, lint, web build toza.
 - Typecheck, lint, panel build toza.
 
 **👤:** toza kompyuterda 10 daqiqada o'rnatib, birinchi videoni chiqarish (Faza 5 gate, M8); macOS skriptini Mac'da sinash.
+
+### P5.12 — Hujjatlar (2026-10-07)
+
+**Nima qilindi:**
+- **Foydalanuvchi qo'llanmasi** (`docs/user-guide.md`): o'rnatish (panel, Claude connector, kabinet — ElevenLabs/Telegram/brand), Claude bilan birinchi video, tayyor buyruqlar, Claude'siz shablonlar va CSV batch, formatlar va brend, muammolar. `docs/panel-install.md` P5.11 da yangilangan.
+- **Dasturchi qo'llanmasi** (`docs/developer.md`): tuzilma va oqim, ishlab chiqish va testlar, yangi op (ES3, idempotentlik izi, mock AE), yangi ElevenLabs imkoniyati, yangi shablon, yangi MCP tool, Railway deploy va migratsiya.
+- **MCP tool ma'lumotnomasi zod'dan generatsiya qilinadi:** `apps/server/src/docs/generate.ts`, `pnpm gen:docs` → `docs/mcp-tools.md` (54 tool guruhlar bo'yicha: parametr, turi, majburiyligi, default va chegaralar; 4 prompt).
+- **Xato kodlari va yechimlari:** `docs/errors.md`, `ERROR_DEFS` dan generatsiya (kod, qayta urinish, nima qilish kerak).
+- `docs/README.md` — hujjatlar indeksi.
+
+**Testlar:** server `docs.test` (2) — generatsiya qilingan hujjatlar kod bilan aynan mos (yangi tool yoki xato qo'shilsa test eslatadi); har tool va har kod hujjatda, guruhsiz qolmagan. Typecheck, lint toza.
