@@ -250,11 +250,15 @@ export function registerOAuthRoutes(
     const { params, client } = checked;
     const fields: Record<string, string> = {};
     for (const [key, value] of Object.entries(params)) if (value !== undefined) fields[key] = value;
+    // form-action yo'naltirish manziliga ham qo'llanadi: POST'dan keyingi 303 mijozning redirect_uri
+    // origin'iga (masalan https://claude.ai) ruxsat etilmasa brauzer uni bloklaydi va oqim tugamaydi.
+    const redirect = new URL(params.redirect_uri);
+    const redirectOrigin = redirect.origin === "null" ? redirect.protocol : redirect.origin;
     return reply
       .header("x-frame-options", "DENY")
       .header(
         "content-security-policy",
-        "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'",
+        `default-src 'none'; style-src 'unsafe-inline'; form-action 'self' ${redirectOrigin}`,
       )
       .header("cache-control", "no-store")
       .type("text/html")

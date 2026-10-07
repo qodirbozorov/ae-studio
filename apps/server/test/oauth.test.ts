@@ -81,7 +81,13 @@ async function approve(params: Record<string, string>, decision = "allow") {
     payload: form({ ...fields, decision }),
   });
   expect(res.statusCode).toBe(303);
-  return { location: new URL(res.headers.location as string), page: page.body };
+  const location = new URL(res.headers.location as string);
+  // Brauzer qoidasi: form POST'dan keyingi yo'naltirish ham CSP form-action'ga bo'ysunadi.
+  const csp = String(page.headers["content-security-policy"] ?? "");
+  const formAction = /form-action ([^;]+)/.exec(csp)?.[1]?.split(/\s+/) ?? [];
+  const origin = location.origin === "null" ? location.protocol : location.origin;
+  expect(formAction, `CSP: ${csp}`).toContain(origin);
+  return { location, page: page.body };
 }
 
 async function token(data: Record<string, string>, headers: Record<string, string> = {}) {

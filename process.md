@@ -11,7 +11,7 @@
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
 - **Faza:** Barcha 5 faza — kod qismi tugadi; production'da (2026-10-07)
-- **Oxirgi bajarilgan:** Kabinetga kirish Telegram orqali, email olib tashlandi (2026-10-07)
+- **Oxirgi bajarilgan:** Tuzatish: connector ruxsat sahifasi CSP form-action (2026-10-07)
 - **Keyingi todo:** 👤 qo'lda sinovlar va kalitlar (pastdagi Blokerlar)
 - **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
@@ -1534,3 +1534,10 @@ Test yordamchisi `login()` sessiyani to'g'ridan-to'g'ri beradi. To'liq to'plam: 
 **👤:**
 - token chatda ochiq yuborildi — doimiy ishlatishdan oldin @BotFather'da `/revoke` qilib yangisini qo'yish;
 - bu bot boshqa ilovada ham polling qilsa, `getUpdates` to'qnashadi (bitta iste'molchi bo'lishi kerak).
+
+### Tuzatish: Claude connector ulanishi tugamasdi (2026-10-07)
+
+- **Belgi:** Claude'da "You started connecting to ae-studio but didn't finish". Kabinet faolligida "Ilovaga ruxsat berildi" qayta-qayta yozilgan, `/oauth/token` so'rovi umuman kelmagan.
+- **Sabab:** ruxsat sahifasining CSP'si `form-action 'self'` edi. Brauzer form POST'dan keyingi 303 yo'naltirishni ham `form-action` bilan tekshiradi, shuning uchun `https://claude.ai/api/mcp/auth_callback` ga o'tish bloklangan. Server tomoni to'g'ri ishlagan; avtomatik test esa brauzersiz bo'lgani uchun xatoni ko'rmagan.
+- **Tuzatish:** `form-action 'self' <redirect_uri origin>` (maxsus sxema bo'lsa `claude:` kabi sxema). Origin client metadata'da ro'yxatdan o'tgan `redirect_uri` dan olinadi.
+- **Test:** `oauth.test` har ruxsatda brauzer qoidasini tekshiradi (303 manzili `form-action` ichida). Tuzatishsiz 9 test yiqiladi, tuzatish bilan 15/15.
