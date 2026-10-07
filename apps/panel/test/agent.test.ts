@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildRunOpScript, scriptLiteral } from "../src/agent/ae-bridge";
 import { createAgent } from "../src/agent/index";
 import type { RunnerEvent } from "../src/agent/op-runner";
+import { createMockAE } from "./ae-mock";
 import { loadJsx } from "./jsx-harness";
 
 describe("agent → ExtendScript (mock AE, haqiqiy jsx bundle)", () => {
@@ -69,7 +70,9 @@ describe("agent → ExtendScript (mock AE, haqiqiy jsx bundle)", () => {
   });
 
   it("jsx yuklanmagan bo'lsa $.evalFile bilan yuklab qayta urinadi", async () => {
-    const h = await loadJsx(undefined, { preload: false });
+    const h = await loadJsx(createMockAE({ files: { "C:/ext/jsx/index.js": {} } }), {
+      preload: false,
+    });
     const agent = createAgent({ evalScript: h.evalScript, jsxPath: "C:/ext/jsx/index.js" });
     const outcome = await agent.runner.submit(makeOp("ping", "p1", 0, {}));
     expect(outcome.response.ok).toBe(true);
@@ -172,5 +175,39 @@ describe("birinchi ishga tushirish ustasi (P5.11)", () => {
       [true, "Node v15.9.0"],
     ]);
     expect(items[1]!.hint).toMatch(/Render Queue/);
+  });
+});
+
+describe("jsx yuklash diagnostikasi", () => {
+  it("yuklanmasa AE'dagi sabab (fayl yo'q / istisno) op xatosida ko'rinadi", async () => {
+    const { createAeBridge } = await import("../src/agent/ae-bridge");
+    const op = {
+      op_id: "x",
+      seq: 0,
+      op: "ping",
+      params: {},
+      timeout_ms: 1000,
+    } as never;
+    // $[NS] yo'q; yuklash skripti ExtendScript ichida xatoni ushlab "ERR:..." qaytaradi.
+    const replies = [
+      "__AES_NOT_LOADED__",
+      "ERR:fayl topilmadi: C:/x/jsx/index.js",
+      "__AES_NOT_LOADED__",
+    ];
+    const seen: string[] = [];
+    const bridge = createAeBridge({
+      evalScript: async (script) => {
+        seen.push(script);
+        return replies.shift() ?? "__AES_NOT_LOADED__";
+      },
+      jsxPath: "C:/x/jsx/index.js",
+    });
+    const res = await bridge.runOp(op, { root: "" });
+    expect(res).toMatchObject({
+      ok: false,
+      error: { code: "AE_SCRIPT_ERROR", message: expect.stringContaining("fayl topilmadi") },
+    });
+    expect(seen[1]).toContain("try {");
+    expect(seen[1]).toContain("$.evalFile(f)");
   });
 });

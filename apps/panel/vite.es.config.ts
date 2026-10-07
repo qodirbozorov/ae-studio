@@ -13,6 +13,31 @@ import { fileURLToPath } from "node:url";
 import { rollup, watch } from "rollup";
 import type { OutputChunk, RollupOptions } from "rollup";
 import { jsxInclude, jsxPonyfill } from "vite-cep-plugin";
+import type { Plugin } from "rollup";
+
+/**
+ * ExtendScript faylni BOM'siz bo'lsa tizim kodirovkasida o'qishi mumkin (Windows: cp1251/1252) - UTF-8
+ * belgilar (o'zbekcha apostrof, tire, strelka) buziladi. Bundle to'liq ASCII qilinadi (\uXXXX) va qator
+ * oxirlari LF (Bolt include'i yakka CR qoldiradi).
+ */
+export function extendScriptSafe(): Plugin {
+  const safe = (code: string) =>
+    code
+      .replace(/\r\n?/g, "\n")
+      .replace(/[\u0080-￿]/g, (ch) => "\\u" + ch.charCodeAt(0).toString(16).padStart(4, "0"));
+  return {
+    name: "aes-extendscript-safe",
+    renderChunk(code) {
+      return { code: safe(code), map: null };
+    },
+    // Bolt jsxInclude json2'ni keyinroq qo'shadi (yakka CR bilan) — oxirida yana tozalanadi.
+    generateBundle(_options, bundle) {
+      for (const chunk of Object.values(bundle)) {
+        if (chunk.type === "chunk") chunk.code = safe(chunk.code);
+      }
+    },
+  };
+}
 
 const panelDir = path.dirname(fileURLToPath(import.meta.url));
 const extensions = [".js", ".ts"];
@@ -39,6 +64,7 @@ export function createJsxRollupOptions(input: string = JSX_ENTRY): RollupOptions
       }),
       jsxPonyfill(),
       jsxInclude({ iife: true, globalThis: "thisObj" }),
+      extendScriptSafe(),
     ],
     onwarn(warning, warn) {
       // Babel inline helper'lari `this` ni ishlatadi — ExtendScript uchun zararsiz.

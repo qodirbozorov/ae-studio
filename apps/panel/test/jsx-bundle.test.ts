@@ -18,6 +18,13 @@ function extendScriptContext() {
 }
 
 describe("ExtendScript bundle", () => {
+  it("to'liq ASCII va faqat LF (ExtendScript kodirovka va yakka CR muammosi)", () => {
+    expect(code.includes("\r")).toBe(false);
+    expect(/[\u0080-￿]/.test(code)).toBe(false);
+    // Bolt include izohi alohida qatorda: json2 izoh ichida qolib ketmaydi.
+    expect(code).toMatch(/EXTENDSCRIPT INCLUDES ------ \/\/\n/);
+  });
+
   it("ES3 parser'dan o'tadi (ExtendScript sintaksisi)", () => {
     expect(() => parse(code, { ecmaVersion: 3 })).not.toThrow();
   });

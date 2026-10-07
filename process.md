@@ -11,7 +11,7 @@
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
 - **Faza:** Barcha 5 faza — kod qismi tugadi; production'da (2026-10-07)
-- **Oxirgi bajarilgan:** Tuzatish: panel ulanishi (CEP mixed-context URL) + yangi ZXP (2026-10-07)
+- **Oxirgi bajarilgan:** Tuzatish: jsx haqiqiy AE'da yuklanmasdi (ASCII/LF bundle, diagnostika) + yangi ZXP (2026-10-08)
 - **Keyingi todo:** 👤 qo'lda sinovlar va kalitlar (pastdagi Blokerlar)
 - **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
@@ -1550,3 +1550,17 @@ Test yordamchisi `login()` sessiyani to'g'ridan-to'g'ri beradi. To'liq to'plam: 
 - **Test:** `files.e2e` — global `URL` ni Node tanimaydigan "brauzer" klassi bilan almashtirib, `getJson` / `postJson` va fayl yuklash/yuklab olish sinaladi. Tuzatishsiz aynan shu xato chiqadi, tuzatish bilan o'tadi.
 - **Reliz:** yangi `apps/panel/release/ae-studio-0.1.0.zxp` (sha256 `dba360ee…`).
 - `gate3` to'liq to'plam yuki ostida bir marta timing sabab yiqildi, alohida o'tdi (avval ham kuzatilgan).
+
+### Tuzatish: haqiqiy AE'da "ExtendScript (jsx) AE'ga yuklanmagan" (2026-10-08)
+
+- **Belgi:** panel ulandi, lekin har op (ping, info, comp.create) `AE_SCRIPT_ERROR: ExtendScript (jsx) AE'ga yuklanmagan` qaytardi. AE 2025, Windows.
+- **Topilgan nuqsonlar** (testlar mock AE / V8'da o'tgan, haqiqiy ExtendScript ko'rmagan):
+  1. **Yakka CR:** Bolt `jsxInclude` json2'ni yakka `\r` bilan qo'shgan — `{\r// ----- EXTENDSCRIPT INCLUDES ------ //\r"object"!=typeof JSON…`. V8 `\r` ni qator oxiri deb biladi. ExtendScript bilmasa, `//` izohi json2 va undan keyingi kodni yutadi va fayl yuklanmaydi.
+  2. **Non-ASCII:** bundle'da 50 qatorda UTF-8 belgilar bor edi (o'zbekcha apostrof, `—`, `→`). ExtendScript BOM'siz faylni tizim kodirovkasida (cp1251/1252) o'qishi mumkin.
+  3. **Diagnostika yo'q edi:** `$.evalFile` xatosi "yuklanmagan" ostida yashirilardi.
+- **Tuzatish:**
+  - rollup plagini `extendScriptSafe` (renderChunk va generateBundle): bundle to'liq ASCII (`\uXXXX`) va faqat LF;
+  - `loadJsx`: ExtendScript ichida `try/catch` — fayl yo'qligi yoki istisno matni va qatori op xatosiga qo'shiladi;
+  - testlar: `jsx-bundle` (ASCII, CR yo'q, include izohi alohida qatorda), bridge diagnostikasi; mock'da jsx fayli ro'yxatga olindi.
+- **Reliz:** yangi ZXP (sha256 `07fa3ebf…`).
+- **👤:** qayta o'rnatish. Agar yana yuklanmasa, xato matnida AE'dagi aniq sabab va qator raqami ko'rinadi.

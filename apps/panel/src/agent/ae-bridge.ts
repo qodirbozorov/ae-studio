@@ -47,13 +47,34 @@ export interface AeBridge {
 
 export function createAeBridge(options: { evalScript: EvalScript; jsxPath?: string }): AeBridge {
   const { evalScript, jsxPath } = options;
+  /** Oxirgi yuklash xatosi (AE'dagi haqiqiy sabab: fayl, istisno matni, qator). */
+  let loadError: string | null = null;
 
   async function loadJsx(): Promise<boolean> {
-    if (jsxPath === undefined) return false;
-    const script = `$.evalFile(${scriptLiteral(jsxPath)}); typeof $[${scriptLiteral(NS)}]`;
+    if (jsxPath === undefined) {
+      loadError = "jsx yo'li berilmagan";
+      return false;
+    }
+    // Xato bo'lsa CEP faqat "EvalScript error." qaytaradi — sababni ExtendScript ichida ushlaymiz.
+    const script =
+      `(function () { try { var f = new File(${scriptLiteral(jsxPath)});` +
+      ` if (!f.exists) return "ERR:fayl topilmadi: " + f.fsName;` +
+      ` $.evalFile(f); return typeof $[${scriptLiteral(NS)}];` +
+      ` } catch (e) { return "ERR:" + e.toString() + (e.line ? " (qator " + e.line + ")" : ""); } })()`;
     try {
-      return (await withTimeout(evalScript(script), LOAD_TIMEOUT_MS)) === "object";
-    } catch {
+      const result = await withTimeout(evalScript(script), LOAD_TIMEOUT_MS);
+      if (result === "object") {
+        loadError = null;
+        return true;
+      }
+      loadError = result.startsWith("ERR:")
+        ? result.slice(4)
+        : result === EVAL_SCRIPT_ERROR
+          ? "evalScript xatosi"
+          : `kutilmagan javob: ${result.slice(0, 120)}`;
+      return false;
+    } catch (error) {
+      loadError = error instanceof Error ? error.message : String(error);
       return false;
     }
   }
@@ -74,7 +95,10 @@ export function createAeBridge(options: { evalScript: EvalScript; jsxPath?: stri
       return fail("ENV_AE_CLOSED", error instanceof Error ? error.message : String(error));
     }
     if (raw === NOT_LOADED) {
-      return fail("AE_SCRIPT_ERROR", "ExtendScript (jsx) AE'ga yuklanmagan");
+      return fail(
+        "AE_SCRIPT_ERROR",
+        `ExtendScript (jsx) AE'ga yuklanmagan${loadError === null ? "" : `: ${loadError}`}`,
+      );
     }
     if (raw === EVAL_SCRIPT_ERROR || raw === "") {
       return fail("AE_SCRIPT_ERROR", "evalScript xatosi (ExtendScript istisnosi)");
