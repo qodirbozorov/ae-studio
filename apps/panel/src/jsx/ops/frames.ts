@@ -22,7 +22,7 @@ export function framesCapture(
 ): OpResultData {
   const comp = requireComp(params.comp);
   const dirAbs = resolveInRoot(ctx.root, params.dir);
-  const relDir = params.dir.replace(/[\\/]+$/, "");
+  const relDir = params.dir.replace(/[\\\x2f]+$/, "");
   const folder = new Folder(dirAbs);
   if (!folder.exists && !folder.create()) {
     raise("AE_SCRIPT_ERROR", "Papka yaratilmadi: " + relDir);

@@ -1,4 +1,4 @@
-import { parse } from "acorn";
+import { parse, tokenizer } from "acorn";
 import vm from "node:vm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { JSX_VERSION, NS } from "../src/shared/constants";
@@ -18,6 +18,38 @@ function extendScriptContext() {
 }
 
 describe("ExtendScript bundle", () => {
+  it("ExtendScript ES3 regex: literal ichida escape qilinmagan `/` yo'q (hatto [...] ichida)", () => {
+    const bad: string[] = [];
+    for (const token of tokenizer(code, { ecmaVersion: 5, locations: true })) {
+      if (token.type.label !== "regexp") continue;
+      const pattern = (token as unknown as { value: { pattern: string } }).value.pattern;
+      for (let i = 0; i < pattern.length; i++) {
+        if (pattern[i] === "\\") i++;
+        else if (pattern[i] === "/") {
+          bad.push(`${token.loc!.start.line}: /${pattern}/`);
+          break;
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("obyekt/massiv literallarida oxirgi vergul yo'q (ES3)", () => {
+    const tokens = [...tokenizer(code, { ecmaVersion: 5, locations: true })];
+    const bad: number[] = [];
+    tokens.forEach((token, i) => {
+      const next = tokens[i + 1];
+      if (
+        token.type.label === "," &&
+        next !== undefined &&
+        (next.type.label === "}" || next.type.label === "]")
+      ) {
+        bad.push(token.loc!.start.line);
+      }
+    });
+    expect(bad).toEqual([]);
+  });
+
   it("to'liq ASCII va faqat LF (ExtendScript kodirovka va yakka CR muammosi)", () => {
     expect(code.includes("\r")).toBe(false);
     expect(/[\u0080-￿]/.test(code)).toBe(false);

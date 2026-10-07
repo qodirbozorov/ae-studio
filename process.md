@@ -11,7 +11,7 @@
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
 - **Faza:** Barcha 5 faza — kod qismi tugadi; production'da (2026-10-07)
-- **Oxirgi bajarilgan:** Tuzatish: jsx haqiqiy AE'da yuklanmasdi (ASCII/LF bundle, diagnostika) + yangi ZXP (2026-10-08)
+- **Oxirgi bajarilgan:** Tuzatish: jsx regex ES3 (386-qator) + yangi ZXP (2026-10-08)
 - **Keyingi todo:** 👤 qo'lda sinovlar va kalitlar (pastdagi Blokerlar)
 - **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
@@ -1564,3 +1564,13 @@ Test yordamchisi `login()` sessiyani to'g'ridan-to'g'ri beradi. To'liq to'plam: 
   - testlar: `jsx-bundle` (ASCII, CR yo'q, include izohi alohida qatorda), bridge diagnostikasi; mock'da jsx fayli ro'yxatga olindi.
 - **Reliz:** yangi ZXP (sha256 `07fa3ebf…`).
 - **👤:** qayta o'rnatish. Agar yana yuklanmasa, xato matnida AE'dagi aniq sabab va qator raqami ko'rinadi.
+
+### Tuzatish: AE'da `SyntaxError: Expected: )` (jsx 386-qator) (2026-10-08)
+
+- **Diagnostika ishladi:** AE xatoni qator raqami bilan qaytardi.
+- **Sabab:** `/^([a-zA-Z]:|[\/]|~)/` va `/[\/]+/` regex'lari. ES3'da (ExtendScript) regex literal ichidagi `/`, hatto `[...]` klassi ichida bo'lsa ham, literalni tugatadi; bu qoidani faqat ES5 yumshatgan. Acorn'ning ES3 rejimi buni tekshirmaydi, shuning uchun test o'tib ketgan.
+- **Tuzatish:** `jsx/lib/paths.ts` (3 joy) va `jsx/ops/frames.ts` (1 joy) — `/` o'rniga `\x2f`.
+- **Yangi bundle tekshiruvlari** (`jsx-bundle.test`):
+  - regex literal ichida escape qilinmagan `/` yo'q — tuzatishsiz aynan "386:" qatorini ko'rsatib yiqiladi;
+  - obyekt/massiv literallarida oxirgi vergul yo'q.
+- **Reliz:** yangi ZXP (sha256 `e445e2f8…`).
