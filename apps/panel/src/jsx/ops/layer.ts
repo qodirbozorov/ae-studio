@@ -62,7 +62,10 @@ export function fitScale(
   const sx = comp.width / item.width;
   const sy = comp.height / item.height;
   if (fit === "stretch") return [sx * 100, sy * 100];
-  const s = fit === "cover" ? (sx > sy ? sx : sy) : sx < sy ? sx : sy;
+  // ExtendScript parseri ternar ichidagi ternarni (Babel qavslarni olib tashlaydi) tushunmaydi — if/else.
+  let s: number;
+  if (fit === "cover") s = sx > sy ? sx : sy;
+  else s = sx < sy ? sx : sy;
   return [s * 100, s * 100];
 }
 

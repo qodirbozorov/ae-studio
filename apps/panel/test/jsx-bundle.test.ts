@@ -34,6 +34,28 @@ describe("ExtendScript bundle", () => {
     expect(bad).toEqual([]);
   });
 
+  it("ternar ichida ternar (consequent) yo'q — ExtendScript `Expected: :` beradi", () => {
+    const bad: number[] = [];
+    const walk = (node: unknown): void => {
+      if (node === null || typeof node !== "object") return;
+      if (Array.isArray(node)) {
+        node.forEach(walk);
+        return;
+      }
+      const n = node as {
+        type?: string;
+        consequent?: { type?: string };
+        loc?: { start: { line: number } };
+      };
+      if (n.type === "ConditionalExpression" && n.consequent?.type === "ConditionalExpression") {
+        bad.push(n.loc!.start.line);
+      }
+      for (const [key, value] of Object.entries(node)) if (key !== "loc") walk(value);
+    };
+    walk(parse(code, { ecmaVersion: 5, locations: true }));
+    expect(bad).toEqual([]);
+  });
+
   it("obyekt/massiv literallarida oxirgi vergul yo'q (ES3)", () => {
     const tokens = [...tokenizer(code, { ecmaVersion: 5, locations: true })];
     const bad: number[] = [];

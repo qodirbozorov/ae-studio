@@ -11,7 +11,7 @@
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
 - **Faza:** Barcha 5 faza — kod qismi tugadi; production'da (2026-10-07)
-- **Oxirgi bajarilgan:** Tuzatish: jsx regex ES3 (386-qator) + yangi ZXP (2026-10-08)
+- **Oxirgi bajarilgan:** Tuzatish: jsx ichma-ich ternar (522-qator) + ExtendScript skani + yangi ZXP (2026-10-08)
 - **Keyingi todo:** 👤 qo'lda sinovlar va kalitlar (pastdagi Blokerlar)
 - **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
@@ -1574,3 +1574,11 @@ Test yordamchisi `login()` sessiyani to'g'ridan-to'g'ri beradi. To'liq to'plam: 
   - regex literal ichida escape qilinmagan `/` yo'q — tuzatishsiz aynan "386:" qatorini ko'rsatib yiqiladi;
   - obyekt/massiv literallarida oxirgi vergul yo'q.
 - **Reliz:** yangi ZXP (sha256 `e445e2f8…`).
+
+### Tuzatish: AE'da `SyntaxError: Expected: :` (jsx 522-qator) (2026-10-08)
+
+- **Sabab:** `fitScale` dagi ternar ichidagi ternar — `fit === "cover" ? (sx > sy ? sx : sy) : …`. Babel qavslarni olib tashlaydi, ExtendScript parseri esa consequent ichidagi ternarni tushunmaydi. Alternate'dagi ichma-ich ternar (json2'da) ExtendScript'da ishlaydi.
+- **Tuzatish:** `jsx/ops/layer.ts` `fitScale` — if/else.
+- **Test:** `jsx-bundle` — consequent'da ternar yo'qligi AST bo'yicha tekshiriladi; tuzatishsiz yiqiladi.
+- **Oldindan skan** (bittalab kutmaslik uchun): blok ichida funksiya deklaratsiyasi, parametrsiz `catch`, getter/setter, ES5 metodlari (forEach/map/trim/keys/defineProperty/bind …) — bundle'da hech biri yo'q.
+- **Reliz:** yangi ZXP.
