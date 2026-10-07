@@ -11,7 +11,7 @@
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
 - **Faza:** Barcha 5 faza — kod qismi tugadi; production'da (2026-10-07)
-- **Oxirgi bajarilgan:** Tuzatish: connector ruxsat sahifasi CSP form-action (2026-10-07)
+- **Oxirgi bajarilgan:** Tuzatish: panel ulanishi (CEP mixed-context URL) + yangi ZXP (2026-10-07)
 - **Keyingi todo:** 👤 qo'lda sinovlar va kalitlar (pastdagi Blokerlar)
 - **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
@@ -1541,3 +1541,12 @@ Test yordamchisi `login()` sessiyani to'g'ridan-to'g'ri beradi. To'liq to'plam: 
 - **Sabab:** ruxsat sahifasining CSP'si `form-action 'self'` edi. Brauzer form POST'dan keyingi 303 yo'naltirishni ham `form-action` bilan tekshiradi, shuning uchun `https://claude.ai/api/mcp/auth_callback` ga o'tish bloklangan. Server tomoni to'g'ri ishlagan; avtomatik test esa brauzersiz bo'lgani uchun xatoni ko'rmagan.
 - **Tuzatish:** `form-action 'self' <redirect_uri origin>` (maxsus sxema bo'lsa `claude:` kabi sxema). Origin client metadata'da ro'yxatdan o'tgan `redirect_uri` dan olinadi.
 - **Test:** `oauth.test` har ruxsatda brauzer qoidasini tekshiradi (303 manzili `form-action` ichida). Tuzatishsiz 9 test yiqiladi, tuzatish bilan 15/15.
+
+### Tuzatish: panelni ulashda `The "listener" argument must be of type function` (2026-10-07)
+
+- **Belgi:** AE'da panel → Ulanish: `❌ Ulanish: The "listener" argument must be of type function. Received an instance of Object`.
+- **Sabab:** CEP paneli `--mixed-context` rejimida ishlaydi, shu sababli global `URL` — brauzer (Chromium) klassi. Agent `http.request(new URL(...), options, cb)` chaqirgan. CEP'dagi Node (15/16) URL'ni `instanceof` bilan taniydi, brauzer URL'ini tanimaydi va uni `options` deb oladi. Natijada haqiqiy `options` callback o'rniga tushadi va xato chiqadi. Testlar oddiy Node 24 da ishlagani uchun xato ko'rinmagan: u yerda URL duck-typing bilan tanilardi.
+- **Tuzatish:** Node `http(s).request` / `get` ga URL satr sifatida beriladi (`target.href`) — `http.ts` va `files.ts` (yuklash va yuklab olish).
+- **Test:** `files.e2e` — global `URL` ni Node tanimaydigan "brauzer" klassi bilan almashtirib, `getJson` / `postJson` va fayl yuklash/yuklab olish sinaladi. Tuzatishsiz aynan shu xato chiqadi, tuzatish bilan o'tadi.
+- **Reliz:** yangi `apps/panel/release/ae-studio-0.1.0.zxp` (sha256 `dba360ee…`).
+- `gate3` to'liq to'plam yuki ostida bir marta timing sabab yiqildi, alohida o'tdi (avval ham kuzatilgan).

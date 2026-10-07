@@ -32,7 +32,8 @@ function clientFor(url: URL) {
 function getToFile(url: string, file: string): Promise<void> {
   const target = new URL(url);
   return new Promise((resolve, reject) => {
-    const request = clientFor(target).get(target, { timeout: TIMEOUT_MS }, (response) => {
+    // CEP mixed-context: global URL — brauzer klassi, Node http uni URL deb tanimaydi; satr beriladi.
+    const request = clientFor(target).get(target.href, { timeout: TIMEOUT_MS }, (response) => {
       const status = response.statusCode ?? 0;
       if (status < 200 || status >= 300) {
         response.resume();
@@ -97,8 +98,9 @@ export async function uploadFile(
   const info = await sha256File(file);
   const target = new URL(url);
   await new Promise<void>((resolve, reject) => {
+    // CEP mixed-context: global URL — brauzer klassi, Node http uni URL deb tanimaydi; satr beriladi.
     const request = clientFor(target).request(
-      target,
+      target.href,
       {
         method: "PUT",
         headers: { "content-type": contentType, "content-length": info.size },

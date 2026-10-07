@@ -169,3 +169,71 @@ describe("WS: file.upload.request → file.uploaded (P5.02)", () => {
     expect(await ask("../tashqarida.aep")).toMatchObject({ ok: false });
   });
 });
+
+describe("CEP mixed-context: global URL brauzer klassi (regressiya)", () => {
+  it("postJson/getJson va fayl uzatish global URL Node'niki bo'lmasa ham ishlaydi", async () => {
+    const s = await start();
+    t = s.app;
+    const { getJson, postJson } = await import("../src/agent/http");
+    const NodeURL = globalThis.URL;
+    // CEP'dagi kabi: global URL — boshqa klass (Node http uni URL instansiyasi deb tanimaydi).
+    class BrowserURL {
+      // Node 24 URL'ni duck-typing bilan taniydi (`auth === undefined`); CEP'dagi Node 15/16 esa
+      // `instanceof` bilan — brauzer URL'i tanilmaydi. `auth` shu holatni takrorlaydi.
+      readonly auth = "";
+      private readonly inner: InstanceType<typeof NodeURL>;
+      constructor(input: string, base?: string) {
+        this.inner = new NodeURL(input, base);
+      }
+      get href() {
+        return this.inner.href;
+      }
+      get protocol() {
+        return this.inner.protocol;
+      }
+      get host() {
+        return this.inner.host;
+      }
+      get hostname() {
+        return this.inner.hostname;
+      }
+      get port() {
+        return this.inner.port;
+      }
+      get pathname() {
+        return this.inner.pathname;
+      }
+      get search() {
+        return this.inner.search;
+      }
+      get origin() {
+        return this.inner.origin;
+      }
+      toString() {
+        return this.inner.href;
+      }
+    }
+    (globalThis as { URL: unknown }).URL = BrowserURL;
+    try {
+      const health = await getJson<{ ok: boolean }>(`${s.base}/health`);
+      expect(health.body.ok).toBe(true);
+      const code = await postJson<{ device_code?: string }>(`${s.base}/oauth/device/code`, {
+        client_id: "aes-panel",
+      });
+      expect(code.status).toBeLessThan(500);
+      const dir = mkdtempSync(join(tmpdir(), "aes-url-"));
+      const file = join(dir, "a.bin");
+      writeFileSync(file, "DATA");
+      const key = "u/user1/p/proj1/docs/a.bin";
+      await uploadFile(await s.app.app.storage.presignPut(key), file);
+      const ok = await downloadVerified(
+        await s.app.app.storage.presignGet(key),
+        join(dir, "b.bin"),
+        sha("DATA"),
+      );
+      expect(ok.size).toBe(4);
+    } finally {
+      (globalThis as { URL: unknown }).URL = NodeURL;
+    }
+  });
+});

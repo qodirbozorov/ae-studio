@@ -28,22 +28,27 @@ function requestJson<T>(
     headers["content-length"] = data.length;
   }
   return new Promise((resolve, reject) => {
-    const request = client.request(target, { method, headers, timeout: timeoutMs }, (response) => {
-      const chunks: Buffer[] = [];
-      response.on("data", (chunk: Buffer) => chunks.push(chunk));
-      response.on("end", () => {
-        const text = Buffer.concat(chunks).toString("utf8");
-        try {
-          resolve({ status: response.statusCode ?? 0, body: JSON.parse(text) as T });
-        } catch {
-          reject(
-            new Error(
-              `Server JSON qaytarmadi (HTTP ${response.statusCode}): ${text.slice(0, 120)}`,
-            ),
-          );
-        }
-      });
-    });
+    // CEP mixed-context: global URL — brauzer klassi, Node http uni URL deb tanimaydi; satr beriladi.
+    const request = client.request(
+      target.href,
+      { method, headers, timeout: timeoutMs },
+      (response) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk: Buffer) => chunks.push(chunk));
+        response.on("end", () => {
+          const text = Buffer.concat(chunks).toString("utf8");
+          try {
+            resolve({ status: response.statusCode ?? 0, body: JSON.parse(text) as T });
+          } catch {
+            reject(
+              new Error(
+                `Server JSON qaytarmadi (HTTP ${response.statusCode}): ${text.slice(0, 120)}`,
+              ),
+            );
+          }
+        });
+      },
+    );
     request.on("timeout", () =>
       request.destroy(new Error(`${timeoutMs} ms ichida javob bo'lmadi`)),
     );
