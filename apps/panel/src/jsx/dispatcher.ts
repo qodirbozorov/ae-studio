@@ -1,9 +1,19 @@
 /**
- * `runOp(json)` — yagona kirish nuqtasi (§10.3). Bitta evalScript = bitta op.
+ * Kirish nuqtalari (§10.3): `runOp(json)` — bitta op; `runBatch(json)` — sahna oplari bitta evalScript'da (P6.04).
  * Har doim JSON satr qaytaradi: `{ ok: true, data }` yoki `{ ok: false, error }`.
  */
-import type { AeContext, AeRequest, AeResponse, OpEnvelope, OpResultData } from "@aes/shared/ae";
+import type {
+  AeBatchItem,
+  AeBatchRequest,
+  AeBatchResponse,
+  AeContext,
+  AeRequest,
+  AeResponse,
+  OpEnvelope,
+  OpResultData,
+} from "@aes/shared/ae";
 import { makeError } from "@aes/shared/errors";
+import type { AesError } from "@aes/shared/errors";
 import { MIN_AE_VERSION } from "../shared/constants";
 import { compCreate, compNest } from "./ops/comp";
 import { fxAdd, fxApplyPreset } from "./ops/fx";
@@ -18,7 +28,8 @@ import { projectOpenOrCreate, projectSave } from "./ops/project";
 import { propExpression, propKeyframes } from "./ops/prop";
 import { renderQueue } from "./ops/render";
 import { undo } from "./ops/undo";
-import { isAesThrown, raise } from "./lib/util";
+import { beginTraceCache, endTraceCache, resetTraceCache } from "./lib/trace";
+import { isAesThrown, isArray, raise } from "./lib/util";
 
 /** Op handler: params tekshirilgan (agent zod bilan), op_id va kontekst bilan chaqiriladi. */
 export type OpHandler = (params: never, opId: string, ctx: AeContext) => OpResultData;
@@ -63,7 +74,7 @@ const NO_UNDO: { [op: string]: boolean | undefined } = {
   "project.save": true,
 };
 
-function respond(response: AeResponse): string {
+function respond(response: AeResponse | AeBatchResponse): string {
   return JSON.stringify(response);
 }
 
@@ -76,52 +87,135 @@ function describeError(error: unknown): string {
   return String(error);
 }
 
-export function runOp(json: string): string {
-  let request: AeRequest;
+function toError(error: unknown): AesError {
+  if (isAesThrown(error)) return makeError(error.aesCode, error.message, error.details);
+  return makeError("AE_SCRIPT_ERROR", describeError(error));
+}
+
+function parseRequest<T>(json: string): T | null {
   try {
-    request = JSON.parse(json) as AeRequest;
+    const value = JSON.parse(json) as T;
+    return value === null || typeof value !== "object" ? null : value;
   } catch (_e) {
+    return null;
+  }
+}
+
+function contextOf(ctx: AeContext | undefined | null): AeContext {
+  return ctx === undefined || ctx === null ? { root: "" } : ctx;
+}
+
+function versionError(): AesError | null {
+  if (parseFloat(app.version) >= MIN_AE_VERSION) return null;
+  return makeError("AE_VERSION", "After Effects " + app.version + " < " + MIN_AE_VERSION);
+}
+
+/** Bitta op (undo group va dialoglar chaqiruvchida). Xato bo'lsa tashlaydi. */
+function execute(envelope: OpEnvelope, ctx: AeContext): OpResultData {
+  if (envelope === null || typeof envelope !== "object" || typeof envelope.op !== "string") {
+    return raise("AE_BAD_PARAMS", "op yo'q");
+  }
+  const handler = handlers[envelope.op];
+  if (handler === undefined) return raise("AE_UNKNOWN_OP", "Noma'lum op: " + envelope.op);
+  if (typeof envelope.op_id !== "string" || envelope.op_id === "") {
+    return raise("AE_BAD_PARAMS", "op_id yo'q");
+  }
+  const params = envelope.params === undefined || envelope.params === null ? {} : envelope.params;
+  return handler(params as never, envelope.op_id, ctx);
+}
+
+export function runOp(json: string): string {
+  const request = parseRequest<AeRequest>(json);
+  if (request === null) {
     return respond({ ok: false, error: makeError("AE_BAD_PARAMS", "So'rov JSON emas") });
   }
-  const op = request === null || typeof request !== "object" ? undefined : request.op;
+  const op = request.op;
   if (op === undefined || op === null || typeof op.op !== "string") {
     return respond({ ok: false, error: makeError("AE_BAD_PARAMS", "op yo'q") });
   }
   const readOnly = READ_ONLY[op.op] === true;
-  if (!readOnly && parseFloat(app.version) < MIN_AE_VERSION) {
-    return respond({
-      ok: false,
-      error: makeError("AE_VERSION", "After Effects " + app.version + " < " + MIN_AE_VERSION),
-    });
+  if (!readOnly) {
+    const tooOld = versionError();
+    if (tooOld !== null) return respond({ ok: false, error: tooOld });
   }
-  const handler = handlers[op.op];
-  if (handler === undefined) {
+  if (handlers[op.op] === undefined) {
     return respond({ ok: false, error: makeError("AE_UNKNOWN_OP", "Noma'lum op: " + op.op) });
   }
-  const ctx: AeContext =
-    request.ctx === undefined || request.ctx === null ? { root: "" } : request.ctx;
+  const ctx = contextOf(request.ctx);
 
   app.beginSuppressDialogs();
   const undo = !readOnly && NO_UNDO[op.op] !== true;
   if (undo) app.beginUndoGroup("aes:" + op.op_id);
   try {
-    const data = execute(handler, op);
-    return respond({ ok: true, data: data });
+    return respond({ ok: true, data: execute(op, ctx) });
   } catch (error) {
-    if (isAesThrown(error)) {
-      return respond({ ok: false, error: makeError(error.aesCode, error.message, error.details) });
-    }
-    return respond({ ok: false, error: makeError("AE_SCRIPT_ERROR", describeError(error)) });
+    return respond({ ok: false, error: toError(error) });
   } finally {
     if (undo) app.endUndoGroup();
     app.endSuppressDialogs(false);
   }
+}
 
-  function execute(fn: OpHandler, envelope: OpEnvelope): OpResultData {
-    if (typeof envelope.op_id !== "string" || envelope.op_id === "") {
-      raise("AE_BAD_PARAMS", "op_id yo'q");
-    }
-    const params = envelope.params === undefined || envelope.params === null ? {} : envelope.params;
-    return fn(params as never, envelope.op_id, ctx);
+/** Loyihani tashqaridan o'zgartiradigan oplar: keyin iz keshi qayta skanerlanadi. */
+const RESCAN: { [op: string]: boolean | undefined } = {
+  "template.instantiate": true,
+  "render.queue": true,
+  "project.open_or_create": true,
+  undo: true,
+};
+
+function now(): number {
+  return new Date().getTime();
+}
+
+/**
+ * `runBatch(json)` — sahna oplari bitta evalScript'da (P6.04, update-technicalguidline §3.2, §3.4):
+ * dialoglar bir marta o'chiriladi, undo group'ga kiradigan ketma-ket oplar bitta guruhda, iz keshi bilan.
+ * Birinchi xatoda to'xtaydi; qolgan oplar natijada yo'q (chaqiruvchi ularni "bajarilmagan" deb biladi).
+ */
+export function runBatch(json: string): string {
+  const request = parseRequest<AeBatchRequest>(json);
+  if (request === null || !isArray(request.ops) || request.ops.length === 0) {
+    return respond({ ok: false, error: makeError("AE_BAD_PARAMS", "Batch so'rovi noto'g'ri") });
   }
+  const tooOld = versionError();
+  if (tooOld !== null) return respond({ ok: false, error: tooOld });
+  const ctx = contextOf(request.ctx);
+  const started = now();
+  const results: AeBatchItem[] = [];
+  // Undo group nomi — guruhdagi birinchi op_id (`aes:<op_id>`, bittalik op bilan bir xil format).
+  let undoGroup: string | null = null;
+
+  app.beginSuppressDialogs();
+  beginTraceCache();
+  try {
+    for (let i = 0; i < request.ops.length; i++) {
+      const op = request.ops[i]!;
+      const name = op !== null && typeof op === "object" ? op.op : "";
+      const opStarted = now();
+      const undoable = READ_ONLY[name] !== true && NO_UNDO[name] !== true;
+      if (!undoable && undoGroup !== null) {
+        app.endUndoGroup();
+        undoGroup = null;
+      }
+      if (undoable && undoGroup === null) {
+        undoGroup = String(op.op_id);
+        app.beginUndoGroup("aes:" + undoGroup);
+      }
+      try {
+        const data = execute(op, ctx);
+        if (undoGroup !== null) data.undo_group = undoGroup;
+        results.push({ op_id: op.op_id, ok: true, data: data, ms: now() - opStarted });
+      } catch (error) {
+        results.push({ op_id: op.op_id, ok: false, error: toError(error), ms: now() - opStarted });
+        break;
+      }
+      if (RESCAN[name] === true) resetTraceCache();
+    }
+  } finally {
+    if (undoGroup !== null) app.endUndoGroup();
+    endTraceCache();
+    app.endSuppressDialogs(false);
+  }
+  return respond({ ok: true, data: { results: results, ms: now() - started } });
 }

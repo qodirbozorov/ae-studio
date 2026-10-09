@@ -403,6 +403,7 @@ export const opResultDataSchema = z.strictObject({
   reused: z.boolean(),
   target: opTargetSchema.optional(),
   info: z.record(z.string(), z.unknown()).optional(),
+  undo_group: opIdSchema.optional(),
 });
 
 export function parseOpEnvelope(input: unknown): Result<Ae.OpEnvelope> {

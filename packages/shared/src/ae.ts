@@ -301,6 +301,11 @@ export interface OpResultData {
   target?: OpTarget | undefined;
   /** Opga xos qo'shimcha natija (ping ma'lumotlari, kadr yo'llari ...). */
   info?: { [key: string]: unknown } | undefined;
+  /**
+   * Batch'da op bajarilgan AE undo group'i (`aes:<undo_group>`, guruhdagi birinchi op_id). Undo shu
+   * guruhni butunligicha bekor qiladi (P6.04). Bittalik opda yo'q (guruh = op_id).
+   */
+  undo_group?: string | undefined;
 }
 
 /** Panel → ExtendScript: `runOp(JSON.stringify(AeRequest))`. */
@@ -316,3 +321,19 @@ export interface AeContext {
 
 /** ExtendScript → panel (JSON string). */
 export type AeResponse = { ok: true; data: OpResultData } | { ok: false; error: AesError };
+
+/** Sahna batch'i (P6.04): oplar bitta evalScript'da ketma-ket, birinchi xatoda to'xtaydi. */
+export interface AeBatchRequest {
+  ops: OpEnvelope[];
+  ctx: AeContext;
+  /** Log uchun nom (odatda sahna id'si); undo group nomi — guruhdagi birinchi op_id. */
+  label?: string | undefined;
+}
+
+export type AeBatchItem =
+  | { op_id: string; ok: true; data: OpResultData; ms: number }
+  | { op_id: string; ok: false; error: AesError; ms: number };
+
+/** Natijalar bajarilgan oplar uchun (xato bo'lgan op oxirgisi); qolganlari bajarilmagan. */
+export type AeBatchResponse =
+  { ok: true; data: { results: AeBatchItem[]; ms: number } } | { ok: false; error: AesError };

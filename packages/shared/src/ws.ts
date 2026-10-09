@@ -52,9 +52,12 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
     heartbeat_ms: z.number().int().positive(),
   }),
   z.strictObject({ type: z.literal("op.run"), job_id: idSchema, op: opEnvelopeSchema }),
+  /** Sahna oplari bitta evalScript'da (P6.04); javob `ops.batch.result` (yoki `request.failed`). */
   z.strictObject({
     type: z.literal("ops.batch"),
+    request_id: idSchema,
     job_id: idSchema,
+    scene_id: z.string().min(1).max(128).optional(),
     ops: z.array(opEnvelopeSchema).min(1).max(500),
   }),
   z.strictObject({
@@ -327,6 +330,35 @@ export const panelMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("request.failed"),
     request_id: idSchema,
     error: aesErrorSchema,
+  }),
+  /**
+   * Batch natijasi: bajarilgan oplar tartibda (xato bo'lsa u oxirgisi); `error` — batch umuman
+   * bajarilmagan (AE yopiq, timeout, jsx yuklanmagan). Ro'yxatda yo'q oplar bajarilmagan.
+   */
+  z.strictObject({
+    type: z.literal("ops.batch.result"),
+    request_id: idSchema,
+    job_id: idSchema,
+    results: z
+      .array(
+        z.discriminatedUnion("ok", [
+          z.strictObject({
+            op_id: opIdSchema,
+            ok: z.literal(true),
+            result: opResultDataSchema,
+            duration_ms: z.number().min(0),
+          }),
+          z.strictObject({
+            op_id: opIdSchema,
+            ok: z.literal(false),
+            error: aesErrorSchema,
+            duration_ms: z.number().min(0),
+          }),
+        ]),
+      )
+      .max(500),
+    error: aesErrorSchema.optional(),
+    duration_ms: z.number().min(0),
   }),
 ]);
 

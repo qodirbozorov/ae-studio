@@ -73,6 +73,8 @@ export class FakeAgent {
   /** `project.open` (MCP project_create): loyihani ro'yxatdan o'tkazadi. */
   onProjectOpen:
     ((root: string) => Promise<{ id: string; name: string; root_path: string }>) | null = null;
+  /** `hello` dagi protokol (1 — eski panel: `ops.batch` yo'q, oplar bittadan). */
+  protocol = PROTOCOL_VERSION;
   private socket: FakeSocket | null = null;
 
   constructor(
@@ -94,7 +96,7 @@ export class FakeAgent {
     this.hub.attach(socket as unknown as WebSocket, this.identity);
     this.deliver({
       type: "hello",
-      protocol_version: PROTOCOL_VERSION,
+      protocol_version: this.protocol,
       panel_version: "test",
       device: { name: "PC", os: "test" },
       ae_version: "22.0",
@@ -112,6 +114,37 @@ export class FakeAgent {
     socket?.emit("message", Buffer.from(JSON.stringify(message)));
   }
 
+  /** Yuborilgan barcha oplar (`op.run` va `ops.batch`), tartib bilan. */
+  sentOps(): OpEnvelope[] {
+    const out: OpEnvelope[] = [];
+    for (const m of this.received) {
+      if (m.type === "op.run") out.push(m.op);
+      else if (m.type === "ops.batch") out.push(...m.ops);
+    }
+    return out;
+  }
+
+  /** Bitta op natijasi (`onOp` bo'yicha); "drop" — javobsiz (uzilish). */
+  private async react(
+    op: OpEnvelope,
+  ): Promise<
+    "drop" | { ok: true; info: Record<string, unknown> } | { ok: false; error: AesError }
+  > {
+    this.ran.push(op.op_id);
+    const reaction = await this.onOp(op);
+    if (reaction === "drop") return "drop";
+    if (reaction === "ok" || "info" in reaction) {
+      const info =
+        reaction !== "ok"
+          ? reaction.info
+          : op.op === "ping"
+            ? { ae_version: "22.0", project_path: null }
+            : {};
+      return { ok: true, info };
+    }
+    return { ok: false, error: reaction as AesError };
+  }
+
   ofType<T extends ServerMessage["type"]>(type: T): Extract<ServerMessage, { type: T }>[] {
     return this.received.filter((m) => m.type === type) as Extract<ServerMessage, { type: T }>[];
   }
@@ -120,18 +153,49 @@ export class FakeAgent {
     this.received.push(message);
     await new Promise((resolve) => setImmediate(resolve));
     if (socket.closed) return;
-    if (message.type === "op.run") {
+    if (message.type === "ops.batch") {
+      // Panel kabi: oplar ketma-ket, birinchi xatoda to'xtaydi; "drop" — javobsiz (uzilish).
+      const results: Extract<PanelMessage, { type: "ops.batch.result" }>["results"] = [];
+      // jsx kabi: ketma-ket undo'ga kiradigan oplar bitta guruhda (nomi — birinchi op_id).
+      let group: string | null = null;
+      for (const op of message.ops) {
+        const outcome = await this.react(op);
+        if (outcome === "drop" || socket.closed) return;
+        const undoable = !["project.open_or_create", "project.save", "undo"].includes(op.op);
+        group = undoable ? (group ?? op.op_id) : null;
+        if (outcome.ok) {
+          results.push({
+            op_id: op.op_id,
+            ok: true,
+            result: {
+              op_id: op.op_id,
+              reused: false,
+              info: outcome.info,
+              ...(group === null ? {} : { undo_group: group }),
+            },
+            duration_ms: 1,
+          });
+        } else {
+          results.push({ op_id: op.op_id, ok: false, error: outcome.error, duration_ms: 1 });
+          break;
+        }
+      }
+      this.deliver(
+        {
+          type: "ops.batch.result",
+          request_id: message.request_id,
+          job_id: message.job_id,
+          results,
+          duration_ms: results.length,
+        },
+        socket,
+      );
+    } else if (message.type === "op.run") {
       const op = message.op;
-      this.ran.push(op.op_id);
-      const reaction = await this.onOp(op);
-      if (reaction === "drop" || socket.closed) return;
-      if (reaction === "ok" || "info" in reaction) {
-        const info =
-          reaction !== "ok"
-            ? reaction.info
-            : op.op === "ping"
-              ? { ae_version: "22.0", project_path: null }
-              : {};
+      const outcome = await this.react(op);
+      if (outcome === "drop" || socket.closed) return;
+      if (outcome.ok) {
+        const info = outcome.info;
         this.deliver(
           {
             type: "op.done",
@@ -152,7 +216,7 @@ export class FakeAgent {
             type: "op.failed",
             job_id: message.job_id,
             op_id: op.op_id,
-            error: reaction as AesError,
+            error: outcome.error,
             duration_ms: 1,
           },
           socket,

@@ -10,6 +10,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { MAIN_COMP, compile, planTiming } from "@aes/compiler";
 import type { CompileAsset, CompileAudio, CompiledVariant } from "@aes/compiler";
 import {
+  BATCH_PROTOCOL_VERSION,
   MAX_PATCHES,
   audioUsesEleven,
   missingBrandAudio,
@@ -24,6 +25,7 @@ import {
 import type {
   AeOpName,
   AesError,
+  OpResultData,
   JobAction,
   JobOutcome,
   JobState,
@@ -102,6 +104,11 @@ const PROJECT_OPEN_TIMEOUT_MS = 60_000;
 const CHECK_PING_TIMEOUT_MS = 15_000;
 /** Bitta drive siklidagi holatlar soni chegarasi (cheksiz aylanishdan himoya). */
 const MAX_STEPS = 64;
+/** Bitta evalScript'dagi oplar chegarasi (katta sahna bo'laklarga bo'linadi, §3.2). */
+const MAX_BATCH_OPS = 400;
+/** Batch timeout: oplar timeout'lari yig'indisi, shu chegaragacha (+ tarmoq zaxirasi). */
+const BATCH_TIMEOUT_CAP_MS = 30 * 60_000;
+const BATCH_SLACK_MS = 15_000;
 
 export type EngineContext = Pick<
   AppContext,
@@ -444,17 +451,30 @@ export class JobEngine {
       .orderBy(desc(ops.seq))
       .limit(1);
     if (last === undefined) return fail("JOB_BAD_ACTION", "Bekor qilinadigan op yo'q");
+    // Batch'da (P6.04) bir nechta op bitta AE undo group'ida: guruh butunligicha bekor qilinadi.
+    const group = (last.result as OpResultData | null)?.undo_group ?? last.opId;
     const result = await this.ctx.hub.run(
       job.deviceId,
-      makeOp("undo", `undo.${last.opId}`.slice(0, 128), 0, { op_id: last.opId }),
+      makeOp("undo", `undo.${group}`.slice(0, 128), 0, { op_id: group }),
       job.id,
     );
     if (!result.ok) return result;
+    const done = await this.ctx.db
+      .select({ id: ops.id, result: ops.result })
+      .from(ops)
+      .where(and(eq(ops.jobId, job.id), eq(ops.status, "done")));
+    const undone = done
+      .filter(
+        (row) => row.id === last.id || (row.result as OpResultData | null)?.undo_group === group,
+      )
+      .map((row) => row.id);
     await this.ctx.db
       .update(ops)
       .set({ status: "pending", result: null, finishedAt: null })
-      .where(eq(ops.id, last.id));
-    await this.event(job, "info", "op.undone", `↩ ${last.op} bekor qilindi`, { opId: last.opId });
+      .where(inArray(ops.id, undone));
+    await this.event(job, "info", "op.undone", `↩ ${last.op} bekor qilindi (${undone.length} op)`, {
+      opId: last.opId,
+    });
     const updated = (await this.get(job.id)) ?? job;
     await this.notify(updated);
     return ok(updated);
@@ -991,55 +1011,178 @@ export class JobEngine {
     }
 
     const scenes = await this.sceneIds(job);
+    const sceneOf = (row: OpRow): string | undefined => {
+      const prefix = row.opId.split(".")[0]!;
+      return scenes.has(prefix) ? prefix : undefined;
+    };
+    // P6.04: sahna oplari bitta evalScript'da (panel protokoli ≥ 2); eski panelga bittadan.
+    const batched = (this.ctx.hub.state(job.deviceId)?.protocol ?? 1) >= BATCH_PROTOCOL_VERSION;
+    const groups: OpRow[][] = [];
     for (const row of queue) {
+      const last = groups.at(-1);
+      if (
+        batched &&
+        last !== undefined &&
+        last.length < MAX_BATCH_OPS &&
+        sceneOf(last[0]!) === sceneOf(row)
+      ) {
+        last.push(row);
+      } else {
+        groups.push([row]);
+      }
+    }
+    for (const group of groups) {
       const current = await this.get(job.id);
       if (current === null || current.state !== "BUILD") return { kind: "stale" };
       if (current.paused) return { kind: "hold" };
-
-      const sceneId = scenes.has(row.opId.split(".")[0]!) ? row.opId.split(".")[0] : undefined;
-      await this.ctx.db
-        .update(ops)
-        .set({ status: "running", startedAt: this.ctx.now(), error: null })
-        .where(eq(ops.id, row.id));
-      await this.notify(current, sceneId);
-
-      const envelope = makeOp(row.op as AeOpName, row.opId, row.seq, row.params as never, {
-        ...(sceneId === undefined ? {} : { scene_id: sceneId }),
-        timeout_ms: opTimeoutMs(row.op as AeOpName),
-      }) as OpEnvelope;
-      const result = await this.ctx.hub.run(job.deviceId, envelope, job.id);
-      if (result.ok) {
-        await this.ctx.db
-          .update(ops)
-          .set({ status: "done", result: result.data, finishedAt: this.ctx.now() })
-          .where(eq(ops.id, row.id));
-        await this.event(job, "debug", "op.done", `${row.op} ✓`, {
-          opId: row.opId,
-          data: { reused: result.data.reused },
-        });
-        continue;
-      }
-      if (result.error.code === "ENV_AGENT_OFFLINE") {
-        await this.ctx.db.update(ops).set({ status: "pending" }).where(eq(ops.id, row.id));
-        return { kind: "wait_agent", reason: `BUILD: panel uzildi (${row.opId})` };
-      }
-      await this.ctx.db
-        .update(ops)
-        .set({ status: "failed", error: result.error, finishedAt: this.ctx.now() })
-        .where(eq(ops.id, row.id));
-      await this.event(job, "error", "op.failed", `${row.op}: ${result.error.code}`, {
-        opId: row.opId,
-        data: result.error,
-      });
-      return {
-        kind: "block",
-        error: { ...result.error, details: { op_id: row.opId, cause: result.error.details } },
-      };
+      const sceneId = sceneOf(group[0]!);
+      const step = batched
+        ? await this.buildBatch(current, job.deviceId, group, sceneId)
+        : await this.buildOp(current, job.deviceId, group[0]!, sceneId);
+      if (step !== null) return step;
     }
     const done = await this.get(job.id);
     if (done === null || done.state !== "BUILD") return { kind: "stale" };
     await this.event(job, "info", "build.done", `BUILD tugadi: ${rows.length} op`);
     return { kind: "next" };
+  }
+
+  private envelope(row: OpRow, sceneId: string | undefined): OpEnvelope {
+    return makeOp(row.op as AeOpName, row.opId, row.seq, row.params as never, {
+      ...(sceneId === undefined ? {} : { scene_id: sceneId }),
+      timeout_ms: opTimeoutMs(row.op as AeOpName),
+    }) as OpEnvelope;
+  }
+
+  private async opDone(row: OpRow, result: OpResultData): Promise<void> {
+    await this.ctx.db
+      .update(ops)
+      .set({ status: "done", result, finishedAt: this.ctx.now() })
+      .where(eq(ops.id, row.id));
+  }
+
+  /** Op xatosi: `failed`, hodisa va BLOCKED (sabab bilan). */
+  private async opFailed(job: JobRow, row: OpRow, error: AesError): Promise<Step> {
+    await this.ctx.db
+      .update(ops)
+      .set({ status: "failed", error, finishedAt: this.ctx.now() })
+      .where(eq(ops.id, row.id));
+    await this.event(job, "error", "op.failed", `${row.op}: ${error.code}`, {
+      opId: row.opId,
+      data: error,
+    });
+    return {
+      kind: "block",
+      error: { ...error, details: { op_id: row.opId, cause: error.details } },
+    };
+  }
+
+  /** Eski panel (protokol 1): bitta op = bitta evalScript. null — davom etiladi. */
+  private async buildOp(
+    job: JobRow,
+    deviceId: string,
+    row: OpRow,
+    sceneId: string | undefined,
+  ): Promise<Step | null> {
+    await this.ctx.db
+      .update(ops)
+      .set({ status: "running", startedAt: this.ctx.now(), error: null })
+      .where(eq(ops.id, row.id));
+    await this.notify(job, sceneId);
+    const result = await this.ctx.hub.run(deviceId, this.envelope(row, sceneId), job.id);
+    if (result.ok) {
+      await this.opDone(row, result.data);
+      await this.event(job, "debug", "op.done", `${row.op} ✓`, {
+        opId: row.opId,
+        data: { reused: result.data.reused },
+      });
+      return null;
+    }
+    if (result.error.code === "ENV_AGENT_OFFLINE") {
+      await this.ctx.db.update(ops).set({ status: "pending" }).where(eq(ops.id, row.id));
+      return { kind: "wait_agent", reason: `BUILD: panel uzildi (${row.opId})` };
+    }
+    return this.opFailed(job, row, result.error);
+  }
+
+  /**
+   * Sahna batch'i (P6.04): oplar bitta `ops.batch` bilan, panel ularni bitta evalScript'da bajaradi.
+   * Natija bo'yicha har op qatori yangilanadi; bajarilmaganlari `pending` qoladi (resume shu yerdan).
+   */
+  private async buildBatch(
+    job: JobRow,
+    deviceId: string,
+    group: OpRow[],
+    sceneId: string | undefined,
+  ): Promise<Step | null> {
+    await this.ctx.db
+      .update(ops)
+      .set({ status: "running", startedAt: this.ctx.now(), error: null })
+      .where(
+        inArray(
+          ops.id,
+          group.map((row) => row.id),
+        ),
+      );
+    await this.notify(job, sceneId);
+    const envelopes = group.map((row) => this.envelope(row, sceneId));
+    const timeout = envelopes.reduce((sum, op) => sum + op.timeout_ms, 0);
+    const reply = await this.ctx.hub.request(
+      deviceId,
+      {
+        type: "ops.batch",
+        request_id: randomUUID(),
+        job_id: job.id,
+        ...(sceneId === undefined ? {} : { scene_id: sceneId }),
+        ops: envelopes,
+      },
+      Math.min(timeout, BATCH_TIMEOUT_CAP_MS) + BATCH_SLACK_MS,
+    );
+    const resetFrom = async (index: number) => {
+      const rest = group.slice(index).map((row) => row.id);
+      if (rest.length > 0) {
+        await this.ctx.db.update(ops).set({ status: "pending" }).where(inArray(ops.id, rest));
+      }
+    };
+    if (!reply.ok) {
+      if (reply.error.code === "ENV_AGENT_OFFLINE") {
+        await resetFrom(0);
+        return { kind: "wait_agent", reason: `BUILD: panel uzildi (${sceneId ?? "asosiy"})` };
+      }
+      await resetFrom(1);
+      return this.opFailed(job, group[0]!, reply.error);
+    }
+    if (reply.data.type !== "ops.batch.result") {
+      await resetFrom(1);
+      return this.opFailed(job, group[0]!, makeError("SYS_INTERNAL", "Kutilmagan batch javobi"));
+    }
+    const result = reply.data;
+    let index = 0;
+    for (const item of result.results) {
+      const row = group[index];
+      if (row === undefined || row.opId !== item.op_id) break;
+      if (!item.ok) {
+        await resetFrom(index + 1);
+        return this.opFailed(job, row, item.error as AesError);
+      }
+      await this.opDone(row, item.result);
+      index++;
+    }
+    if (index < group.length) {
+      await resetFrom(index + 1);
+      const error =
+        (result.error as AesError | undefined) ??
+        makeError("SYS_INTERNAL", `Batch to'liq bajarilmadi: ${index}/${group.length}`);
+      return this.opFailed(job, group[index]!, error);
+    }
+    await this.event(
+      job,
+      "info",
+      "scene.done",
+      `${sceneId ?? "asosiy"}: ${group.length} op, ${result.duration_ms} ms`,
+      { data: { scene_id: sceneId ?? null, ops: group.length, ms: result.duration_ms } },
+    );
+    return null;
   }
 
   private async report(job: JobRow): Promise<Step> {

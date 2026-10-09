@@ -234,7 +234,13 @@ const SERVER_MESSAGES: Record<string, unknown> = {
     heartbeat_ms: 10000,
   },
   "op.run": { type: "op.run", job_id: "job-1", op: makeOp("ping", "p1", 0, {}) },
-  "ops.batch": { type: "ops.batch", job_id: "job-1", ops: [makeOp("ping", "p1", 0, {})] },
+  "ops.batch": {
+    type: "ops.batch",
+    request_id: "r1",
+    job_id: "job-1",
+    scene_id: "s1",
+    ops: [makeOp("ping", "p1", 0, {})],
+  },
   "asset.preview.request": {
     type: "asset.preview.request",
     request_id: "r1",
@@ -408,6 +414,21 @@ const PANEL_MESSAGES: Record<string, unknown> = {
     project: { id: "p-1", name: "reel", root_path: "D:/Projects/reel" },
   },
   pong: { type: "pong", ts: 1 },
+  "ops.batch.result": {
+    type: "ops.batch.result",
+    request_id: "r1",
+    job_id: "job-1",
+    results: [
+      { op_id: "p1", ok: true, result: { op_id: "p1", reused: false }, duration_ms: 4 },
+      {
+        op_id: "p2",
+        ok: false,
+        error: { code: "AE_NOT_FOUND", retryable: false, hint: "x" },
+        duration_ms: 1,
+      },
+    ],
+    duration_ms: 9,
+  },
   "request.failed": {
     type: "request.failed",
     request_id: "r1",

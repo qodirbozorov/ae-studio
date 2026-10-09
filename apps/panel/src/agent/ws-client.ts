@@ -93,7 +93,7 @@ export function createWsClient(options: WsClientOptions): WsClient {
 
   // Runner eventlari serverga (faqat server yuborgan oplar uchun job_id bor).
   runner.onEvent((event: RunnerEvent) => {
-    if (event.job_id === undefined || event.op === null) return;
+    if (event.job_id === undefined || event.op === null || event.batch === true) return;
     if (event.type === "op.started") {
       send({ type: "op.started", job_id: event.job_id, op_id: event.op.op_id, ts: event.ts });
     } else if (event.type === "op.done") {
@@ -184,7 +184,16 @@ export function createWsClient(options: WsClientOptions): WsClient {
         void runner.submit(message.op, message.job_id);
         return;
       case "ops.batch":
-        for (const op of message.ops) void runner.submit(op, message.job_id);
+        void runner.submitBatch(message.ops, message.job_id, message.scene_id).then((outcome) => {
+          send({
+            type: "ops.batch.result",
+            request_id: message.request_id,
+            job_id: message.job_id,
+            results: outcome.results,
+            ...(outcome.error === undefined ? {} : { error: outcome.error }),
+            duration_ms: outcome.duration_ms,
+          });
+        });
         return;
       case "file.download":
         void download(message);

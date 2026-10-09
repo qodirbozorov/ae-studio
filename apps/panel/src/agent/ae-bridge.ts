@@ -3,7 +3,14 @@
  * Bitta chaqiruv = bitta op; timeout bo'lsa `AE_TIMEOUT` (AE o'zi opni oxirigacha bajaradi).
  */
 import { fail } from "@aes/shared";
-import type { AeContext, AeRequest, AeResponse, OpEnvelope } from "@aes/shared";
+import type {
+  AeBatchRequest,
+  AeBatchResponse,
+  AeContext,
+  AeRequest,
+  AeResponse,
+  OpEnvelope,
+} from "@aes/shared";
 import { JSX_VERSION, NS } from "../shared/constants";
 import { TimeoutError, withTimeout } from "./timeout";
 
@@ -29,13 +36,29 @@ export function scriptLiteral(value: string): string {
  * jsx yuklanmagan yoki AE sessiyasida boshqa versiya (panel yangilangan) bo'lsa — NOT_LOADED:
  * agent bundle'ni qayta yuklaydi (P6.03, `AES.version`).
  */
-export function buildRunOpScript(request: AeRequest, version: string = JSX_VERSION): string {
+function buildScript(
+  method: "runOp" | "runBatch",
+  request: AeRequest | AeBatchRequest,
+  version: string,
+): string {
   const ns = scriptLiteral(NS);
   return (
     `(typeof $[${ns}] === "undefined" || $[${ns}].version !== ${scriptLiteral(version)} ? ` +
     `${scriptLiteral(NOT_LOADED)} : ` +
-    `$[${ns}].runOp(${scriptLiteral(JSON.stringify(request))}))`
+    `$[${ns}].${method}(${scriptLiteral(JSON.stringify(request))}))`
   );
+}
+
+export function buildRunOpScript(request: AeRequest, version: string = JSX_VERSION): string {
+  return buildScript("runOp", request, version);
+}
+
+/** Sahna batch'i bitta evalScript'da (P6.04). */
+export function buildRunBatchScript(
+  request: AeBatchRequest,
+  version: string = JSX_VERSION,
+): string {
+  return buildScript("runBatch", request, version);
 }
 
 function isAeResponse(value: unknown): value is AeResponse {
@@ -44,8 +67,19 @@ function isAeResponse(value: unknown): value is AeResponse {
   return v.ok === true ? typeof v.data === "object" : v.ok === false && typeof v.error === "object";
 }
 
+function isBatchResponse(value: unknown): value is AeBatchResponse {
+  if (!isAeResponse(value)) return false;
+  return !value.ok || Array.isArray((value.data as { results?: unknown }).results);
+}
+
 export interface AeBridge {
   runOp(op: OpEnvelope, ctx: AeContext): Promise<AeResponse>;
+  /** Oplar bitta evalScript'da (P6.04); `timeoutMs` — butun batch uchun. */
+  runBatch(
+    ops: OpEnvelope[],
+    ctx: AeContext,
+    options: { label?: string; timeoutMs: number },
+  ): Promise<AeBatchResponse>;
   /** jsx bundle'ni (qayta) yuklaydi; muvaffaqiyatli bo'lsa true. */
   loadJsx(): Promise<boolean>;
 }
@@ -89,38 +123,81 @@ export function createAeBridge(options: { evalScript: EvalScript; jsxPath?: stri
     }
   }
 
-  async function call(op: OpEnvelope, ctx: AeContext): Promise<string> {
-    return withTimeout(evalScript(buildRunOpScript({ op, ctx })), op.timeout_ms);
+  /** Skriptni yuboradi; jsx yuklanmagan/eski bo'lsa bir marta qayta yuklab takrorlaydi. */
+  async function invoke(
+    script: string,
+    timeoutMs: number,
+    what: string,
+  ): Promise<{ ok: true; parsed: unknown } | { ok: false; response: ReturnType<typeof fail> }> {
+    let raw: string;
+    try {
+      raw = await withTimeout(evalScript(script), timeoutMs);
+      if (raw === NOT_LOADED && (await loadJsx())) {
+        raw = await withTimeout(evalScript(script), timeoutMs);
+      }
+    } catch (error) {
+      if (error instanceof TimeoutError) {
+        return {
+          ok: false,
+          response: fail("AE_TIMEOUT", `${what} ${timeoutMs} ms ichida tugamadi`),
+        };
+      }
+      return {
+        ok: false,
+        response: fail("ENV_AE_CLOSED", error instanceof Error ? error.message : String(error)),
+      };
+    }
+    if (raw === NOT_LOADED) {
+      return {
+        ok: false,
+        response: fail(
+          "AE_SCRIPT_ERROR",
+          `ExtendScript (jsx) AE'ga yuklanmagan${loadError === null ? "" : `: ${loadError}`}`,
+        ),
+      };
+    }
+    if (raw === EVAL_SCRIPT_ERROR || raw === "") {
+      return {
+        ok: false,
+        response: fail("AE_SCRIPT_ERROR", "evalScript xatosi (ExtendScript istisnosi)"),
+      };
+    }
+    try {
+      return { ok: true, parsed: JSON.parse(raw) as unknown };
+    } catch {
+      return {
+        ok: false,
+        response: fail(
+          "AE_SCRIPT_ERROR",
+          "ExtendScript kutilmagan javob qaytardi: " + raw.slice(0, 200),
+        ),
+      };
+    }
   }
 
   async function runOp(op: OpEnvelope, ctx: AeContext): Promise<AeResponse> {
-    let raw: string;
-    try {
-      raw = await call(op, ctx);
-      if (raw === NOT_LOADED && (await loadJsx())) raw = await call(op, ctx);
-    } catch (error) {
-      if (error instanceof TimeoutError) {
-        return fail("AE_TIMEOUT", `${op.op} ${op.timeout_ms} ms ichida tugamadi`);
-      }
-      return fail("ENV_AE_CLOSED", error instanceof Error ? error.message : String(error));
-    }
-    if (raw === NOT_LOADED) {
-      return fail(
-        "AE_SCRIPT_ERROR",
-        `ExtendScript (jsx) AE'ga yuklanmagan${loadError === null ? "" : `: ${loadError}`}`,
-      );
-    }
-    if (raw === EVAL_SCRIPT_ERROR || raw === "") {
-      return fail("AE_SCRIPT_ERROR", "evalScript xatosi (ExtendScript istisnosi)");
-    }
-    try {
-      const parsed: unknown = JSON.parse(raw);
-      if (isAeResponse(parsed)) return parsed;
-    } catch {
-      // pastda umumiy xato
-    }
-    return fail("AE_SCRIPT_ERROR", "ExtendScript kutilmagan javob qaytardi: " + raw.slice(0, 200));
+    const res = await invoke(buildRunOpScript({ op, ctx }), op.timeout_ms, op.op);
+    if (!res.ok) return res.response;
+    if (isAeResponse(res.parsed)) return res.parsed;
+    return fail("AE_SCRIPT_ERROR", "ExtendScript kutilmagan javob qaytardi");
   }
 
-  return { runOp, loadJsx };
+  async function runBatch(
+    ops: OpEnvelope[],
+    ctx: AeContext,
+    options: { label?: string; timeoutMs: number },
+  ): Promise<AeBatchResponse> {
+    const request: AeBatchRequest = { ops, ctx };
+    if (options.label !== undefined) request.label = options.label;
+    const res = await invoke(
+      buildRunBatchScript(request),
+      options.timeoutMs,
+      `batch (${ops.length} op)`,
+    );
+    if (!res.ok) return res.response;
+    if (isBatchResponse(res.parsed)) return res.parsed;
+    return fail("AE_SCRIPT_ERROR", "ExtendScript kutilmagan batch javobi qaytardi");
+  }
+
+  return { runOp, runBatch, loadJsx };
 }

@@ -181,8 +181,8 @@ describe("to'liq oqim", () => {
     // Ikkinchi job yangi vNNN oladi: oldingi versiya ustiga yozilmaydi.
     const second = await startJob();
     expect(await job(second)).toMatchObject({ state: "VERIFY", aep_version: 2 });
-    const saves = agent.ofType("op.run").filter((m) => m.op.op === "project.open_or_create");
-    expect(saves.map((m) => (m.op.params as { path: string }).path)).toEqual([
+    const saves = agent.sentOps().filter((op) => op.op === "project.open_or_create");
+    expect(saves.map((op) => (op.params as { path: string }).path)).toEqual([
       "reel_v001.aep",
       "reel_v002.aep",
     ]);
@@ -402,8 +402,8 @@ describe("cancel va pause", () => {
     const done = await job(jobId);
     expect(done).toMatchObject({ state: "DONE", outcome: "cancelled" });
     expect(agent.ofType("job.cancel")).toHaveLength(1);
-    // Bekor qilingandan keyin boshqa op yuborilmaydi.
-    expect(agent.ran.at(-1)).toBe("point.comp");
+    // Batch'da (P6.04) bekor qilish sahna chegarasida: point sahnasidan keyin op yuborilmaydi.
+    expect(agent.ran.at(-1)).toBe("point.save");
     const report = await api("GET", `/api/jobs/${jobId}/report`);
     expect(report.body.data.markdown).toContain("Bekor qilindi");
     // Endi yangi job boshlash mumkin.
@@ -513,17 +513,20 @@ describe("Live (P2.12): job_events → WS → panel", () => {
     agent.onOp = () => "ok";
     const undo = await act(jobId, "undo");
     expect(undo.body.ok).toBe(true);
+    // Batch'da (P6.04) sahna bitta AE undo group'i: butun guruh bekor qilinadi.
     const undoOp = agent.ofType("op.run").at(-1)!.op;
-    expect(undoOp).toMatchObject({ op: "undo", params: { op_id: "hook.title" } });
-    expect((await opStatuses(jobId)).find((o) => o.opId === "hook.title")?.status).toBe("pending");
-    // Ikkinchi undo: oldingi op (hook.l0.anim).
-    await act(jobId, "undo");
-    expect(agent.ofType("op.run").at(-1)!.op.params).toEqual({ op_id: "hook.l0.anim" });
+    expect(undoOp.op).toBe("undo");
+    expect((undoOp.params as { op_id: string }).op_id).toMatch(/^hook\./);
+    const statuses = await opStatuses(jobId);
+    expect(statuses.find((o) => o.opId === "hook.title")?.status).toBe("pending");
+    expect(statuses.find((o) => o.opId === "hook.l0.anim")?.status).toBe("pending");
 
     const ranBefore = agent.ran.length;
     await act(jobId, "resume");
     expect(await job(jobId)).toMatchObject({ state: "VERIFY" });
-    expect(agent.ran.slice(ranBefore, ranBefore + 2)).toEqual(["hook.l0.anim", "hook.title"]);
+    expect(agent.ran.slice(ranBefore)).toEqual(
+      expect.arrayContaining(["hook.l0.anim", "hook.title"]),
+    );
   });
 
   it("Undo pauzasiz mumkin emas", async () => {
@@ -585,14 +588,14 @@ describe("versiyalash (P2.13): hech qaysi versiya ustiga yozilmaydi", () => {
       ".aestudio/report.v003.md",
     ]);
     const opens = agent
-      .ofType("op.run")
-      .filter((m) => m.op.op === "project.open_or_create")
-      .map((m) => (m.op.params as { path: string }).path);
+      .sentOps()
+      .filter((op) => op.op === "project.open_or_create")
+      .map((op) => (op.params as { path: string }).path);
     expect(opens).toEqual(["reel_v001.aep", "reel_v002.aep", "reel_v003.aep"]);
     const saves = agent
-      .ofType("op.run")
-      .filter((m) => m.op.op === "project.save")
-      .map((m) => (m.op.params as { version: number }).version);
+      .sentOps()
+      .filter((op) => op.op === "project.save")
+      .map((op) => (op.params as { version: number }).version);
     expect(new Set(saves)).toEqual(new Set([1, 2, 3]));
 
     // Hech bir nusxa rad etilmagan (ya'ni hech narsa ustiga yozishga urinilmagan).
