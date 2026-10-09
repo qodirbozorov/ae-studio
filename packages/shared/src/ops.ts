@@ -106,7 +106,11 @@ const undoParams = z.strictObject({ op_id: opIdSchema });
 
 const infoParams = z.strictObject({});
 
-const projectOpenOrCreateParams = z.strictObject({ path: relPathSchema });
+const projectOpenOrCreateParams = z.strictObject({
+  path: relPathSchema,
+  /** Ochiq loyihada saqlanmagan o'zgarish bo'lsa: `autosave` (default) — `_autosave_vNNN` nusxa; `fail`. */
+  dirty: z.enum(["autosave", "fail"]).optional(),
+});
 
 const projectSaveParams = z.strictObject({
   version: z.number().int().min(1).max(999),

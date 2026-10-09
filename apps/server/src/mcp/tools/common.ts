@@ -3,7 +3,7 @@ import { fail, ok } from "@aes/shared";
 import type { Result } from "@aes/shared";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
-import { devices, projects } from "../../db/schema";
+import { devices, jobs, projects } from "../../db/schema";
 import type { ToolContext } from "../registry";
 
 export type DeviceRow = typeof devices.$inferSelect;
@@ -38,11 +38,22 @@ export async function userDevices(ctx: ToolContext): Promise<DeviceRow[]> {
  * Qurilma: berilgan id (egasi tekshiriladi) yoki yagona online / yagona qurilma.
  * Bir nechta bo'lsa — `device_id` so'raladi.
  */
-export async function pickDevice(ctx: ToolContext, deviceId?: string): Promise<Result<DeviceRow>> {
+export async function pickDevice(
+  ctx: ToolContext,
+  deviceId?: string,
+  projectId?: string,
+): Promise<Result<DeviceRow>> {
   const list = await userDevices(ctx);
   if (deviceId !== undefined) {
     const found = list.find((device) => device.id === deviceId);
     return found === undefined ? fail("SYS_NOT_FOUND", "Qurilma topilmadi") : ok(found);
+  }
+  // Loyiha qurilmaga bog'langan (#7): device_id so'ralmaydi.
+  if (projectId !== undefined) {
+    const project = await ownProject(ctx, projectId);
+    if (!project.ok) return project;
+    const bound = list.find((device) => device.id === project.data.deviceId);
+    if (bound !== undefined) return ok(bound);
   }
   if (list.length === 0) {
     return fail(
@@ -53,6 +64,23 @@ export async function pickDevice(ctx: ToolContext, deviceId?: string): Promise<R
   const online = list.filter((device) => ctx.app.hub.isOnline(device.id));
   if (online.length === 1) return ok(online[0]!);
   if (online.length === 0 && list.length === 1) return ok(list[0]!);
+  // Noaniq: oxirgi ishlatilgan loyihaning qurilmasi (online bo'lsa yoki hammasi offline bo'lsa).
+  const [lastJob] = await ctx.app.db
+    .select({ deviceId: jobs.deviceId })
+    .from(jobs)
+    .innerJoin(projects, eq(projects.id, jobs.projectId))
+    .where(eq(projects.userId, ctx.userId))
+    .orderBy(desc(jobs.createdAt))
+    .limit(1);
+  const [lastProject] = await ctx.app.db
+    .select({ deviceId: projects.deviceId })
+    .from(projects)
+    .where(eq(projects.userId, ctx.userId))
+    .orderBy(desc(projects.createdAt))
+    .limit(1);
+  const latest = lastJob ?? lastProject;
+  const recent = list.find((device) => device.id === latest?.deviceId);
+  if (recent !== undefined && (online.length === 0 || online.includes(recent))) return ok(recent);
   return fail("SYS_BAD_REQUEST", "Bir nechta qurilma bor: device_id ni bering (devices_list)", {
     devices: list.map((device) => ({
       id: device.id,

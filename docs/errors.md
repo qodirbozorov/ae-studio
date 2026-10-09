@@ -49,6 +49,8 @@ ixtiyoriy `message` va `details`. Job BLOCKED bo'lsa sabab tuzatilgach `job_resu
 | `AE_VERSION` | yo'q | After Effects versiyasi qo'llanmaydi (kamida 22.0 kerak). |
 | `AE_UNKNOWN_OP` | yo'q | Panel bu opni bilmaydi. Panelni yangilang. |
 | `AE_BAD_PARAMS` | yo'q | Op parametrlari noto'g'ri. details ni tekshiring. |
+| `AE_PROJECT_DIRTY` | ha | AE'da ochiq loyihada saqlanmagan o'zgarishlar bor. Uni saqlang (yoki job avtomatik _autosave nusxasini yaratsin) va qayta urining. |
+| `AE_MODAL_SUSPECTED` | ha | After Effects javob bermayapti — ehtimol ochiq dialog oynasi bor. AE'dagi dialogni yoping va qayta urining. |
 | `AE_NOT_FOUND` | yo'q | Havola qilingan comp/layer/element AE loyihasida topilmadi. Oldingi op bajarilganini tekshiring. |
 
 ## ElevenLabs

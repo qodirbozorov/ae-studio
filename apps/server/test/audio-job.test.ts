@@ -158,6 +158,20 @@ describe("AUDIO holati", () => {
     expect(ready.message).toContain("3 tasi keshdan");
   });
 
+  it("el_estimate kesh holatini ko'rsatadi (#8): keshdagi vazifa 0 kredit, total_uncached alohida", async () => {
+    await s.call("plan_write", { project_id: projectId, spec: SPEC });
+    const before = (await s.call("el_estimate", { project_id: projectId })).result.data;
+    expect(before.cached_count).toBe(0);
+    const first = await runJob();
+    expect(first.status.state).toBe("VERIFY");
+    const after = (await s.call("el_estimate", { project_id: projectId })).result.data;
+    const tts = after.items.find((i: { kind: string }) => i.kind === "tts");
+    expect(tts).toMatchObject({ cached: true, credits: 0 });
+    expect(tts.credits_if_uncached).toBeGreaterThan(0);
+    expect(after.cached_count).toBeGreaterThanOrEqual(2);
+    expect(after.total).toBeLessThan(after.total_uncached);
+  });
+
   it("kvota yetmasa → BLOCKED EL_QUOTA (ask_user), generatsiya boshlanmaydi", async () => {
     el.subscription.character_count = el.subscription.character_limit - 20;
     t.clock.advance(61_000);

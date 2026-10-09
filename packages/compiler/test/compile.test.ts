@@ -228,3 +228,25 @@ describe("compile — xatolar", () => {
     expect(r.ok && r.data.warnings.some((w) => w.includes("hook.l0"))).toBe(true);
   });
 });
+
+describe("sahna foni (#4)", () => {
+  it("fon berilgan sahnada eng pastda to'liq kadrli rang qatlami; berilmaganda yo'q", () => {
+    const out = compiled();
+    const ids = out.ops.map((o) => o.op_id);
+    const bg = out.ops.find((o) => o.op_id === "point.bg")!;
+    expect(bg).toMatchObject({
+      op: "layer.add_shape",
+      scene_id: "point",
+      params: {
+        comp: "point.comp",
+        kind: "rect",
+        color: "#101820",
+        size: [1080, 1920],
+        pos: [540, 960],
+      },
+    });
+    // Sahna comp'idan keyin birinchi qatlam (eng pastda).
+    expect(ids.indexOf("point.bg")).toBe(ids.indexOf("point.comp") + 1);
+    expect(ids).not.toContain("hook.bg");
+  });
+});

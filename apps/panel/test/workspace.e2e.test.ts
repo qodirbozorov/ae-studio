@@ -6,7 +6,7 @@ import type { TestApp } from "../../server/test/helpers/app";
 import type { Agent } from "../src/agent/index";
 import { PROJECT_FOLDERS } from "../src/agent/workspace";
 import { mcpSessionForDevice } from "../../server/test/helpers/mcp";
-import { pairedAgent, start } from "./e2e-helpers";
+import { eventually, pairedAgent, start } from "./e2e-helpers";
 
 let t: TestApp | undefined;
 let agent: Agent | undefined;
@@ -51,6 +51,7 @@ describe("ish papkasi (§11.1.2)", () => {
       aerender_path: null,
       render_om_template: null,
       onboarded: false,
+      last_project_root: null,
     });
     p.agent.updateSettings({
       device_name: "Studio-PC",
@@ -66,6 +67,7 @@ describe("ish papkasi (§11.1.2)", () => {
       aerender_path: "C:/AE/aerender.exe",
       render_om_template: null,
       onboarded: false,
+      last_project_root: null,
     });
   });
 });
@@ -107,5 +109,27 @@ describe("birinchi ishga tushirish ustasi (P5.11)", () => {
     p.agent.finishOnboarding();
     expect(p.agent.onboarding()).toBe("done");
     expect(p.agent.settings().onboarded).toBe(true);
+  });
+});
+
+describe("oxirgi ish papkasini tiklash (#6)", () => {
+  it("AE qayta ochilganda (yangi agent, root bo'sh) ulanish bilan oxirgi papka avtomatik ochiladi", async () => {
+    const s = await start();
+    t = s.app;
+    const dataDir = mkdtempSync(join(tmpdir(), "aes-last-"));
+    const folder = mkdtempSync(join(tmpdir(), "aes-last-root-"));
+    const first = await pairedAgent(s.app, s.base, dataDir);
+    const project = await first.agent.openProject(folder);
+    expect(first.agent.settings().last_project_root).toBe(project.root_path);
+    first.agent.disconnect();
+
+    const second = await pairedAgent(s.app, s.base, dataDir, "");
+    agent = second.agent;
+    await eventually(
+      async () => second.agent.currentProject()?.root_path ?? null,
+      (root) => root === project.root_path,
+      10_000,
+    );
+    expect(second.agent.getRoot()).toBe(project.root_path);
   });
 });

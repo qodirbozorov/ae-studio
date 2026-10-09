@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 6 — Tezlik, ishonchlilik, vositalar · boshlandi (0/9)
-- **Oxirgi bajarilgan:** Tuzatish: jsx ichma-ich ternar (522-qator) + ExtendScript skani + yangi ZXP (2026-10-08)
-- **Keyingi todo:** P6.01 — Tezkor tuzatishlar
+- **Faza:** 6 — Tezlik, ishonchlilik, vositalar · jarayonda (1/9)
+- **Oxirgi bajarilgan:** P6.01 — Tezkor tuzatishlar (#4–#8) (2026-10-10)
+- **Keyingi todo:** P6.02 — frames_capture qayta + contact_sheet
 - **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -107,6 +107,7 @@
 | 2026-10-07 | P5.13 | DB backup ilova ichida (json_agg → storage), pg_dump emas | Railway konteynerida pg_dump yo'q; JSON orqali turlar aniq tiklanadi va PGlite bilan test qilinadi |
 | 2026-10-07 | Login | Kabinetga kirish faqat Telegram deep link (email/magic link olib tashlandi) | foydalanuvchi talabi; xat xizmati kerak emas, kirish bilan xabarnoma chati ham ulanadi |
 | 2026-10-10 | Faza 6–7 | update-technicalguidline.md 2 fazaga: 6 (tuzatish, bundle kompilyator, vositalar), 7 (Spec v2, kutubxona, ae_run_jsx) | foydalanuvchi tasdiqladi; avval tezlik va VERIFY, keyin ifoda imkoniyatlari |
+| 2026-10-10 | P6.01 | Dirty loyiha default'da _autosave_vNNN qilinadi (fail emas) | guideline §6 (a): hech narsa yo'qolmaydi, qo'lda aralashuv kerak emas |
 
 ---
 
@@ -1583,3 +1584,29 @@ Test yordamchisi `login()` sessiyani to'g'ridan-to'g'ri beradi. To'liq to'plam: 
 - **Test:** `jsx-bundle` — consequent'da ternar yo'qligi AST bo'yicha tekshiriladi; tuzatishsiz yiqiladi.
 - **Oldindan skan** (bittalab kutmaslik uchun): blok ichida funksiya deklaratsiyasi, parametrsiz `catch`, getter/setter, ES5 metodlari (forEach/map/trim/keys/defineProperty/bind …) — bundle'da hech biri yo'q.
 - **Reliz:** yangi ZXP.
+
+### P6.01 — Tezkor tuzatishlar (2026-10-10)
+
+**Nima qilindi** (update-technicalguidline §1, §6):
+- **#4 `bg` vizualda yo'q:**
+  - Sabab: sahna comp'ining `bgColor` i nested holatda asosiy comp'da render qilinmaydi (AE'da precomp foni shaffof).
+  - Tuzatish: fon aniq berilgan bo'lsa (`scene.bg`, shablon `bg` yoki brand), sahna comp'ida eng pastda to'liq kadrli rang qatlami (`<sahna>.bg`, "BG"). Variantlarda ham bor.
+- **#5 dirty loyiha:**
+  - `project.open_or_create` endi `AE_BAD_PARAMS` bermaydi. Joriy loyiha `<nom>_autosave_vNNN.aep` sifatida o'z yonida saqlanadi (nomsizi — `<ish papkasi>/.aestudio/autosave/`), ustiga yozilmaydi, keyin kerakli loyiha ochiladi. Natijada `info.autosaved` qaytadi.
+  - Yangi param `dirty: "fail"` va yangi kod `AE_PROJECT_DIRTY` (retryable).
+- **#6 papka unutiladi:**
+  - Panel oxirgi ish papkasini sozlamada (`last_project_root`) saqlaydi va ulanishda avtomatik tiklaydi.
+  - Engine CHECK: panel papkasi job loyihasiniki bo'lmasa, avval `project.open` bilan avtomatik ochadi (`check.folder_restored` hodisasi). Faqat bu ham bo'lmasa `ENV_NO_FOLDER`.
+- **#7 bir nechta qurilma:** `pickDevice` — `project_id` berilsa loyiha qurilmasi; aks holda yagona online yoki oxirgi job/loyiha qurilmasi. `device_id` faqat haqiqatan noaniq bo'lsa so'raladi. `env_check` / `ae_info` ga `project_id` qo'shildi.
+- **#8 `el_estimate` keshni hisobga olmasdi:** `cacheFlags` (`eleven_cache` bo'yicha). Har elementda `cached`, `credits_if_uncached`; jami `total_uncached` va `cached_count`. Engine AUDIO kvota gate'i ham keshdagilarni hisoblamaydi.
+- Yangi xato kodlari: `AE_PROJECT_DIRTY`, `AE_MODAL_SUSPECTED` (keyingi todo uchun). `docs/errors.md` va `docs/mcp-tools.md` qayta generatsiya qilindi.
+
+**Testlar:**
+- compiler: fon qatlami (eng pastda, faqat fon berilganda), snapshot'da `point.bg`;
+- jsx: autosave (nomsiz, nomli, `v001` band → `v002`) va `dirty: fail`;
+- server: CHECK papkani tiklaydi → VERIFY; `env_check` loyiha va oxirgi qurilma bo'yicha; `el_estimate` keshdan keyin `tts`/`sfx` `cached: true, credits: 0`, musiqa (`match_video` uzunligi noma'lum) kreditli;
+- panel e2e: yangi agent ulanishda oxirgi papkani tiklaydi; `build.e2e` da "BG" qatlami.
+
+To'liq to'plam: 511 o'tdi (docs qayta generatsiyasidan keyin hammasi yashil).
+
+**👤:** #4 ni haqiqiy AE'da ko'rish — och fonli sahnalar endi to'g'ri rangda bo'lishi kerak.

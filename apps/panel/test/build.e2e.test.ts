@@ -79,6 +79,7 @@ describe("3 sahnali video: plan.json → compiler → AE", () => {
       "caption",
       "Shape Layer 1",
       "photo_02.jpg",
+      "BG",
     ]);
     const caption = point.layersList[0]!;
     expect(
@@ -133,7 +134,7 @@ describe("3 sahnali video: plan.json → compiler → AE", () => {
     const created = again.filter((r) => !r.reused).map((r) => r.op_id);
     expect(created[0]).toBe("point.l1");
     expect(created).not.toContain("hook.comp");
-    expect(byName(h, "02_point").numLayers).toBe(3);
+    expect(byName(h, "02_point").numLayers).toBe(4);
     expect(byName(h, "reel_v1").numLayers).toBe(3);
   });
 });

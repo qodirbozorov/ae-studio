@@ -117,6 +117,14 @@ export const ERROR_DEFS = {
     retryable: false,
     hint: "Op parametrlari noto'g'ri. details ni tekshiring.",
   },
+  AE_PROJECT_DIRTY: {
+    retryable: true,
+    hint: "AE'da ochiq loyihada saqlanmagan o'zgarishlar bor. Uni saqlang (yoki job avtomatik _autosave nusxasini yaratsin) va qayta urining.",
+  },
+  AE_MODAL_SUSPECTED: {
+    retryable: true,
+    hint: "After Effects javob bermayapti — ehtimol ochiq dialog oynasi bor. AE'dagi dialogni yoping va qayta urining.",
+  },
   AE_NOT_FOUND: {
     retryable: false,
     hint: "Havola qilingan comp/layer/element AE loyihasida topilmadi. Oldingi op bajarilganini tekshiring.",

@@ -275,6 +275,25 @@ describe("BLOCKED yo'llari", () => {
     expect(await job(id)).toMatchObject({ state: "VERIFY" });
   });
 
+  it("panel papkani unutgan (#6) → CHECK uni avtomatik ochadi va job davom etadi", async () => {
+    agent.root = "";
+    const opened: string[] = [];
+    agent.onProjectOpen = async (root) => {
+      opened.push(root);
+      return { id: "00000000-0000-4000-8000-000000000001", name: "reel", root_path: root };
+    };
+    agent.connect();
+    await addPlan();
+    const id = await startJob();
+    expect(await job(id)).toMatchObject({ state: "VERIFY" });
+    expect(opened).toEqual([ROOT]);
+    const events = await t.app.inject({
+      url: `/api/jobs/${id}/events`,
+      headers: { cookie },
+    });
+    expect(JSON.stringify(events.json().data)).toContain("check.folder_restored");
+  });
+
   it("AE javob bermasa → BLOCKED ENV_AE_CLOSED", async () => {
     agent.connect();
     agent.onOp = (op) => (op.op === "ping" ? makeError("AE_TIMEOUT", "jim") : "ok");

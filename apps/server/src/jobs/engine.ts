@@ -48,6 +48,7 @@ import {
   renders,
   reports,
 } from "../db/schema";
+import { cacheFlags } from "../audio/cache-status";
 import { estimateCredits } from "../audio/estimate";
 import { extractInput } from "../audio/inputs";
 import { planAudioTasks } from "../audio/plan";
@@ -96,6 +97,8 @@ type Step =
   | { kind: "stale" };
 
 const INGEST_TIMEOUT_MS = 10 * 60_000;
+/** Panelda ish papkasini tiklash (`project.open`) uchun. */
+const PROJECT_OPEN_TIMEOUT_MS = 60_000;
 const CHECK_PING_TIMEOUT_MS = 15_000;
 /** Bitta drive siklidagi holatlar soni chegarasi (cheksiz aylanishdan himoya). */
 const MAX_STEPS = 64;
@@ -721,13 +724,35 @@ export class JobEngine {
     }
     const root = agent.projectRoot === null ? null : normalizeRootPath(agent.projectRoot);
     if (root !== project.rootPath) {
-      return {
-        kind: "block",
-        error: makeError(
-          "ENV_NO_FOLDER",
-          `Panelda ${root === null ? "papka ochilmagan" : `boshqa papka ochiq: ${root}`}; kerak: ${project.rootPath}`,
-        ),
-      };
+      // #6: panel papkani "unutgan" (AE qayta ochilgan) yoki boshqasi ochiq — job loyihasining papkasini
+      // avtomatik ochamiz; faqat bu ham bo'lmasa BLOCKED.
+      const reopened = await this.ctx.hub.request(
+        job.deviceId,
+        { type: "project.open", request_id: randomUUID(), root_path: project.rootPath },
+        PROJECT_OPEN_TIMEOUT_MS,
+      );
+      if (!reopened.ok && reopened.error.code === "ENV_AGENT_OFFLINE") {
+        return { kind: "wait_agent", reason: "CHECK: panel uzildi (papka tiklash)" };
+      }
+      if (!reopened.ok || reopened.data.type !== "project.opened") {
+        return {
+          kind: "block",
+          error: makeError(
+            "ENV_NO_FOLDER",
+            `Panelda ${root === null ? "papka ochilmagan" : `boshqa papka ochiq: ${root}`}; kerak: ${project.rootPath}` +
+              (reopened.ok
+                ? ""
+                : ` (avtomatik ochilmadi: ${reopened.error.message ?? reopened.error.code})`),
+          ),
+        };
+      }
+      await this.event(
+        job,
+        "info",
+        "check.folder_restored",
+        `Ish papkasi avtomatik ochildi: ${project.rootPath}`,
+        { data: { previous: root, root: project.rootPath } },
+      );
     }
     const ping = await this.ctx.hub.run(
       job.deviceId,
@@ -1148,14 +1173,25 @@ export class JobEngine {
         { duration?: number } | undefined;
       return typeof meta?.duration === "number" ? meta.duration : null;
     };
+    // Keshdagi vazifalar kredit sarflamaydi (#8): gate faqat yangi generatsiyalarni hisoblaydi.
+    const cachedFlags = await cacheFlags(
+      this.ctx.db,
+      items.map((item) => ({
+        kind: item.kind,
+        params: item.params,
+        hasInput: item.inputAsset !== undefined,
+      })),
+    );
     const estimate = items.reduce(
-      (sum, item) =>
+      (sum, item, i) =>
         sum +
-        estimateCredits({
-          kind: item.kind,
-          params: item.params,
-          inputSeconds: inputSeconds(item.inputAsset),
-        }),
+        (cachedFlags[i] === true
+          ? 0
+          : estimateCredits({
+              kind: item.kind,
+              params: item.params,
+              inputSeconds: inputSeconds(item.inputAsset),
+            })),
       0,
     );
     const account = await this.ctx.eleven.account(project.userId);

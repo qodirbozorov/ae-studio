@@ -4,6 +4,7 @@
 import { AUDIO_KINDS, fail, ok, parseSpec } from "@aes/shared";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { cacheFlags } from "../../audio/cache-status";
 import { estimateCredits } from "../../audio/estimate";
 import { DEFAULT_TTS_MODEL, planAudioTasks } from "../../audio/plan";
 import { assets, pronunciationDicts } from "../../db/schema";
@@ -32,23 +33,44 @@ export async function estimateWithQuota(
     label: string;
     params: Record<string, unknown>;
     inputSeconds?: number | null;
+    /** Plan elementi: kirish fayli (hash oldindan noma'lum). */
+    inputAsset?: string;
   }[],
 ) {
-  const rows = items.map((item) => ({
-    label: item.label,
-    kind: item.kind,
-    credits: estimateCredits({
+  // Keshdagi vazifalar kredit sarflamaydi (#8): `cached: true` → 0.
+  const flags = await cacheFlags(
+    ctx.app.db,
+    items.map((item) => ({
+      kind: item.kind,
+      params: item.params,
+      hasInput: item.inputAsset !== undefined,
+    })),
+  );
+  const rows = items.map((item, i) => {
+    const full = estimateCredits({
       kind: item.kind,
       params: item.params,
       inputSeconds: item.inputSeconds ?? null,
-    }),
-  }));
+    });
+    const cached = flags[i] ?? null;
+    return {
+      label: item.label,
+      kind: item.kind,
+      cached,
+      credits: cached === true ? 0 : full,
+      credits_if_uncached: full,
+    };
+  });
   const total = rows.reduce((sum, row) => sum + row.credits, 0);
+  const totalUncached = rows.reduce((sum, row) => sum + row.credits_if_uncached, 0);
   const account = await ctx.app.eleven.account(ctx.userId);
   const fits = account.remaining === null ? null : total <= account.remaining;
   return {
     items: rows,
     total,
+    /** Kesh bo'lmaganda (hammasi qayta generatsiya) narx. */
+    total_uncached: totalUncached,
+    cached_count: rows.filter((row) => row.cached === true).length,
     remaining: account.remaining,
     fits,
     approximate: true,

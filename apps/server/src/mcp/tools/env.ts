@@ -9,7 +9,12 @@ import { pickDevice, presentDevice, uuidArg, userDevices } from "./common";
 const deviceArg = z.object({
   device_id: uuidArg("device_id")
     .optional()
-    .describe("Device id from devices_list; optional when the user has one online device"),
+    .describe(
+      "Device id from devices_list; usually not needed (resolved from the project or the only/recent device)",
+    ),
+  project_id: uuidArg("project_id")
+    .optional()
+    .describe("Resolve the device the project is bound to"),
 });
 
 export const envTools = [
@@ -21,7 +26,7 @@ export const envTools = [
     input: deviceArg,
     annotations: { readOnlyHint: true, openWorldHint: false },
     async handler(ctx, input) {
-      const picked = await pickDevice(ctx, input.device_id);
+      const picked = await pickDevice(ctx, input.device_id, input.project_id);
       if (!picked.ok && picked.error.code !== "ENV_AGENT_OFFLINE") return picked;
       const issues: AesError[] = [];
       const device = picked.ok ? presentDevice(ctx, picked.data) : null;
@@ -97,7 +102,7 @@ export const envTools = [
     input: deviceArg,
     annotations: { readOnlyHint: true, openWorldHint: false },
     async handler(ctx, input) {
-      const picked = await pickDevice(ctx, input.device_id);
+      const picked = await pickDevice(ctx, input.device_id, input.project_id);
       if (!picked.ok) return picked;
       if (!ctx.app.hub.isOnline(picked.data.id))
         return fail("ENV_AGENT_OFFLINE", "Panel ulanmagan");

@@ -15,7 +15,8 @@ Checks everything a build needs: server, AE panel online, After Effects running,
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
-| `device_id` | uuid |  | Device id from devices_list; optional when the user has one online device |
+| `device_id` | uuid |  | Device id from devices_list; usually not needed (resolved from the project or the only/recent device) |
+| `project_id` | uuid |  | Resolve the device the project is bound to |
 
 ### `devices_list` — List devices · faqat o'qish
 
@@ -29,7 +30,8 @@ Asks After Effects for its version, the open .aep, its compositions and installe
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
-| `device_id` | uuid |  | Device id from devices_list; optional when the user has one online device |
+| `device_id` | uuid |  | Device id from devices_list; usually not needed (resolved from the project or the only/recent device) |
+| `project_id` | uuid |  | Resolve the device the project is bound to |
 
 ## Loyiha va plan
 

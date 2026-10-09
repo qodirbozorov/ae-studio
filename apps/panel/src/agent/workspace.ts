@@ -39,6 +39,8 @@ export interface PanelSettings {
   render_om_template: string | null;
   /** Birinchi ishga tushirish ustasi tugaganmi (P5.11). */
   onboarded: boolean;
+  /** Oxirgi ish papkasi: AE qayta ochilganda ulanish bilan avtomatik tiklanadi (#6). */
+  last_project_root: string | null;
 }
 
 const DEFAULT_SETTINGS: PanelSettings = {
@@ -48,6 +50,7 @@ const DEFAULT_SETTINGS: PanelSettings = {
   aerender_path: null,
   render_om_template: null,
   onboarded: false,
+  last_project_root: null,
 };
 
 const optionalString = (value: unknown): string | null =>
@@ -75,6 +78,7 @@ export function loadSettings(dataDir: string): PanelSettings {
       aerender_path: optionalString(raw.aerender_path),
       render_om_template: optionalString(raw.render_om_template),
       onboarded: raw.onboarded === true,
+      last_project_root: optionalString(raw.last_project_root),
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

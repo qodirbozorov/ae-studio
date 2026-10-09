@@ -492,6 +492,19 @@ export function createAgent(options: AgentOptions): Agent {
     });
     next.onStatus((status) => {
       if (status === "connected") void reportAeState(next);
+      // #6: AE qayta ochilgan — oxirgi ish papkasi avtomatik tiklanadi.
+      if (status === "connected" && root === "" && settings.last_project_root !== null) {
+        const last = settings.last_project_root;
+        void agent
+          .openProject(last)
+          .then(() => log.add({ level: "info", message: `♻️ Ish papkasi tiklandi: ${last}` }))
+          .catch((error: unknown) =>
+            log.add({
+              level: "warn",
+              message: `Oxirgi ish papkasi tiklanmadi (${last}): ${error instanceof Error ? error.message : String(error)}`,
+            }),
+          );
+      }
       if (status === "unauthorized" && account !== null && server.token === account.token) {
         log.add({ level: "warn", message: "Qurilma bekor qilingan — panelni qayta ulang" });
         clearCredentials(dataDir);
@@ -734,6 +747,10 @@ export function createAgent(options: AgentOptions): Agent {
       }
       project = res.body.data;
       root = prepared;
+      if (settings.last_project_root !== prepared) {
+        settings = { ...settings, last_project_root: prepared };
+        saveSettings(dataDir, settings);
+      }
       log.add({ level: "info", message: `📁 Ish papkasi: ${prepared}` });
       // Server (CHECK, env_check) yangi papkani `project.opened` javobidan oldin bilsin.
       if (client !== null && client.status() === "connected") {

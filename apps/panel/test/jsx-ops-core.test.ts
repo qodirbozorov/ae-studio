@@ -59,11 +59,33 @@ describe("project.open_or_create / project.save", () => {
     expect(h.ae.app.opened).toEqual([`open:${ROOT}/reel_v001.aep`]);
   });
 
-  it("ochiq loyihada saqlanmagan o'zgarish bo'lsa boshqasi ochilmaydi (hech narsa yo'qolmaydi)", async () => {
+  it("saqlanmagan o'zgarish (#5): default — _autosave_vNNN nusxa, keyin ochiladi; dirty: fail — AE_PROJECT_DIRTY", async () => {
+    const strict = await withMain();
+    const res = strict.run("project.open_or_create", "proj", {
+      path: "reel_v001.aep",
+      dirty: "fail",
+    });
+    expect(res).toMatchObject({ ok: false, error: { code: "AE_PROJECT_DIRTY", retryable: true } });
+    expect(strict.ae.app.opened).toEqual([]);
+
+    // Nomsiz loyiha → ish papkasidagi .aestudio/autosave/untitled_autosave_v001.aep
     const h = await withMain();
-    const res = h.run("project.open_or_create", "proj", { path: "reel_v001.aep" });
-    expect(res).toMatchObject({ ok: false, error: { code: "AE_BAD_PARAMS" } });
-    expect(h.ae.app.opened).toEqual([]);
+    const ok = h.run("project.open_or_create", "proj", { path: "reel_v001.aep" });
+    expect(ok).toMatchObject({
+      ok: true,
+      data: { info: { autosaved: `${ROOT}/.aestudio/autosave/untitled_autosave_v001.aep` } },
+    });
+    expect(h.ae.files.has(`${ROOT}/.aestudio/autosave/untitled_autosave_v001.aep`)).toBe(true);
+    expect(h.ae.app.opened).toEqual([`open:${ROOT}/reel_v001.aep`]);
+
+    // Nomli loyiha → o'z yonida <nom>_autosave_v002 (v001 band).
+    h.ae.app.project.dirty = true;
+    h.ae.files.set(`${ROOT}/reel_v001_autosave_v001.aep`, {});
+    const again = h.run("project.open_or_create", "proj2", { path: "untitled_x.aep" });
+    expect(again).toMatchObject({
+      ok: true,
+      data: { info: { autosaved: `${ROOT}/reel_v001_autosave_v002.aep` } },
+    });
   });
 
   it("project.save: yangi versiya saqlanadi; boshqa mavjud versiya ustiga yozilmaydi", async () => {

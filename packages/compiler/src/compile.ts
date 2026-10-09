@@ -406,6 +406,7 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
           );
         }
       }
+      const bg = scene.bg ?? expansion?.bg ?? ctx.brand?.colors.background;
       const comp = list.add(
         "comp.create",
         `${tree.prefix}${time.comp}`,
@@ -415,11 +416,29 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
           h: tree.frame.h,
           fps,
           dur: time.duration,
-          bg: scene.bg ?? expansion?.bg ?? ctx.brand?.colors.background ?? "#000000",
+          bg: bg ?? "#000000",
           folder: tree.tag === null ? SCENES_FOLDER : `${SCENES_FOLDER} ${tree.tag}`,
         },
         scene.id,
       );
+      // #4: nested comp'ning bgColor'i asosiy comp'da render qilinmaydi (precomp foni shaffof) —
+      // fon aniq berilsa eng pastda to'liq kadrli rang qatlami.
+      if (bg !== undefined) {
+        list.add(
+          "layer.add_shape",
+          `${tree.prefix}${scene.id}.bg`,
+          {
+            comp,
+            kind: "rect",
+            color: bg,
+            size: [tree.frame.w, tree.frame.h],
+            pos: [round(tree.frame.w / 2), round(tree.frame.h / 2)],
+            start: 0,
+            name: "BG",
+          },
+          scene.id,
+        );
+      }
       if (expansion?.instantiate !== undefined) {
         list.add(
           "template.instantiate",

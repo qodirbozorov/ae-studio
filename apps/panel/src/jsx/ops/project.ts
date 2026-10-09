@@ -41,6 +41,40 @@ function result(opId: string, path: string, reused: boolean): OpResultData {
   };
 }
 
+function pad3(n: number): string {
+  const s = String(n);
+  return s.length >= 3 ? s : s.length === 2 ? "0" + s : "00" + s;
+}
+
+/**
+ * #5: saqlanmagan o'zgarishlarni yo'qotmaslik — joriy loyiha `<nom>_autosave_vNNN.aep` sifatida saqlanadi
+ * (nomsiz loyiha — `<ish papkasi>/.aestudio/autosave/`). Mavjud fayl ustiga yozilmaydi.
+ */
+function autosave(root: string): string {
+  const open = app.project.file;
+  let dir: string;
+  let base: string;
+  if (open !== null) {
+    const full = open.fsName.replace(/\\/g, "/");
+    const slash = full.lastIndexOf("/");
+    dir = full.substring(0, slash);
+    base = full.substring(slash + 1).replace(/\.aep$/i, "");
+  } else {
+    dir = root.replace(/[\\\x2f]+$/, "") + "/.aestudio/autosave";
+    base = "untitled";
+  }
+  const folder = new Folder(dir);
+  if (!folder.exists) folder.create();
+  let n = 1;
+  let target = new File(dir + "/" + base + "_autosave_v" + pad3(n) + ".aep");
+  while (target.exists && n < 999) {
+    n++;
+    target = new File(dir + "/" + base + "_autosave_v" + pad3(n) + ".aep");
+  }
+  app.project.save(target);
+  return target.fsName;
+}
+
 /** `project.open_or_create` — mavjud .aep ni ochadi yoki yangisini yaratib shu yo'lga saqlaydi. */
 export function projectOpenOrCreate(
   p: ProjectOpenOrCreateParams,
@@ -50,11 +84,15 @@ export function projectOpenOrCreate(
   const path = resolveInRoot(ctx.root, p.path);
   const open = currentPath();
   if (open !== null && samePath(open, path)) return result(opId, path, true);
+  let autosaved: string | null = null;
   if (hasUnsavedChanges()) {
-    return raise(
-      "AE_BAD_PARAMS",
-      "Ochiq loyihada saqlanmagan o'zgarishlar bor — avval saqlang yoki yoping",
-    );
+    if (p.dirty === "fail") {
+      return raise(
+        "AE_PROJECT_DIRTY",
+        "Ochiq loyihada saqlanmagan o'zgarishlar bor — avval saqlang yoki yoping",
+      );
+    }
+    autosaved = autosave(ctx.root);
   }
   const file = new File(path);
   if (file.exists) {
@@ -63,7 +101,9 @@ export function projectOpenOrCreate(
     app.newProject();
     app.project.save(file);
   }
-  return result(opId, path, false);
+  const data = result(opId, path, false);
+  if (autosaved !== null) data.info = { path: path, autosaved: autosaved };
+  return data;
 }
 
 /** `project.save` — `vNNN` faylga saqlash; boshqa versiya fayli ustiga yozilmaydi. */

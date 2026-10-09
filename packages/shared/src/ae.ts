@@ -41,6 +41,7 @@ export interface UndoParams {
 
 export interface ProjectOpenOrCreateParams {
   path: RelPath;
+  dirty?: "autosave" | "fail" | undefined;
 }
 
 export interface ProjectSaveParams {

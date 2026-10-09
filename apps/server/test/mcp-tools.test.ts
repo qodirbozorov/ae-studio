@@ -96,6 +96,19 @@ describe("env_check / devices_list / ae_info", () => {
     expect(agent.ran.some((id) => id.startsWith("mcp.ping."))).toBe(true);
   });
 
+  it("bir nechta qurilma (#7): loyiha qurilmasi avtomatik — project_id bilan yoki oxirgi loyiha bo'yicha", async () => {
+    const a = await addDevice("A");
+    const b = await addDevice("B");
+    agentFor(a.id).connect();
+    agentFor(b.id).connect();
+    await new Promise((r) => setTimeout(r, 20));
+    const project = await addProject(b.id);
+    const byProject = await s.call("env_check", { project_id: project.id });
+    expect(byProject.result.data.device.name).toBe("B");
+    const byRecent = await s.call("env_check");
+    expect(byRecent.result.data.device.name).toBe("B");
+  });
+
   it("bir nechta online qurilma → device_id so'raladi", async () => {
     const a = await addDevice("A");
     const b = await addDevice("B");
