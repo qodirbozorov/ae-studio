@@ -24,3 +24,6 @@ apps/panel/release/
 
 # Lokal storage drayveri (dev/test)
 .storage/
+
+# Foydalanuvchi reliz arxivi
+apps/panel/release.zip

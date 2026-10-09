@@ -212,6 +212,51 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 
 ---
 
+## 7b. Faza 6 — Tezlik, ishonchlilik, vositalar (update-technicalguidline.md §0–3, §5, §6)
+
+**Maqsad:** VERIFY sikli ishlaydi; sahna = bitta JSX bundle (70 s promo ≤ 60 s); v1 plan'lar yangi kompilyatorda.
+
+- [ ] **P6.01 — Tezkor tuzatishlar.** #4 `bg` (nested comp foni main'da ko'rinmaydi → to'liq kadrli solid), #5 `AE_PROJECT_DIRTY` + `_autosave_vNNN`, #6 panel papkasini avtomatik tiklash, #7 `env_check` qurilmani loyihadan, #8 `el_estimate` `cached`/`total_uncached`.
+- [ ] **P6.02 — `frames_capture` qayta + `contact_sheet`.** Fon `aerender` bilan kadrlar (UI bloklanmaydi), bitta grid JPEG (vaqt yozuvlari bilan), `FRAME_CAPTURE_FAILED{reason}`, `AE_MODAL_SUSPECTED`.
+- [ ] **P6.03 — `aes_runtime.jsx` (§11-D).** `AES.*`: hex, cubic-bezier → KeyframeEase, `setValuesAtTimes`, json, dump, versiya tekshiruvi; ES3 bundle tekshiruvlari.
+- [ ] **P6.04 — Bundle kompilyator (§3.2–3.4).** Sahna = 1 JSX = 1 evalScript; sahna darajasida progress/resume/cancel; > 400 qatlam bo'linadi; `jobs/<id>/scene_sNN.jsx` audit; `scene.timing` ms.
+- [ ] **P6.05 — v1 → yangi kompilyator (§4.14).** v1 plan'lar bundle orqali; regressiya snapshot'lari.
+- [ ] **P6.06 — Plan boshqaruvi (#9, §5.6).** `plan_patch` id bo'yicha (`@s5b`), `plan_scene_put`, `plan_write(defer_validation)` + `plan_validate`, `plan_diff`.
+- [ ] **P6.07 — Yangi vositalar (§5.2, §5.5, §5.8).** `vo_timings`, `ae_inspect`, `fonts_list`, `ae_project_status`, `project_save_as`, `job_status` (scenes[], ms).
+- [ ] **P6.08 — Semantika (#11).** `pos`/anchor/`size` hujjati, `spec_schema(version)` izohlar bilan.
+- [ ] **P6.09 — 🧪 Faza 6 gate.**
+  - [ ] contact_sheet 10/10 (mock + aerender soxta)
+  - [ ] 1 000 element-xususiyat build ≤ 30 s (test muhiti), sahna ms logda
+  - [ ] v1 regressiyasi yangi kompilyatorda
+  - [ ] dirty / no-folder / qurilma avtomatik tiklanadi
+  - [ ] 👤 haqiqiy AE'da 70 s promo ≤ 60 s (i5'da ≤ 90 s)
+
+---
+
+## 7c. Faza 7 — Spec v2 va motion kutubxonasi (update-technicalguidline.md §4, §5.1, §5.4, §5.7, §7–9)
+
+**Maqsad:** G1–G6 oltin sahnalar JSX'siz quriladi.
+
+- [ ] **P7.01 — Spec v2 asos (§4.1–4.2).** `version: 2`, `units`, tokenlar (`$accent`, `$enter`), vaqt (`12f`, `end-0.3`), umumiy qatlam maydonlari (anchor/`bbox_*`, parent, blend, 3D).
+- [ ] **P7.02 — Keyframe va easing (§4.3, §11-B).** cubic-bezier → AE, spatial/linear, overshoot ajratish, xususiyat yo'llari.
+- [ ] **P7.03 — Shape contents (§4.4).** rect/ellipse/path/`svg_d`/star/group, fill/stroke, trim, round corners, repeater, gradient fallback; `svg_to_shape`.
+- [ ] **P7.04 — Matn v2 (§4.5).** `\n`, box, `runs` (+fallback), `bbox` yakor, text animator, `counter`.
+- [ ] **P7.05 — Komponentlar va presetlar (§4.9–4.10).** `components{}`, slots, `auto_size`, `group` + `stagger`, `in`/`out` (≥ 25 preset).
+- [ ] **P7.06 — Effektlar, maska, matte (§4.6–4.7, §11-C).** alias → matchName/indeks, shkala, `FX_UNKNOWN`/`FX_PARAM_UNKNOWN`, maskalar, `setTrackMatte`.
+- [ ] **P7.07 — 3D, kamera, yorug'lik, expression (§4.8, §4.11).** dof, renderer, makrolar, `validate_expressions`.
+- [ ] **P7.08 — O'tishlar v2 (§4.12).** cut, cross_dissolve, match_cut, circle_wipe, shape_wipe, whip, zoom_through, push; v1 xaritasi.
+- [ ] **P7.09 — Preflight v2 (§4.13).** xatolar va ogohlantirishlar (xavfsiz zona, kichik matn, kontrast, in/out).
+- [ ] **P7.10 — `ae_run_jsx` + `preview_render` (§5.1, §5.4, §7).** opt-in, statik taqiqlar, runtime yo'l himoyasi, limit, audit.
+- [ ] **P7.11 — Kutubxona va instructions (§5.7, §8).** ≥ 6 komponent, `presets_list`/`preset_apply`, `template_import_aep`, server instructions.
+- [ ] **P7.12 — 🧪 Faza 7 gate (§9).**
+  - [ ] G1–G6 spec v2 → mock AE + kompilyator snapshot
+  - [ ] `ae_run_jsx` har taqiq uchun salbiy test
+  - [ ] `vo_timings` ±1 kadr
+  - [ ] to'liq regressiya
+  - [ ] 👤 haqiqiy AE: SSIM ≥ 0,98, KPI
+
+---
+
 ## 8. Qamrov jadvali (asl rejadagi hech narsa tushib qolmasligi uchun)
 
 | Element | F1 | F2 | F3 | F4 | F5 |

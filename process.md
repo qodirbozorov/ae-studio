@@ -2,7 +2,7 @@
 
 > **Compact yoki yangi sessiyadan keyin avval shu faylni o'qing:** "Joriy holat" → oxirgi 3 hisobot → [ae-studio-phases.md](ae-studio-phases.md) dagi birinchi `[ ]` todo.
 > Talab (2026-10-05): har todo bajarilganda shu faylga hisobot yoziladi, shunda compact paytida kontekst yo'qolmaydi.
-> Reja: [ae-studio-phases.md](ae-studio-phases.md) (5 faza, 69 todo) · Asl reja: [ae-studio-plan.md](ae-studio-plan.md)
+> Reja: [ae-studio-phases.md](ae-studio-phases.md) (5 faza + yangilash Faza 6–7 [update-technicalguidline.md](update-technicalguidline.md)) · Asl reja: [ae-studio-plan.md](ae-studio-plan.md)
 
 ---
 
@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** Barcha 5 faza — kod qismi tugadi; production'da (2026-10-07)
+- **Faza:** 6 — Tezlik, ishonchlilik, vositalar · boshlandi (0/9)
 - **Oxirgi bajarilgan:** Tuzatish: jsx ichma-ich ternar (522-qator) + ExtendScript skani + yangi ZXP (2026-10-08)
-- **Keyingi todo:** 👤 qo'lda sinovlar va kalitlar (pastdagi Blokerlar)
+- **Keyingi todo:** P6.01 — Tezkor tuzatishlar
 - **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -106,6 +106,7 @@
 | 2026-10-07 | P5.10 | Q8: self-signed ZXP; Q9: faqat LGPL ffmpeg ZXP ichida (bin/<platform>-<arch>) | shaxsiy tarqatishga yetarli; LGPL o'zgartirilmagan binar bilan tarqatishga ruxsat beradi |
 | 2026-10-07 | P5.13 | DB backup ilova ichida (json_agg → storage), pg_dump emas | Railway konteynerida pg_dump yo'q; JSON orqali turlar aniq tiklanadi va PGlite bilan test qilinadi |
 | 2026-10-07 | Login | Kabinetga kirish faqat Telegram deep link (email/magic link olib tashlandi) | foydalanuvchi talabi; xat xizmati kerak emas, kirish bilan xabarnoma chati ham ulanadi |
+| 2026-10-10 | Faza 6–7 | update-technicalguidline.md 2 fazaga: 6 (tuzatish, bundle kompilyator, vositalar), 7 (Spec v2, kutubxona, ae_run_jsx) | foydalanuvchi tasdiqladi; avval tezlik va VERIFY, keyin ifoda imkoniyatlari |
 
 ---
 
