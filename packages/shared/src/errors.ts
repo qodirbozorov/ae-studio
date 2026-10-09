@@ -121,6 +121,14 @@ export const ERROR_DEFS = {
     retryable: true,
     hint: "AE'da ochiq loyihada saqlanmagan o'zgarishlar bor. Uni saqlang (yoki job avtomatik _autosave nusxasini yaratsin) va qayta urining.",
   },
+  FX_UNKNOWN: {
+    retryable: false,
+    hint: "Effekt AE'da topilmadi (plagin o'rnatilmaganmi?). ae_effects bilan o'rnatilgan effektlar va matchName'ni tekshiring.",
+  },
+  FX_PARAM_UNKNOWN: {
+    retryable: false,
+    hint: "Effekt parametri topilmadi yoki qiymat mos emas. fx_params bilan aniq nom, indeks va turini oling.",
+  },
   FRAME_CAPTURE_FAILED: {
     retryable: true,
     hint: "Kadrlar olinmadi. details.reason ga qarang: modal_suspected — AE'dagi dialogni yoping; comp_not_found — job qurilganini tekshiring; timeout/render_error — qayta urining.",

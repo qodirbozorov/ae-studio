@@ -7,6 +7,40 @@ import { dirname } from "node:path";
  */
 
 export const KeyframeInterpolationType = { LINEAR: 6612, BEZIER: 6613, HOLD: 6614 };
+export const MaskMode = {
+  NONE: 6812,
+  ADD: 6813,
+  SUBTRACT: 6814,
+  INTERSECT: 6815,
+  LIGHTEN: 6816,
+  DARKEN: 6817,
+  DIFFERENCE: 6818,
+};
+export const TrackMatteType = {
+  NO_TRACK_MATTE: 6012,
+  ALPHA: 6013,
+  ALPHA_INVERTED: 6014,
+  LUMA: 6015,
+  LUMA_INVERTED: 6016,
+};
+/** AE BlendingMode (Faza 7 testlari uchun asosiylari). */
+export const BlendingMode: Record<string, number> = {
+  NORMAL: 5212,
+  ADD: 5213,
+  SCREEN: 5214,
+  MULTIPLY: 5215,
+  OVERLAY: 5216,
+  SOFT_LIGHT: 5217,
+  SILHOUETE_ALPHA: 5240,
+};
+
+/** AE `Shape` (maska va shape yo'li qiymati). */
+export class Shape {
+  vertices: number[][] = [];
+  inTangents: number[][] = [];
+  outTangents: number[][] = [];
+  closed = true;
+}
 export const PropertyValueType = {
   NO_VALUE: 6412,
   ThreeD_SPATIAL: 6413,
@@ -41,7 +75,11 @@ export interface MockKey {
   outTangent?: number[];
 }
 
-type Factory = () => MockProperty;
+type Factory = (matchName: string) => MockProperty;
+
+/** Ixtiyoriy matchName'li guruh (Faza 7 testlari): bolalar birinchi murojaatda yaratiladi. */
+const lazyGroup: Factory = (matchName) =>
+  new MockProperty(matchName, null, [], { lazy: true, addable: { "*": lazyGroup } });
 
 /** AE'da TextDocument qiymat sifatida ishlaydi: o'qish va yozishda nusxa olinadi. */
 function copyValue(value: unknown): unknown {
@@ -63,17 +101,50 @@ export class MockProperty {
   readonly children: MockProperty[];
   readonly name: string;
   private readonly addable: Record<string, Factory>;
+  private readonly lazy: boolean;
+  private readonly accepts: ((matchName: string) => boolean) | undefined;
+  /** AE: maska/effekt/guruh xossalari (testlar o'qiydi). */
+  maskMode?: number;
+  inverted?: boolean;
+  enabled?: boolean;
+  dimensionsSeparated?: boolean;
 
   constructor(
     readonly matchName: string,
     initial: unknown = null,
     children: MockProperty[] | Record<string, MockProperty> = [],
-    options: { name?: string; addable?: Record<string, Factory> } = {},
+    options: {
+      name?: string;
+      addable?: Record<string, Factory>;
+      lazy?: boolean;
+      accepts?: (matchName: string) => boolean;
+    } = {},
   ) {
     this.value = initial;
     this.children = Array.isArray(children) ? children : Object.values(children);
     this.name = options.name ?? matchName;
     this.addable = options.addable ?? {};
+    this.lazy = options.lazy ?? false;
+    this.accepts = options.accepts;
+  }
+
+  /** Yo'l bo'yicha bola (testlar uchun): `child("A", "B")`. */
+  child(...path: (string | number)[]): MockProperty {
+    return path.reduce<MockProperty>((current, key) => current.property(key), this);
+  }
+
+  private lazyChild(key: string | number): MockProperty {
+    if (typeof key === "number") {
+      while (this.children.length < key) {
+        this.children.push(new MockProperty("#" + (this.children.length + 1), null));
+      }
+      return this.children[key - 1]!;
+    }
+    const created = /Group$|Parade$|Dashes$|Transform$/.test(key)
+      ? lazyGroup(key)
+      : new MockProperty(key, null);
+    this.children.push(created);
+    return created;
   }
 
   setValue(value: unknown) {
@@ -208,18 +279,20 @@ export class MockProperty {
       typeof nameOrIndex === "number"
         ? this.children[nameOrIndex - 1]
         : this.children.find((c) => c.matchName === nameOrIndex || c.name === nameOrIndex);
+    if (child === undefined && this.lazy) return this.lazyChild(nameOrIndex);
     if (child === undefined) throw new Error("Property topilmadi: " + String(nameOrIndex));
     return child;
   }
 
   canAddProperty(matchName: string): boolean {
-    return this.addable[matchName] !== undefined;
+    if (this.addable[matchName] !== undefined) return true;
+    return this.addable["*"] !== undefined && (this.accepts?.(matchName) ?? true);
   }
 
   addProperty(matchName: string): MockProperty {
-    const factory = this.addable[matchName];
-    if (factory === undefined) throw new Error("Qo'shib bo'lmaydi: " + matchName);
-    const created = factory();
+    if (!this.canAddProperty(matchName)) throw new Error("Qo'shib bo'lmaydi: " + matchName);
+    const factory = this.addable[matchName] ?? this.addable["*"]!;
+    const created = factory(matchName);
     this.children.push(created);
     return created;
   }
@@ -266,8 +339,17 @@ export function colorControl(name: string, color: number[] = [1, 1, 1, 1]): Mock
   );
 }
 
+/** Mock'da "o'rnatilgan" effektlar: ADBE va CC (boshqasi — o'rnatilmagan plagin). */
+export const installedEffect = (matchName: string): boolean => /^(ADBE|CC) /.test(matchName);
+
 function effectFactories(): Record<string, Factory> {
-  const out: Record<string, Factory> = {};
+  // Haqiqiy AE kabi: effektda parametrlar doim bor (indeks bo'yicha murojaat uchun 16 ta).
+  const anyEffect: Factory = (matchName) => {
+    const effect = lazyGroup(matchName);
+    effect.property(16);
+    return effect;
+  };
+  const out: Record<string, Factory> = { "*": anyEffect };
   for (const [matchName, spec] of Object.entries(EFFECTS)) {
     out[matchName] = () =>
       new MockProperty(
@@ -299,13 +381,20 @@ function shapeContents(): MockProperty {
         new MockProperty("ADBE Vector Fill Opacity", 100),
       ]),
   };
+  const vectorGroup: Factory = () =>
+    new MockProperty(
+      "ADBE Vector Group",
+      null,
+      [
+        new MockProperty("ADBE Vectors Group", null, [], {
+          addable: { ...vectorItems, "ADBE Vector Group": vectorGroup, "*": lazyGroup },
+        }),
+        lazyGroup("ADBE Vector Transform Group"),
+      ],
+      { lazy: true },
+    );
   return new MockProperty("ADBE Root Vectors Group", null, [], {
-    addable: {
-      "ADBE Vector Group": () =>
-        new MockProperty("ADBE Vector Group", null, [
-          new MockProperty("ADBE Vectors Group", null, [], { addable: vectorItems }),
-        ]),
-    },
+    addable: { "ADBE Vector Group": vectorGroup },
   });
 }
 
@@ -315,6 +404,10 @@ export class Item {
   readonly id = nextId++;
   comment = "";
   parentFolder: FolderItem | null = null;
+  removed = false;
+  remove(): void {
+    this.removed = true;
+  }
   constructor(public name: string) {}
 }
 
@@ -373,6 +466,23 @@ export class Layer {
   }
   enabled = true;
   audioEnabled = true;
+  threeDLayer = false;
+  motionBlur = false;
+  adjustmentLayer = false;
+  nullLayer = false;
+  blendingMode = BlendingMode.NORMAL!;
+  parent: Layer | null = null;
+  trackMatteType = TrackMatteType.NO_TRACK_MATTE;
+  trackMatteLayer: Layer | null = null;
+  setTrackMatte(layer: Layer, type: number): void {
+    this.trackMatteLayer = layer;
+    this.trackMatteType = type;
+  }
+  moveBefore(other: Layer): void {
+    const list = this.containingComp.layersList;
+    list.splice(list.indexOf(this), 1);
+    list.splice(list.indexOf(other), 0, this);
+  }
   readonly presets: string[] = [];
   readonly root: MockProperty;
   private remap = false;
@@ -417,8 +527,28 @@ export class Layer {
         new MockProperty("ADBE Scale", [100, 100, 100], [], { name: "Scale" }),
         new MockProperty("ADBE Rotate Z", 0, [], { name: "Rotation" }),
         new MockProperty("ADBE Opacity", 100, [], { name: "Opacity" }),
+        new MockProperty("ADBE Position_0", containingComp.width / 2),
+        new MockProperty("ADBE Position_1", containingComp.height / 2),
+        new MockProperty("ADBE Position_2", 0),
+        new MockProperty("ADBE Rotate X", 0),
+        new MockProperty("ADBE Rotate Y", 0),
+        new MockProperty("ADBE Orientation", [0, 0, 0]),
       ]),
-      new MockProperty("ADBE Effect Parade", null, [], { addable: effectFactories() }),
+      new MockProperty("ADBE Effect Parade", null, [], {
+        addable: effectFactories(),
+        accepts: installedEffect,
+      }),
+      new MockProperty("ADBE Mask Parade", null, [], {
+        addable: {
+          "ADBE Mask Atom": () =>
+            new MockProperty("ADBE Mask Atom", null, [
+              new MockProperty("ADBE Mask Shape", null),
+              new MockProperty("ADBE Mask Feather", [0, 0]),
+              new MockProperty("ADBE Mask Opacity", 100),
+              new MockProperty("ADBE Mask Offset", 0),
+            ]),
+        },
+      }),
       new MockProperty("ADBE Audio Group", null, [new MockProperty("ADBE Audio Levels", [0, 0])]),
     ];
     if (extra.text !== undefined) {
@@ -495,6 +625,13 @@ export class CompItem extends AVItem {
       return this.push(new Layer(this, null, text, { text: doc }));
     },
     addShape: () => this.push(new Layer(this, null, "Shape Layer 1", { shape: true })),
+    addSolid: (_color: number[], name: string, w: number, h: number, _pa: number) =>
+      this.push(new Layer(this, new AVItem(name, w, h, this.duration, this.frameRate), name)),
+    addNull: () => {
+      const layer = new Layer(this, null, "Null 1");
+      layer.nullLayer = true;
+      return this.push(layer);
+    },
     add: (item: AVItem, duration?: number) => {
       const layer = new Layer(this, item, item.name);
       if (duration !== undefined) layer.outPoint = duration;
@@ -615,6 +752,8 @@ export interface MockAE {
 }
 
 export interface MockApp {
+  /** `app.effects` (o'rnatilgan effektlar). */
+  effects: { displayName: string; matchName: string; category: string }[];
   version: string;
   project: MockProject;
   undoGroups: string[];
@@ -817,6 +956,15 @@ export function createMockAE(
   }
 
   const app: MockApp = {
+    effects: [
+      {
+        displayName: "Gaussian Blur",
+        matchName: "ADBE Gaussian Blur 2",
+        category: "Blur & Sharpen",
+      },
+      { displayName: "Glow", matchName: "ADBE Glo2", category: "Stylize" },
+      { displayName: "Bezier Warp", matchName: "ADBE BEZMESH", category: "Distort" },
+    ],
     version: options.version ?? "25.2.0x15",
     project: createProject(null),
     undoGroups: [],
@@ -907,6 +1055,10 @@ export function createMockAE(
       KeyframeInterpolationType,
       KeyframeEase,
       PropertyValueType,
+      Shape,
+      MaskMode,
+      BlendingMode,
+      TrackMatteType,
       CompItem,
       FolderItem,
       FootageItem,

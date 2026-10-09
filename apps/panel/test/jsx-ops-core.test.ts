@@ -385,16 +385,17 @@ describe("fx.add / fx.apply_preset", () => {
     ).toMatchObject({ ok: true });
     const effect = comp(h, "MAIN").layer(1).property("ADBE Effect Parade").property(1);
     expect(effect.property("Blurriness").value).toBe(20);
-    expect(effect.property("ADBE Gaussian Blur 2-0003").value).toBe(true);
+    // AE checkbox qiymati 0/1 (boolean shunga o'giriladi).
+    expect(effect.property("ADBE Gaussian Blur 2-0003").value).toBe(1);
 
     expect(h.run("fx.add", "t.nope", { layer: "t", matchName: "VC Optical Flares" })).toMatchObject(
       {
-        error: { code: "AE_BAD_PARAMS" },
+        error: { code: "FX_UNKNOWN" },
       },
     );
     expect(
       h.run("fx.add", "t.bad", { layer: "t", matchName: "ADBE Fill", params: { Nope: 1 } }),
-    ).toMatchObject({ error: { code: "AE_BAD_PARAMS" } });
+    ).toMatchObject({ error: { code: "FX_PARAM_UNKNOWN" } });
     // Idempotent: qayta yuborilsa ikkinchi effekt qo'shilmaydi.
     h.run("fx.add", "t.blur", { layer: "t", matchName: "ADBE Gaussian Blur 2" });
     expect(comp(h, "MAIN").layer(1).property("ADBE Effect Parade").numProperties).toBe(2);

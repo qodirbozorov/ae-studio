@@ -7,6 +7,7 @@ import type {
   TextStyleOp,
 } from "@aes/shared/ae";
 import { layerResult, requireAvItem, setLayerTiming, transformProperty } from "../lib/ae";
+import { addContent, gradientTint } from "../lib/shapes";
 import { findLayerInComp, requireComp, requireItem, stampLayer } from "../lib/trace";
 import { hexToRgb, raise } from "../lib/util";
 
@@ -94,7 +95,10 @@ export function layerAddMedia(p: LayerAddMediaParams, opId: string): OpResultDat
   return layerResult(opId, layer, comp, false);
 }
 
-/** `layer.add_shape` — to'rtburchak (radius bilan) yoki ellips, to'ldirilgan rang. */
+/**
+ * `layer.add_shape` — oddiy (v1): to'rtburchak (radius bilan) yoki ellips; professional (Faza 7):
+ * `contents` — vector group'lar daraxti, gradient bo'lsa qatlam Tint'i.
+ */
 export function layerAddShape(p: LayerAddShapeParams, opId: string): OpResultData {
   const comp = requireComp(p.comp);
   const existing = findLayerInComp(comp, opId);
@@ -103,6 +107,18 @@ export function layerAddShape(p: LayerAddShapeParams, opId: string): OpResultDat
   const layer = comp.layers.addShape();
   if (p.name !== undefined) layer.name = p.name;
   const contents = layer.property("ADBE Root Vectors Group") as PropertyGroup;
+  if (p.contents !== undefined) {
+    for (let i = 0; i < p.contents.length; i++) addContent(contents, p.contents[i]!);
+    if (p.gradient_colors !== undefined) gradientTint(layer, p.gradient_colors);
+    transformProperty(layer, "ADBE Position").setValue(p.pos);
+    if (p.opacity !== undefined) transformProperty(layer, "ADBE Opacity").setValue(p.opacity);
+    setLayerTiming(layer, comp, p.start, p.dur);
+    stampLayer(layer, opId);
+    return layerResult(opId, layer, comp, false);
+  }
+  if (p.kind === undefined || p.color === undefined || p.size === undefined) {
+    return raise("AE_BAD_PARAMS", "Shape uchun contents yoki kind + color + size kerak");
+  }
   const group = contents.addProperty("ADBE Vector Group") as PropertyGroup;
   const vectors = group.property("ADBE Vectors Group") as PropertyGroup;
   const rect = p.kind === "rect";

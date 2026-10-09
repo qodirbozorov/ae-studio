@@ -117,9 +117,14 @@ export interface LayerAddTextParams {
 
 export interface LayerAddShapeParams {
   comp: Ref;
-  kind: "rect" | "ellipse";
-  color: HexColor;
-  size: Vec2;
+  /** Oddiy shakl (v1): kind + color + size. */
+  kind?: "rect" | "ellipse" | undefined;
+  color?: HexColor | undefined;
+  size?: Vec2 | undefined;
+  /** Professional contents (Faza 7). */
+  contents?: ShapeContentOp[] | undefined;
+  /** Gradient ranglari: G-Fill/G-Stroke oq → qora, qatlam Tint'i oq → [0], qora → [1]. */
+  gradient_colors?: [HexColor, HexColor] | undefined;
   pos: Vec2;
   start: number;
   dur?: number | undefined;
@@ -174,7 +179,179 @@ export interface FxAddParams {
   layer: Ref;
   matchName: string;
   name?: string | undefined;
+  /** Kalit: 1-indeks ("3"), matchName yoki ko'rinadigan nom. Rang — `#RRGGBB`. */
   params?: { [prop: string]: number | number[] | boolean | string } | undefined;
+  enabled?: boolean | undefined;
+}
+
+/** Shape yo'li (op ko'rinishi): tangentlar nuqtaga nisbatan. Kompilyator svg_d/rect'ni shunga o'giradi. */
+export interface ShapePathOp {
+  points: Vec2[];
+  in: Vec2[];
+  out: Vec2[];
+  closed: boolean;
+}
+
+/** Gradient (G-Fill/G-Stroke oq → qora; ranglar qatlam darajasidagi Tint bilan, `gradient_colors`). */
+export interface ShapeGradientOp {
+  type: "linear" | "radial";
+  start: Vec2;
+  end: Vec2;
+}
+
+export interface ShapeFillOp {
+  color?: HexColor | undefined;
+  gradient?: ShapeGradientOp | undefined;
+  opacity?: number | undefined;
+  rule?: "nonzero" | "evenodd" | undefined;
+}
+
+export interface ShapeStrokeOp {
+  color?: HexColor | undefined;
+  gradient?: ShapeGradientOp | undefined;
+  opacity?: number | undefined;
+  width: number;
+  cap?: "butt" | "round" | "square" | undefined;
+  join?: "miter" | "round" | "bevel" | undefined;
+  miter_limit?: number | undefined;
+  dashes?: number[] | undefined;
+  dash_offset?: number | undefined;
+}
+
+export interface ShapeRepeaterOp {
+  copies: number;
+  offset?: number | undefined;
+  position?: Vec2 | undefined;
+  scale?: Vec2 | undefined;
+  rotation?: number | undefined;
+  start_opacity?: number | undefined;
+  end_opacity?: number | undefined;
+  composite?: "above" | "below" | undefined;
+}
+
+export interface ShapeTransformOp {
+  anchor?: Vec2 | undefined;
+  position?: Vec2 | undefined;
+  scale?: Vec2 | undefined;
+  rotation?: number | undefined;
+  opacity?: number | undefined;
+  skew?: number | undefined;
+  skew_axis?: number | undefined;
+}
+
+/** Bitta AE vector group (`name` = id). Stek: yo'l → modifikatorlar → stroke → fill → repeater. */
+export interface ShapeContentOp {
+  id: string;
+  kind: "rect" | "ellipse" | "star" | "polygon" | "path" | "group";
+  size?: Vec2 | undefined;
+  position?: Vec2 | undefined;
+  roundness?: number | undefined;
+  points?: number | undefined;
+  outer_radius?: number | undefined;
+  inner_radius?: number | undefined;
+  outer_roundness?: number | undefined;
+  inner_roundness?: number | undefined;
+  rotation?: number | undefined;
+  paths?: ShapePathOp[] | undefined;
+  fill?: ShapeFillOp | undefined;
+  stroke?: ShapeStrokeOp | undefined;
+  trim?:
+    | {
+        start?: number | undefined;
+        end?: number | undefined;
+        offset?: number | undefined;
+        individually?: boolean | undefined;
+      }
+    | undefined;
+  round_corners?: number | undefined;
+  offset_paths?: { amount: number; join?: "miter" | "round" | "bevel" | undefined } | undefined;
+  merge?: "merge" | "add" | "subtract" | "intersect" | "exclude" | undefined;
+  zig_zag?: { size: number; ridges?: number | undefined; smooth?: boolean | undefined } | undefined;
+  pucker_bloat?: number | undefined;
+  twist?: { angle: number; center?: Vec2 | undefined } | undefined;
+  wiggle?:
+    | {
+        size: number;
+        detail?: number | undefined;
+        speed?: number | undefined;
+        seed?: number | undefined;
+      }
+    | undefined;
+  repeater?: ShapeRepeaterOp | undefined;
+  transform?: ShapeTransformOp | undefined;
+  contents?: ShapeContentOp[] | undefined;
+}
+
+export interface LayerAddSolidParams {
+  comp: Ref;
+  kind: "solid" | "null" | "adjustment";
+  color?: HexColor | undefined;
+  /** Piksel; berilmasa comp o'lchami. */
+  size?: Vec2 | undefined;
+  pos: Vec2;
+  start: number;
+  dur?: number | undefined;
+  name?: string | undefined;
+  opacity?: number | undefined;
+}
+
+export type MatteTypeName = "alpha" | "alpha_inverted" | "luma" | "luma_inverted";
+
+export interface LayerTransformOp {
+  anchor?: number[] | undefined;
+  position?: number[] | undefined;
+  scale?: number[] | undefined;
+  rotation?: number | undefined;
+  opacity?: number | undefined;
+  rotation_x?: number | undefined;
+  rotation_y?: number | undefined;
+  orientation?: number[] | undefined;
+}
+
+/** Qatlam xususiyatlari (Faza 7): 3D, transform, blend, parent, matte. */
+export interface LayerSetParams {
+  layer: Ref;
+  three_d?: boolean | undefined;
+  motion_blur?: boolean | undefined;
+  transform?: LayerTransformOp | undefined;
+  /** `normal`, `screen`, `multiply` … (AE BlendingMode, kichik harf va `_`). */
+  blend?: string | undefined;
+  parent?: Ref | undefined;
+  matte?: { source: Ref; type: MatteTypeName } | undefined;
+}
+
+export type MaskModeName =
+  "add" | "subtract" | "intersect" | "lighten" | "darken" | "difference" | "none";
+
+export interface LayerMaskParams {
+  layer: Ref;
+  /** Maska nomi (keyframe yo'li `masks.<id>.*`). */
+  id: string;
+  path: ShapePathOp;
+  mode: MaskModeName;
+  feather?: Vec2 | undefined;
+  expansion?: number | undefined;
+  opacity?: number | undefined;
+  inverted?: boolean | undefined;
+}
+
+/** O'rnatilgan effektlar ro'yxati (`app.effects`), nom/matchName/kategoriya bo'yicha qidiruv. */
+export interface FxCatalogParams {
+  query?: string | undefined;
+  limit?: number | undefined;
+}
+
+/** Effekt parametrlari: vaqtinchalik solid'ga qo'shib, nom/indeks/turini o'qiydi. */
+export interface FxParamsParams {
+  match_name: string;
+}
+
+/** Qurilgan qatlam/comp tuzilmasi (AES.dump). */
+export interface LayerInspectParams {
+  comp?: string | undefined;
+  layer?: string | undefined;
+  ref?: Ref | undefined;
+  depth?: number | undefined;
 }
 
 export interface CaptionWord {
@@ -265,6 +442,12 @@ export interface OpParamsMap {
   "template.instantiate": TemplateInstantiateParams;
   "frames.capture": FramesCaptureParams;
   "render.queue": RenderQueueParams;
+  "layer.add_solid": LayerAddSolidParams;
+  "layer.set": LayerSetParams;
+  "layer.mask": LayerMaskParams;
+  "fx.catalog": FxCatalogParams;
+  "fx.params": FxParamsParams;
+  "layer.inspect": LayerInspectParams;
 }
 
 export type AeOpName = keyof OpParamsMap;

@@ -89,6 +89,13 @@ ixtiyoriy `message` va `details`. Job BLOCKED bo'lsa sabab tuzatilgach `job_resu
 |---|---|---|
 | `FRAME_CAPTURE_FAILED` | ha | Kadrlar olinmadi. details.reason ga qarang: modal_suspected — AE'dagi dialogni yoping; comp_not_found — job qurilganini tekshiring; timeout/render_error — qayta urining. |
 
+## Effektlar
+
+| Kod | Qayta urinish | Nima qilish kerak |
+|---|---|---|
+| `FX_UNKNOWN` | yo'q | Effekt AE'da topilmadi (plagin o'rnatilmaganmi?). ae_effects bilan o'rnatilgan effektlar va matchName'ni tekshiring. |
+| `FX_PARAM_UNKNOWN` | yo'q | Effekt parametri topilmadi yoki qiymat mos emas. fx_params bilan aniq nom, indeks va turini oling. |
+
 ## Tizim
 
 | Kod | Qayta urinish | Nima qilish kerak |

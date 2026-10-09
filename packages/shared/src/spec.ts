@@ -6,6 +6,7 @@
  * Pikselli o'lchamlar asosiy `format` ga nisbatan; variantlar uchun compiler moslashtiradi.
  */
 import { z } from "zod";
+import { checkContents, maskShapeCount, proLayerFields, shapeContentSchema } from "./pro";
 import {
   ASSET_REF_RE,
   assetKeyOf,
@@ -151,6 +152,7 @@ const mediaLayerSchema = z.strictObject({
   /** Video ichidagi ovozni qoldirish. */
   keep_audio: z.boolean().default(false),
   volume_db: volumeDbSchema.default(0),
+  ...proLayerFields,
 });
 
 const textLayerSchema = z.strictObject({
@@ -162,23 +164,61 @@ const textLayerSchema = z.strictObject({
   style: textStyleSchema.default({}),
   /** Matn qutisining eni, format eniga nisbatan (0–1]. */
   max_width: z.number().gt(0).max(1).default(0.9),
+  ...proLayerFields,
 });
 
 const shapeLayerSchema = z.strictObject({
   type: z.literal("shape"),
   ...layerTiming,
-  kind: z.enum(["rect", "ellipse"]),
-  color: hexColorSchema,
+  /** Oddiy shakl (v1): `kind` + `color` + `size`. Murakkab shakllar uchun `contents`. */
+  kind: z.enum(["rect", "ellipse"]).optional(),
+  color: hexColorSchema.optional(),
   /** Format o'lchamiga nisbatan (0–1]. */
-  size: z.strictObject({
-    w: z.number().gt(0).max(1),
-    h: z.number().gt(0).max(1),
-  }),
+  size: z
+    .strictObject({
+      w: z.number().gt(0).max(1),
+      h: z.number().gt(0).max(1),
+    })
+    .optional(),
+  contents: z
+    .array(shapeContentSchema)
+    .min(1)
+    .max(100)
+    .optional()
+    .describe(
+      "Professional shape contents (vector groups) in px relative to the layer origin (pos). Use instead of kind/color/size",
+    ),
   pos: positionSchema.default("center"),
   anim: z.enum(ANIMS).default("none"),
   opacity: z.number().min(0).max(100).default(100),
   /** Burchak radiusi, piksel (faqat rect). */
   radius: z.number().min(0).max(1000).default(0),
+  ...proLayerFields,
+});
+
+const solidLayerSchema = z.strictObject({
+  type: z.literal("solid"),
+  ...layerTiming,
+  color: hexColorSchema,
+  /** Piksel; berilmasa butun kadr. */
+  size: z.tuple([z.number().positive().max(30_000), z.number().positive().max(30_000)]).optional(),
+  pos: positionSchema.default("center"),
+  anim: z.enum(ANIMS).default("none"),
+  opacity: z.number().min(0).max(100).default(100),
+  ...proLayerFields,
+});
+
+const nullLayerSchema = z.strictObject({
+  type: z.literal("null"),
+  ...layerTiming,
+  pos: positionSchema.default("center"),
+  ...proLayerFields,
+});
+
+const adjustmentLayerSchema = z.strictObject({
+  type: z.literal("adjustment"),
+  ...layerTiming,
+  ...proLayerFields,
 });
 
 const audioLayerSchema = z.strictObject({
@@ -190,8 +230,19 @@ const audioLayerSchema = z.strictObject({
 
 export const layerSchema = z.discriminatedUnion(
   "type",
-  [mediaLayerSchema, textLayerSchema, shapeLayerSchema, audioLayerSchema],
-  { error: "Layer 'type' quyidagilardan biri bo'lishi kerak: media, text, shape, audio" },
+  [
+    mediaLayerSchema,
+    textLayerSchema,
+    shapeLayerSchema,
+    solidLayerSchema,
+    nullLayerSchema,
+    adjustmentLayerSchema,
+    audioLayerSchema,
+  ],
+  {
+    error:
+      "Layer 'type' quyidagilardan biri bo'lishi kerak: media, text, shape, solid, null, adjustment, audio",
+  },
 );
 
 // ---------------------------------------------------------------- sahnalar
@@ -241,6 +292,54 @@ export const sceneSchema = z
       }
       seen.add(layer.id);
     });
+    (scene.layers ?? []).forEach((layer, index) => {
+      const issue = (path: (string | number)[], message: string) =>
+        ctx.addIssue({ code: "custom", path: ["layers", index, ...path], message });
+      if (layer.type === "audio") return;
+      // Professional maydonlar (Faza 7): havolalar shu sahnadagi layer id'lariga.
+      for (const field of ["parent", "matte"] as const) {
+        const ref = field === "parent" ? layer.parent : layer.matte?.source;
+        if (ref === undefined) continue;
+        if (!seen.has(ref)) issue([field], `${field}: sahnada '${ref}' id'li layer yo'q`);
+        if (ref === layer.id) issue([field], `${field}: layer o'ziga havola qila olmaydi`);
+      }
+      (layer.masks ?? []).forEach((mask, m) => {
+        if (maskShapeCount(mask) !== 1) {
+          issue(
+            ["masks", m],
+            "Maskada rect, ellipse, path yoki svg_d dan aynan bittasi bo'lishi kerak",
+          );
+        }
+      });
+      if (layer.type === "shape") {
+        if (layer.contents === undefined) {
+          if (layer.kind === undefined || layer.color === undefined || layer.size === undefined) {
+            issue(["contents"], "Shape uchun 'contents' yoki 'kind' + 'color' + 'size' kerak");
+          }
+        } else {
+          const problems: [(string | number)[], string][] = [];
+          checkContents(layer.contents, ["contents"], new Set(), problems);
+          for (const [path, message] of problems) issue(path, message);
+        }
+      }
+    });
+    // Parent sikli: a → b → a.
+    const parents = new Map<string, string>();
+    for (const layer of scene.layers ?? []) {
+      if (layer.type !== "audio" && layer.id !== undefined && layer.parent !== undefined) {
+        parents.set(layer.id, layer.parent);
+      }
+    }
+    for (const start of parents.keys()) {
+      let current: string | undefined = start;
+      for (let steps = 0; current !== undefined && steps <= parents.size; steps++) {
+        current = parents.get(current);
+        if (current === start) {
+          ctx.addIssue({ code: "custom", path: ["layers"], message: "parent sikli: " + start });
+          return;
+        }
+      }
+    }
   });
 
 // ---------------------------------------------------------------- audio (§7)

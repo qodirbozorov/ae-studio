@@ -16,12 +16,14 @@ import { makeError } from "@aes/shared/errors";
 import type { AesError } from "@aes/shared/errors";
 import { MIN_AE_VERSION } from "../shared/constants";
 import { compCreate, compNest } from "./ops/comp";
-import { fxAdd, fxApplyPreset } from "./ops/fx";
+import { fxAdd, fxApplyPreset, fxCatalog, fxParams } from "./ops/fx";
 import { itemImport } from "./ops/item";
 import { layerAddAudio, layerAddMedia, layerAddShape, layerAddText } from "./ops/layer";
 import { audioDuck, captionsBuild } from "./ops/audio";
 import { framesCapture } from "./ops/frames";
 import { templateInstantiate } from "./ops/template";
+import { layerInspect } from "./ops/inspect";
+import { layerAddSolid, layerMask, layerSet } from "./ops/pro";
 import { info } from "./ops/info";
 import { ping } from "./ops/ping";
 import { projectOpenOrCreate, projectSave } from "./ops/project";
@@ -61,9 +63,20 @@ registerOp("prop.expression", propExpression as OpHandler);
 registerOp("fx.apply_preset", fxApplyPreset as OpHandler);
 registerOp("fx.add", fxAdd as OpHandler);
 registerOp("template.instantiate", templateInstantiate as OpHandler);
+registerOp("layer.add_solid", layerAddSolid as OpHandler);
+registerOp("layer.set", layerSet as OpHandler);
+registerOp("layer.mask", layerMask as OpHandler);
+registerOp("fx.catalog", fxCatalog as OpHandler);
+registerOp("fx.params", fxParams as OpHandler);
+registerOp("layer.inspect", layerInspect as OpHandler);
 
 /** O'zgartirmaydigan oplar: undo group ochilmaydi. */
-const READ_ONLY: { [op: string]: boolean | undefined } = { ping: true, info: true };
+const READ_ONLY: { [op: string]: boolean | undefined } = {
+  ping: true,
+  info: true,
+  "fx.catalog": true,
+  "layer.inspect": true,
+};
 
 /** Loyihani ochish/saqlash undo tarixiga kirmaydi (undo group ichida loyiha almashtirilmaydi). */
 const NO_UNDO: { [op: string]: boolean | undefined } = {

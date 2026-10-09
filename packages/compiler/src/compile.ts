@@ -27,6 +27,8 @@ import type { Look } from "./brand";
 import { aspectOf, brandTokens, expandTemplate } from "./template";
 import type { CompileTemplate, ExpandedTemplate, TokenValue } from "./template";
 import { planTiming, resolveAt, shiftWords, voiceSegments } from "./timing";
+import { compileContents, emitPro, hasPixelFields, scalePro } from "./pro";
+import type { AddOp } from "./pro";
 import type { CaptionWord } from "@aes/shared";
 
 export interface CompileAsset {
@@ -184,16 +186,18 @@ export function variantFrames(spec: VideoSpec): { aspect: Aspect; tag: string; f
 }
 
 /** Variant uchun piksel qiymatlari (shrift o'lchami, chiziq, radius) qisqa tomonlar nisbatida. */
-function scaleLayer(layer: Layer, k: number): Layer {
-  if (Math.abs(k - 1) < 1e-9) return layer;
-  if (layer.type === "text") {
-    const style = { ...layer.style };
+function scaleLayer(layer: Layer, k: number, rx = 1, ry = 1): Layer {
+  if (Math.abs(k - 1) < 1e-9 && Math.abs(rx - 1) < 1e-9 && Math.abs(ry - 1) < 1e-9) return layer;
+  if (layer.type === "audio") return layer;
+  const pro = scalePro(layer, k, rx, ry);
+  if (pro.type === "text") {
+    const style = { ...pro.style };
     if (style.size !== undefined) style.size = round(style.size * k);
     if (style.stroke_width !== undefined) style.stroke_width = round(style.stroke_width * k);
-    return { ...layer, style };
+    return { ...pro, style };
   }
-  if (layer.type === "shape") return { ...layer, radius: round(layer.radius * k) };
-  return layer;
+  if (pro.type === "shape") return { ...pro, radius: round(pro.radius * k) };
+  return pro;
 }
 
 /** Safe area (har tomondan 4%): matn markazi qutisi kadrdan chiqmaydigan qilib suriladi. */
@@ -458,10 +462,23 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
           `${scene.id}.${layer.id ?? `l${j}`}`,
         ]),
       ];
+      // Faza 7: parent/matte havolalari (layer id → op ref) sahnaning hamma layerlari yaratilgach.
+      const refs = new Map<string, string>();
       for (const [layer, opId] of layers) {
-        compileLayer(
+        if (layer.id !== undefined) refs.set(layer.id, `${tree.prefix}${opId}`);
+      }
+      const links: (() => void)[] = [];
+      const rx = tree.frame.w / frame.w;
+      const ry = tree.frame.h / frame.h;
+      for (const [layer, opId] of layers) {
+        if (tree.tag !== null && layer.type !== "audio" && hasPixelFields(layer)) {
+          warnings.push(
+            `${opId}: ${tree.tag} variantida effekt/maska piksel qiymatlari masshtablanmadi`,
+          );
+        }
+        const compiled = compileLayer(
           list,
-          scaleLayer(withSourceAudio(layer), k),
+          scaleLayer(withSourceAudio(layer), k, rx, ry),
           `${tree.prefix}${opId}`,
           comp,
           time,
@@ -469,8 +486,11 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
           tree.frame,
           lctx,
           warnings,
+          { refOf: (id) => refs.get(id) ?? `${tree.prefix}${scene.id}.${id}`, links },
         );
+        if (!compiled.ok) return compiled;
       }
+      for (const link of links) link();
       const nest = list.add(
         "comp.nest",
         `${tree.prefix}${scene.id}.nest`,
@@ -529,7 +549,9 @@ function compileLayer(
   frame: Frame,
   ctx: LayerContext,
   warnings: string[],
-): void {
+  pro: { refOf: (id: string) => string; links: (() => void)[] },
+): Result<void> {
+  const add: AddOp = (op, id, params) => list.add(op, id, params, sceneId);
   const start = layer.start ?? 0;
   if (start >= time.duration) {
     warnings.push(`${opId}: start (${start}) sahna davomiyligidan katta — layer ko'rinmaydi`);
@@ -579,7 +601,7 @@ function compileLayer(
         opId,
         sceneId,
       );
-      return;
+      return emitPro(add, layer, opId, pro.refOf, pro.links);
     }
     case "text": {
       const style = textStyle(layer.style, frame, ctx.look);
@@ -608,20 +630,24 @@ function compileLayer(
         opId,
         sceneId,
       );
-      return;
+      return emitPro(add, layer, opId, pro.refOf, pro.links);
     }
     case "shape": {
       const pos = toPixels(layer.pos, frame);
-      const params: OpParamsMap["layer.add_shape"] = {
-        comp,
-        kind: layer.kind,
-        color: layer.color,
-        size: [round(layer.size.w * frame.w), round(layer.size.h * frame.h)],
-        pos,
-        ...timingParams,
-        ...named,
-      };
-      if (layer.radius > 0) params.radius = layer.radius;
+      const params: OpParamsMap["layer.add_shape"] = { comp, pos, ...timingParams, ...named };
+      let extraKeys: Parameters<typeof emitPro>[5] = [];
+      if (layer.contents !== undefined) {
+        const compiled = compileContents(layer.contents, opId);
+        if (!compiled.ok) return compiled;
+        params.contents = compiled.data.contents;
+        if (compiled.data.gradient !== null) params.gradient_colors = compiled.data.gradient;
+        extraKeys = compiled.data.keyframes;
+      } else {
+        params.kind = layer.kind!;
+        params.color = layer.color!;
+        params.size = [round(layer.size!.w * frame.w), round(layer.size!.h * frame.h)];
+        if (layer.radius > 0) params.radius = layer.radius;
+      }
       if (layer.opacity !== 100) params.opacity = layer.opacity;
       list.add("layer.add_shape", opId, params, sceneId);
       list.motion(
@@ -629,7 +655,36 @@ function compileLayer(
         opId,
         sceneId,
       );
-      return;
+      return emitPro(add, layer, opId, pro.refOf, pro.links, extraKeys);
+    }
+    case "solid":
+    case "null":
+    case "adjustment": {
+      const pos =
+        layer.type === "adjustment"
+          ? ([round(frame.w / 2), round(frame.h / 2)] as [number, number])
+          : toPixels(layer.pos, frame);
+      const params: OpParamsMap["layer.add_solid"] = {
+        comp,
+        kind: layer.type,
+        pos,
+        ...timingParams,
+        ...named,
+      };
+      if (layer.type === "solid") {
+        params.color = layer.color;
+        if (layer.size !== undefined) params.size = layer.size;
+        if (layer.opacity !== 100) params.opacity = layer.opacity;
+      }
+      list.add("layer.add_solid", opId, params, sceneId);
+      if (layer.type === "solid") {
+        list.motion(
+          animOps(layer.anim, { layer: opId, kind: "shape", pos, scale: [100, 100], dur }, frame),
+          opId,
+          sceneId,
+        );
+      }
+      return emitPro(add, layer, opId, pro.refOf, pro.links);
     }
     case "audio": {
       list.add(
@@ -638,7 +693,7 @@ function compileLayer(
         { comp, item: `asset.${refKey(layer.src)}`, ...timingParams, volume: layer.volume_db },
         sceneId,
       );
-      return;
+      return ok(undefined);
     }
   }
 }

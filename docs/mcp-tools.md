@@ -5,7 +5,7 @@
 Javob formati: `{ ok: true, data } | { ok: false, error: { code, retryable, hint, message?, details? } }`.
 Xato kodlari: [errors.md](errors.md).
 
-Jami: **55** tool, **4** prompt.
+Jami: **58** tool, **4** prompt.
 
 ## Muhit
 
@@ -448,6 +448,41 @@ Fixes the video during VERIFY (or a BLOCKED job): give either a full corrected s
 | `spec` | object |  |  |
 | `patch` | object[] |  |  |
 | `reason` | string |  | What was wrong (goes to the job log) · ≤ 500 belgi |
+
+## Effektlar va AE tekshiruvi
+
+### `ae_effects` — Installed effects · faqat o'qish
+
+Lists effects installed in After Effects (built-in and third-party plugins) with matchName and category. Use a matchName in spec effects[].fx when AE Studio has no alias for it. query filters by name, matchName or category (e.g. "blur", "glow", "Sapphire", "Distort").
+
+| Parametr | Turi | Majburiy | Izoh |
+|---|---|---|---|
+| `query` | string |  | ≤ 128 belgi |
+| `limit` | integer |  | default `100`, ≥ 1, ≤ 500 |
+| `device_id` | uuid |  | Usually not needed |
+| `project_id` | uuid |  | Resolve the device of this project |
+
+### `fx_params` — Effect parameters · faqat o'qish
+
+Shows the exact parameters of an effect: 1-based index, display name, matchName, type (number, point2d, color, group …), default value, min/max — by adding it to a temporary layer in AE. Use it before setting params of unfamiliar or third-party effects. In spec effects[].params the key can be the index ("3"), the name or the matchName; values: numbers, [x, y] points in layer px, "#RRGGBB" colors. Also lists the param aliases AE Studio maps for that effect.
+
+| Parametr | Turi | Majburiy | Izoh |
+|---|---|---|---|
+| `fx` | string | ha | Alias (gaussian_blur, glow …) or effect matchName · ≤ 128 belgi |
+| `device_id` | uuid |  | Usually not needed |
+| `project_id` | uuid |  | Resolve the device of this project |
+
+### `ae_inspect` — Inspect composition · faqat o'qish
+
+Reads back what is actually built in After Effects. Without layer: the composition's layers (type, timing, parent, effects, masks). With layer: that layer's property tree (values, keyframe counts, expressions) to depth. comp = composition name (scene comps are named like 01_<scene_id>, the main comp has the output name; default: the active comp); layer = layer name (the layer id from the spec).
+
+| Parametr | Turi | Majburiy | Izoh |
+|---|---|---|---|
+| `comp` | string |  | ≤ 255 belgi |
+| `layer` | string |  | ≤ 255 belgi |
+| `depth` | integer |  | default `3`, ≥ 0, ≤ 6 |
+| `device_id` | uuid |  | Usually not needed |
+| `project_id` | uuid |  | Resolve the device of this project |
 
 ## Render
 

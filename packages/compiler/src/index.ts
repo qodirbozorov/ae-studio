@@ -24,3 +24,5 @@ export type { CompileTemplate, ExpandedTemplate, TokenValue } from "./template";
 export { buildLook } from "./brand";
 export type { Look } from "./brand";
 export { textBox } from "./compile";
+export { FX_ALIASES, fxMatchName } from "./effects";
+export { parseSvgPath } from "./svg";

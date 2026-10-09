@@ -32,6 +32,7 @@ const GROUPS: [RegExp, string][] = [
   [/^(el_|audio_|transcript_)/, "Audio (ElevenLabs)"],
   [/^(preflight|build_start|job_)/, "Qurish"],
   [/^(frames_|verify_|contact_sheet)/, "Tekshirish"],
+  [/^(ae_effects|fx_params|ae_inspect)$/, "Effektlar va AE tekshiruvi"],
   [/^render_/, "Render"],
   [/^templates?_/, "Shablonlar"],
   [/^brands?_/, "Brand kit"],

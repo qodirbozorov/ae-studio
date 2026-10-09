@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 7 — Professional qatlamlar · boshlandi (0/6)
-- **Oxirgi bajarilgan:** P6.04 — Sahna batch (2026-10-10), Faza 6 yopildi
-- **Keyingi todo:** P7.01 — Umumiy qatlam maydonlari
+- **Faza:** 7 — Professional qatlamlar · jarayonda (5/6)
+- **Oxirgi bajarilgan:** P7.01–P7.05 — shakllar, effektlar/mesh, maska/matte, aniqlik vositalari (2026-10-10)
+- **Keyingi todo:** P7.06 — Yakun: panel build, deploy
 - **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)

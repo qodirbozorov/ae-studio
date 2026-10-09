@@ -1,41 +1,14 @@
 /** Property oplari: keyframe'lar (ease bilan) va kutubxonadan expression. */
 import type { Ease, OpResultData, PropExpressionParams, PropKeyframesParams } from "@aes/shared/ae";
 import { buildExpression } from "../lib/expressions";
+import { resolvePath, toAeValue } from "../lib/props";
 import { anim } from "../lib/runtime";
 import type { AnimKey } from "../lib/runtime";
 import { hasLayerTag, requireLayer, stampLayer } from "../lib/trace";
 import { raise } from "../lib/util";
 
-const ALIASES: { [alias: string]: string[] | undefined } = {
-  position: ["ADBE Transform Group", "ADBE Position"],
-  scale: ["ADBE Transform Group", "ADBE Scale"],
-  rotation: ["ADBE Transform Group", "ADBE Rotate Z"],
-  opacity: ["ADBE Transform Group", "ADBE Opacity"],
-  anchor_point: ["ADBE Transform Group", "ADBE Anchor Point"],
-};
-
-/** Alias yoki `matchName/matchName/...` (raqamli segment — 1-indeks) → Property. */
-export function resolveProperty(layer: Layer, path: string): Property {
-  const segments = ALIASES[path] ?? path.split("/");
-  let current: PropertyBase = layer;
-  for (let i = 0; i < segments.length; i++) {
-    const segment = segments[i] as string;
-    const group = current as PropertyGroup;
-    let next: PropertyBase | null;
-    try {
-      next = /^\d+$/.test(segment)
-        ? group.property(parseInt(segment, 10))
-        : group.property(segment);
-    } catch (_e) {
-      next = null;
-    }
-    if (next === null || next === undefined) {
-      return raise("AE_NOT_FOUND", "Property topilmadi: " + path + " (" + segment + ")");
-    }
-    current = next;
-  }
-  return current as Property;
-}
+/** Eski nom (shablon oplari uchun): xususiyat yo'li → Property. */
+export const resolveProperty = resolvePath;
 
 /** v1 ease qiymatlari: har kalitga alohida (eski xulq o'zgarmaydi). */
 const LEGACY: { [ease: string]: boolean | undefined } = {
@@ -112,7 +85,7 @@ export function propKeyframes(p: PropKeyframesParams, opId: string): OpResultDat
     const keys: AnimKey[] = [];
     for (let i = 0; i < p.keys.length; i++) {
       const key = p.keys[i]!;
-      keys.push([p.relative ? layer.inPoint + key.t : key.t, key.v, key.ease]);
+      keys.push([p.relative ? layer.inPoint + key.t : key.t, toAeValue(key.v), key.ease]);
     }
     // Kalitda ease bo'lmasa: v1 ease_* → "soft" (AE Easy Ease), linear/hold — o'zi.
     const fallback = typeof p.ease === "string" && p.ease.indexOf("ease_") === 0 ? "soft" : p.ease;
@@ -125,7 +98,7 @@ export function propKeyframes(p: PropKeyframesParams, opId: string): OpResultDat
   for (let i = 0; i < p.keys.length; i++) {
     const key = p.keys[i]!;
     const time = p.relative ? layer.inPoint + key.t : key.t;
-    prop.setValueAtTime(time, key.v as never);
+    prop.setValueAtTime(time, toAeValue(key.v) as never);
     // setValueAtTime hech narsa qaytarmaydi: kalit indeksi vaqt bo'yicha olinadi.
     applyEase(prop, prop.nearestKeyIndex(time), p.ease as Ease);
   }

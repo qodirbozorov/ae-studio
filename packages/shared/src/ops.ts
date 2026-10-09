@@ -27,10 +27,21 @@ export const OP_NAMES = [
   "template.instantiate",
   "frames.capture",
   "render.queue",
+  // Faza 7: professional qatlamlar.
+  "layer.add_solid",
+  "layer.set",
+  "layer.mask",
 ] as const;
 
 /** Tizim oplari: diagnostika uchun, Spec'dan chiqmaydi. */
-export const SYSTEM_OP_NAMES = ["ping", "info", "undo"] as const;
+export const SYSTEM_OP_NAMES = [
+  "ping",
+  "info",
+  "undo",
+  "fx.catalog",
+  "fx.params",
+  "layer.inspect",
+] as const;
 
 export type OpName = (typeof OP_NAMES)[number];
 
@@ -97,6 +108,184 @@ const propPathSchema = z.union([
     error: "prop: alias yoki 'ADBE Transform Group/ADBE Position' ko'rinishidagi matchName yo'li",
   }),
 ]);
+
+// ---------------------------------------------------------------- Faza 7: professional qatlamlar
+
+const pctSchema = z.number().min(0).max(100);
+const bigNum = z.number().min(-1_000_000).max(1_000_000);
+
+const shapePathOp = z.strictObject({
+  points: z.array(vec2Schema).min(1).max(5000),
+  in: z.array(vec2Schema).max(5000),
+  out: z.array(vec2Schema).max(5000),
+  closed: z.boolean(),
+});
+
+const shapeGradientOp = z.strictObject({
+  type: z.enum(["linear", "radial"]),
+  start: vec2Schema,
+  end: vec2Schema,
+});
+
+const shapeFillOp = z.strictObject({
+  color: hexColorSchema.optional(),
+  gradient: shapeGradientOp.optional(),
+  opacity: pctSchema.optional(),
+  rule: z.enum(["nonzero", "evenodd"]).optional(),
+});
+
+const lineJoin = z.enum(["miter", "round", "bevel"]);
+
+const shapeStrokeOp = z.strictObject({
+  color: hexColorSchema.optional(),
+  gradient: shapeGradientOp.optional(),
+  opacity: pctSchema.optional(),
+  width: z.number().min(0).max(10_000),
+  cap: z.enum(["butt", "round", "square"]).optional(),
+  join: lineJoin.optional(),
+  miter_limit: z.number().min(1).max(100).optional(),
+  dashes: z.array(z.number().min(0).max(10_000)).max(6).optional(),
+  dash_offset: bigNum.optional(),
+});
+
+const shapeRepeaterOp = z.strictObject({
+  copies: z.number().min(0).max(1000),
+  offset: bigNum.optional(),
+  position: vec2Schema.optional(),
+  scale: vec2Schema.optional(),
+  rotation: bigNum.optional(),
+  start_opacity: pctSchema.optional(),
+  end_opacity: pctSchema.optional(),
+  composite: z.enum(["above", "below"]).optional(),
+});
+
+const shapeTransformOp = z.strictObject({
+  anchor: vec2Schema.optional(),
+  position: vec2Schema.optional(),
+  scale: vec2Schema.optional(),
+  rotation: bigNum.optional(),
+  opacity: pctSchema.optional(),
+  skew: bigNum.optional(),
+  skew_axis: bigNum.optional(),
+});
+
+const shapeContentOp: z.ZodType<Ae.ShapeContentOp> = z.lazy(() =>
+  z.strictObject({
+    id: z.string().min(1).max(64),
+    kind: z.enum(["rect", "ellipse", "star", "polygon", "path", "group"]),
+    size: vec2Schema.optional(),
+    position: vec2Schema.optional(),
+    roundness: z.number().min(0).max(10_000).optional(),
+    points: z.number().int().min(3).max(100).optional(),
+    outer_radius: z.number().min(0).max(1_000_000).optional(),
+    inner_radius: z.number().min(0).max(1_000_000).optional(),
+    outer_roundness: bigNum.optional(),
+    inner_roundness: bigNum.optional(),
+    rotation: bigNum.optional(),
+    paths: z.array(shapePathOp).max(200).optional(),
+    fill: shapeFillOp.optional(),
+    stroke: shapeStrokeOp.optional(),
+    trim: z
+      .strictObject({
+        start: pctSchema.optional(),
+        end: pctSchema.optional(),
+        offset: bigNum.optional(),
+        individually: z.boolean().optional(),
+      })
+      .optional(),
+    round_corners: z.number().min(0).max(10_000).optional(),
+    offset_paths: z.strictObject({ amount: bigNum, join: lineJoin.optional() }).optional(),
+    merge: z.enum(["merge", "add", "subtract", "intersect", "exclude"]).optional(),
+    zig_zag: z
+      .strictObject({
+        size: bigNum,
+        ridges: z.number().min(0).max(100).optional(),
+        smooth: z.boolean().optional(),
+      })
+      .optional(),
+    pucker_bloat: z.number().min(-100).max(100).optional(),
+    twist: z.strictObject({ angle: bigNum, center: vec2Schema.optional() }).optional(),
+    wiggle: z
+      .strictObject({
+        size: bigNum,
+        detail: z.number().min(0).max(100).optional(),
+        speed: z.number().min(0).max(100).optional(),
+        seed: z.number().int().min(0).max(10_000).optional(),
+      })
+      .optional(),
+    repeater: shapeRepeaterOp.optional(),
+    transform: shapeTransformOp.optional(),
+    contents: z.array(shapeContentOp).max(100).optional(),
+  }),
+);
+
+const layerAddSolidParams = z.strictObject({
+  comp: refSchema,
+  kind: z.enum(["solid", "null", "adjustment"]),
+  color: hexColorSchema.optional(),
+  size: sizeSchema.optional(),
+  pos: vec2Schema,
+  start: timeSchema,
+  dur: durSchema.optional(),
+  name: nameSchema.optional(),
+  opacity: pctSchema.optional(),
+});
+
+const vecN = z.array(bigNum).min(2).max(3);
+
+const layerSetParams = z.strictObject({
+  layer: refSchema,
+  three_d: z.boolean().optional(),
+  motion_blur: z.boolean().optional(),
+  transform: z
+    .strictObject({
+      anchor: vecN.optional(),
+      position: vecN.optional(),
+      scale: vecN.optional(),
+      rotation: bigNum.optional(),
+      opacity: pctSchema.optional(),
+      rotation_x: bigNum.optional(),
+      rotation_y: bigNum.optional(),
+      orientation: z.array(bigNum).length(3).optional(),
+    })
+    .optional(),
+  blend: z
+    .string()
+    .regex(/^[a-z_]{3,32}$/)
+    .optional(),
+  parent: refSchema.optional(),
+  matte: z
+    .strictObject({
+      source: refSchema,
+      type: z.enum(["alpha", "alpha_inverted", "luma", "luma_inverted"]),
+    })
+    .optional(),
+});
+
+const layerMaskParams = z.strictObject({
+  layer: refSchema,
+  id: z.string().min(1).max(64),
+  path: shapePathOp,
+  mode: z.enum(["add", "subtract", "intersect", "lighten", "darken", "difference", "none"]),
+  feather: vec2Schema.optional(),
+  expansion: bigNum.optional(),
+  opacity: pctSchema.optional(),
+  inverted: z.boolean().optional(),
+});
+
+const fxCatalogParams = z.strictObject({
+  query: z.string().max(128).optional(),
+  limit: z.number().int().min(1).max(2000).optional(),
+});
+
+const fxParamsParams = z.strictObject({ match_name: z.string().min(1).max(128) });
+
+const layerInspectParams = z.strictObject({
+  comp: nameSchema.optional(),
+  layer: nameSchema.optional(),
+  ref: refSchema.optional(),
+  depth: z.number().int().min(0).max(8).optional(),
+});
 
 // ---------------------------------------------------------------- op parametrlari
 
@@ -179,9 +368,11 @@ const layerAddTextParams = z.strictObject({
 
 const layerAddShapeParams = z.strictObject({
   comp: refSchema,
-  kind: z.enum(["rect", "ellipse"]),
-  color: hexColorSchema,
-  size: sizeSchema,
+  kind: z.enum(["rect", "ellipse"]).optional(),
+  color: hexColorSchema.optional(),
+  size: sizeSchema.optional(),
+  contents: z.array(shapeContentOp).max(100).optional(),
+  gradient_colors: z.tuple([hexColorSchema, hexColorSchema]).optional(),
   pos: vec2Schema,
   start: timeSchema,
   dur: durSchema.optional(),
@@ -253,6 +444,7 @@ const fxAddParams = z.strictObject({
       z.union([z.number(), z.array(z.number()).min(1).max(4), z.boolean(), z.string().max(2000)]),
     )
     .optional(),
+  enabled: z.boolean().optional(),
 });
 
 const captionsBuildParams = z.strictObject({
@@ -345,6 +537,12 @@ export const OP_PARAMS_SCHEMAS = {
   "template.instantiate": templateInstantiateParams,
   "frames.capture": framesCaptureParams,
   "render.queue": renderQueueParams,
+  "layer.add_solid": layerAddSolidParams,
+  "layer.set": layerSetParams,
+  "layer.mask": layerMaskParams,
+  "fx.catalog": fxCatalogParams,
+  "fx.params": fxParamsParams,
+  "layer.inspect": layerInspectParams,
 } as const;
 
 // ---------------------------------------------------------------- konvert
@@ -386,6 +584,12 @@ export const opEnvelopeSchema = z.discriminatedUnion(
     envelope("template.instantiate"),
     envelope("frames.capture"),
     envelope("render.queue"),
+    envelope("layer.add_solid"),
+    envelope("layer.set"),
+    envelope("layer.mask"),
+    envelope("fx.catalog"),
+    envelope("fx.params"),
+    envelope("layer.inspect"),
   ],
   { error: "Noma'lum op. Ruxsat etilganlar: " + [...SYSTEM_OP_NAMES, ...OP_NAMES].join(", ") },
 );

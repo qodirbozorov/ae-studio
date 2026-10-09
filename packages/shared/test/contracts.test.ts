@@ -117,6 +117,39 @@ const VALID_PARAMS: { [N in AeOpName]: OpParamsMap[N] } = {
   },
   "frames.capture": { comp: "main.comp", times: [0.5, 3, 6.2], dir: "frames/job-1" },
   "render.queue": { comp: "main.comp", preset: "h264_social", out: "out/reel_v1.mp4" },
+  "layer.add_solid": {
+    comp: "s1.comp",
+    kind: "solid",
+    color: "#222222",
+    pos: [540, 960],
+    start: 0,
+  },
+  "layer.set": {
+    layer: "s1.l0",
+    three_d: true,
+    transform: { position: [540, 960, 0], scale: [100, 100, 100], rotation_y: 20 },
+    blend: "screen",
+    matte: { source: "s1.l1", type: "alpha" },
+  },
+  "layer.mask": {
+    layer: "s1.l0",
+    id: "m1",
+    path: {
+      points: [
+        [0, 0],
+        [10, 0],
+        [10, 10],
+      ],
+      in: [],
+      out: [],
+      closed: true,
+    },
+    mode: "add",
+    feather: [4, 4],
+  },
+  "fx.catalog": { query: "blur", limit: 20 },
+  "fx.params": { match_name: "ADBE Glo2" },
+  "layer.inspect": { comp: "MAIN", layer: "Title", depth: 2 },
 };
 
 /** Har op uchun bitta noto'g'ri params va kutilgan xato path. */
@@ -166,14 +199,25 @@ const INVALID_PARAMS: { [N in AeOpName]: [unknown, string] } = {
   ],
   "frames.capture": [{ comp: "c", times: [], dir: "frames" }, "/params/times"],
   "render.queue": [{ comp: "c", preset: "h264_social" }, "/params/out"],
+  "layer.add_solid": [{ comp: "c", kind: "box", pos: [0, 0], start: 0 }, "/params/kind"],
+  "layer.set": [{ layer: "l", matte: { source: "m", type: "blur" } }, "/params/matte/type"],
+  "layer.mask": [
+    { layer: "l", id: "m", path: { points: [], in: [], out: [], closed: true }, mode: "add" },
+    "/params/path/points",
+  ],
+  "fx.catalog": [{ limit: 0 }, "/params/limit"],
+  "fx.params": [{ match_name: "" }, "/params/match_name"],
+  "layer.inspect": [{ depth: 99 }, "/params/depth"],
 };
 
 describe("oplar ↔ asl reja §10.1", () => {
-  it("OP_NAMES §10.1 jadvalidagi 18 ta op bilan aynan mos", () => {
+  it("OP_NAMES §10.1 jadvalidagi 18 ta opni o'z ichiga oladi (+ Faza 7 oplari)", () => {
     const table = section("### 10.1 Oplar (yopiq to'plam)");
     const fromPlan = [...table.matchAll(/^\| `([a-z_.]+)` \|/gm)].map((m) => m[1]);
     expect(fromPlan).toHaveLength(18);
-    expect([...OP_NAMES].sort()).toEqual([...fromPlan].sort());
+    expect([...OP_NAMES].sort()).toEqual(
+      [...fromPlan, "layer.add_solid", "layer.set", "layer.mask"].sort(),
+    );
   });
 
   it("har op uchun params sxemasi bor", () => {
