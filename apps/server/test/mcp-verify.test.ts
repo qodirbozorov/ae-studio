@@ -1,6 +1,7 @@
 /**
  * P3.06: VERIFY toollari — frames_capture, verify_approve, verify_patch (3 ta o'tadi, 4-chisi LOOP_PATCH_LIMIT).
  */
+import { makeError } from "@aes/shared";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { THREE_SCENES } from "../../../packages/compiler/test/fixtures";
@@ -131,6 +132,46 @@ describe("frames_capture", () => {
     expect((await s.call("frames_capture", { job_id: id })).result.error.code).toBe(
       "JOB_BAD_ACTION",
     );
+  });
+});
+
+describe("contact_sheet (P6.02)", () => {
+  it("auto vaqtlar → bitta grid JPEG, vaqt yozuvlari, ish papkasiga ham saqlanadi", async () => {
+    const id = await verifyJob();
+    const res = await s.call("contact_sheet", { job_id: id });
+    expect(res.result).toMatchObject({ ok: true, data: { aep_path: "reel_v001.aep" } });
+    expect(res.images).toHaveLength(1);
+    const frames = res.result.data.frames;
+    expect(frames.length).toBeGreaterThan(1);
+    expect(frames.length).toBeLessThanOrEqual(6);
+    expect(res.result.data.sheet_path).toMatch(/^frames\/.+\/contact_sheet\.jpg$/);
+    const sheet = agent.sheets.at(-1)!;
+    expect(sheet.files).toEqual(frames.map((f: { path: string }) => f.path));
+    expect(sheet.labels[0]).toMatch(/^\d+\.\d\d s$/);
+    expect(sheet.cols).toBe(Math.min(3, frames.length));
+
+    const big = await s.call("contact_sheet", { job_id: id, times: [0.5, 1, 1.5, 2], grid: "2x1" });
+    expect(big.result.data.frames).toHaveLength(2);
+    expect(big.result.data.grid).toBe("2x1");
+  });
+
+  it("AE javob bermasa → AE_MODAL_SUSPECTED; comp yo'q → FRAME_CAPTURE_FAILED{comp_not_found}", async () => {
+    const id = await verifyJob();
+    const base = agent.onOp;
+    agent.onOp = (op) =>
+      op.op === "ping" && op.op_id.startsWith("verify.ping.")
+        ? makeError("AE_TIMEOUT", "jim")
+        : base(op);
+    expect((await s.call("contact_sheet", { job_id: id })).result.error).toMatchObject({
+      code: "AE_MODAL_SUSPECTED",
+      retryable: true,
+    });
+    agent.onOp = (op) =>
+      op.op === "frames.capture" ? makeError("AE_NOT_FOUND", "Comp topilmadi: aes.main") : base(op);
+    expect((await s.call("frames_capture", { job_id: id })).result.error).toMatchObject({
+      code: "FRAME_CAPTURE_FAILED",
+      details: { reason: "comp_not_found" },
+    });
   });
 });
 

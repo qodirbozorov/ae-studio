@@ -4,7 +4,22 @@ import type { ErrorCode } from "../src/errors";
 import { fail, failWith, ok } from "../src/result";
 import type { Result } from "../src/result";
 
-const PREFIXES = ["ENV", "AUTH", "SPEC", "ASSET", "EL", "AE", "RENDER", "LOOP", "JOB", "SYS"];
+// Faza 6–7 (update-technicalguidline §6): FRAME_, FX_, JSX_.
+const PREFIXES = [
+  "ENV",
+  "AUTH",
+  "SPEC",
+  "ASSET",
+  "EL",
+  "AE",
+  "RENDER",
+  "LOOP",
+  "JOB",
+  "SYS",
+  "FRAME",
+  "FX",
+  "JSX",
+];
 const codes = Object.keys(ERROR_DEFS) as ErrorCode[];
 
 describe("ERROR_DEFS", () => {

@@ -529,6 +529,8 @@ export class MockFile {
     private readonly fs: Map<string, Partial<MediaMeta>>,
     /** true — fayllar haqiqiy diskka ham yoziladi (e2e: panel ffmpeg ularni o'qiydi). */
     private readonly realDisk = false,
+    /** true — `saveFrameToPng` haqiqiy AE kabi kadrni skript tugagandan keyin yozadi. */
+    private readonly asyncWrites = false,
   ) {}
   get exists(): boolean {
     if (this.fs.has(this.fsName)) return true;
@@ -555,11 +557,16 @@ export class MockFile {
   }
   /** `saveFrameToPng` natijasi. */
   writePng(width: number, height: number): void {
-    this.fs.set(this.fsName, { width, height });
-    if (this.realDisk) {
-      mkdirSync(dirname(this.fsName), { recursive: true });
-      writeFileSync(this.fsName, PNG_1X1);
-    }
+    const write = () => {
+      this.fs.set(this.fsName, { width, height });
+      if (this.realDisk) {
+        mkdirSync(dirname(this.fsName), { recursive: true });
+        writeFileSync(this.fsName, PNG_1X1);
+      }
+    };
+    // Haqiqiy AE: sinxron skript tugamaguncha kadr yozilmaydi (update-technicalguidline #3).
+    if (this.asyncWrites) setTimeout(write, 30);
+    else write();
   }
   get name(): string {
     return this.fsName.split("/").pop() ?? this.fsName;
@@ -645,6 +652,8 @@ export function createMockAE(
     fonts?: string[];
     /** Kadrlar haqiqiy diskka ham yozilsin (e2e). */
     realDisk?: boolean;
+    /** `saveFrameToPng` asinxron (haqiqiy AE xulqi). */
+    asyncFrames?: boolean;
     /** Render Queue render'i: chiqish faylini yozadi va haqiqiy yo'lni qaytaradi (berilmasa — shu yo'l). */
     onRender?: (path: string, comp: CompItem) => string;
   } = {},
@@ -831,7 +840,7 @@ export function createMockAE(
     }
   }
   const FileCtor = function (this: unknown, path: string) {
-    return new MockFile(path, files, options.realDisk === true);
+    return new MockFile(path, files, options.realDisk === true, options.asyncFrames === true);
   } as unknown as new (path: string) => MockFile;
   const folders = new Set<string>();
   const FolderCtor = function (this: unknown, path: string) {

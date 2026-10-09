@@ -31,7 +31,7 @@ const GROUPS: [RegExp, string][] = [
   [/^assets?_/, "Fayllar"],
   [/^(el_|audio_|transcript_)/, "Audio (ElevenLabs)"],
   [/^(preflight|build_start|job_)/, "Qurish"],
-  [/^(frames_|verify_)/, "Tekshirish"],
+  [/^(frames_|verify_|contact_sheet)/, "Tekshirish"],
   [/^render_/, "Render"],
   [/^templates?_/, "Shablonlar"],
   [/^brands?_/, "Brand kit"],
@@ -139,6 +139,9 @@ const PREFIXES: [string, string][] = [
   ["RENDER_", "Render"],
   ["JOB_", "Job boshqaruvi"],
   ["LOOP_", "VERIFY sikli"],
+  ["FRAME_", "Kadrlar (VERIFY)"],
+  ["FX_", "Effektlar"],
+  ["JSX_", "ExtendScript skriptlar"],
   ["SYS_", "Tizim"],
 ];
 

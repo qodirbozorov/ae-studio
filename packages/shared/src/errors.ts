@@ -121,6 +121,10 @@ export const ERROR_DEFS = {
     retryable: true,
     hint: "AE'da ochiq loyihada saqlanmagan o'zgarishlar bor. Uni saqlang (yoki job avtomatik _autosave nusxasini yaratsin) va qayta urining.",
   },
+  FRAME_CAPTURE_FAILED: {
+    retryable: true,
+    hint: "Kadrlar olinmadi. details.reason ga qarang: modal_suspected — AE'dagi dialogni yoping; comp_not_found — job qurilganini tekshiring; timeout/render_error — qayta urining.",
+  },
   AE_MODAL_SUSPECTED: {
     retryable: true,
     hint: "After Effects javob bermayapti — ehtimol ochiq dialog oynasi bor. AE'dagi dialogni yoping va qayta urining.",

@@ -78,6 +78,19 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
     upload: uploadTargetSchema,
   }),
   z.strictObject({
+    /** Contact sheet (VERIFY): kadrlar bitta grid JPEG'ga (vaqt yozuvlari bilan) → storage → `file.uploaded`. */
+    type: z.literal("frames.sheet.request"),
+    request_id: idSchema,
+    files: z.array(relPathSchema).min(1).max(24),
+    labels: z.array(z.string().max(40)).max(24),
+    cols: z.number().int().min(1).max(6),
+    /** Katak kengligi (piksel); balandlik kadr nisbatiga ko'ra. */
+    cell_px: z.number().int().min(64).max(1280),
+    /** Natija ish papkasiga ham saqlanadi (ixtiyoriy). */
+    save_as: relPathSchema.optional(),
+    upload: uploadTargetSchema,
+  }),
+  z.strictObject({
     /** Ish papkasidagi faylni storage'ga yuklash (masalan `template_save`: qurilgan `.aep`) → `file.uploaded`. */
     type: z.literal("file.upload.request"),
     request_id: idSchema,

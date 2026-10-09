@@ -2,7 +2,9 @@
  * Panel agenti (CEP ichidagi Node, mixed context). UI uni `agent/agent.cjs` dan `require` qiladi
  * va CEP `evalScript` ni beradi. Agent brauzer API'siga bog'liq emas — Node'da test qilinadi.
  */
+import { existsSync, promises as fsp } from "node:fs";
 import os from "node:os";
+import path from "node:path";
 import { makeError, makeOp, resolveInsideRoot } from "@aes/shared";
 import type { AesError, ServerMessage } from "@aes/shared";
 import { createAeBridge } from "./ae-bridge";
@@ -11,6 +13,7 @@ import { clearCredentials, loadCredentials, saveCredentials } from "./credential
 import type { Credentials } from "./credentials";
 import { FfmpegError, bundledFfmpegDir, checkBinaries, probe, resolveBinaries } from "./ffmpeg";
 import { onboardingStep } from "./onboarding";
+import { makeContactSheet, waitForFrames } from "./frames";
 import type { EnvironmentReport, OnboardingStep } from "./onboarding";
 import { TransferError } from "./files";
 import { extractAudio } from "./extract";
@@ -171,7 +174,21 @@ export function createAgent(options: AgentOptions): Agent {
   /** Joriy ulanishning HTTP manzili va tokeni (Live tarixi va amallar uchun). */
   let api: { base: string; token: string } | null = null;
   const bridge = createAeBridge({ evalScript: options.evalScript, jsxPath: options.jsxPath });
-  const runner = createOpRunner({ bridge, log, getRoot: () => root });
+  const runner = createOpRunner({
+    bridge,
+    log,
+    getRoot: () => root,
+    // P6.02: AE `saveFrameToPng` asinxron — kadrlar diskda (AE'ni bloklamasdan) kutiladi.
+    afterOp: async (op, result) => {
+      if (op.op !== "frames.capture") return null;
+      const info = result.info as { pending?: boolean; files?: { path: string }[] } | undefined;
+      if (info?.pending !== true) return null;
+      return waitForFrames(
+        root,
+        (info.files ?? []).map((f) => f.path),
+      );
+    },
+  });
   let client: WsClient | null = null;
   let account = loadCredentials(dataDir);
   let settings = loadSettings(dataDir);
@@ -360,6 +377,51 @@ export function createAgent(options: AgentOptions): Agent {
         .finally(() => {
           rendering = false;
         });
+    });
+    next.onMessage((message) => {
+      if (message.type !== "frames.sheet.request") return;
+      const fail = (error: ReturnType<typeof makeError>) =>
+        next.send({ type: "request.failed", request_id: message.request_id, error });
+      if (root === "") {
+        fail(makeError("ENV_NO_FOLDER", "Ish papkasi tanlanmagan"));
+        return;
+      }
+      void (async () => {
+        let tmp: string | null = null;
+        try {
+          const sheet = await makeContactSheet(root, resolveBinaries(settings.ffmpeg_dir), message);
+          tmp = sheet.tmp;
+          if (message.save_as !== undefined) {
+            const target = resolveInsideRoot(root, message.save_as);
+            if (target.ok && !existsSync(target.data)) {
+              await fsp.mkdir(path.dirname(target.data), { recursive: true });
+              await fsp.copyFile(sheet.file, target.data);
+            }
+          }
+          const uploaded = await uploadFile(message.upload.url, sheet.file, "image/jpeg");
+          next.send({
+            type: "file.uploaded",
+            request_id: message.request_id,
+            storage_key: message.upload.storage_key,
+            ...uploaded,
+          });
+        } catch (error) {
+          fail(
+            error instanceof FfmpegError || error instanceof TransferError
+              ? error.error
+              : makeError(
+                  "FRAME_CAPTURE_FAILED",
+                  error instanceof Error ? error.message : String(error),
+                  {
+                    reason: "render_error",
+                  },
+                ),
+          );
+        } finally {
+          if (tmp !== null)
+            await fsp.rm(tmp, { recursive: true, force: true }).catch(() => undefined);
+        }
+      })();
     });
     next.onMessage((message) => {
       if (message.type !== "file.upload.request") return;

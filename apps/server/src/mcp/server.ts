@@ -27,7 +27,7 @@ Loop (follow in order, every stage has a gate):
 4. spec_schema (once) → plan_write. On SPEC_INVALID fix exactly the reported JSON Pointer paths; use plan_patch for small edits.
 5. preflight → fix missing[] → build_start (dry_run first for long videos).
 6. Poll job_status every 5-10 s until state is VERIFY, BLOCKED or DONE. Do not start a second job: one active job per device.
-7. VERIFY: frames_capture, look at the frames critically against the brief. Then verify_approve, or verify_patch with a corrected spec (max 3 patches, then ask the user).
+7. VERIFY: contact_sheet (one grid image with times; frames_capture for single large frames), look at the frames critically against the brief. Then verify_approve, or verify_patch with a corrected spec (max 3 patches, then ask the user).
 8. After approve the job renders (RENDER) and writes a report: report_get and show it to the user with the output path.
 
 Audio (ElevenLabs, key set in the web cabinet — env_check.checks.elevenlabs): put voiceover/music/sfx/captions/source_audio into the spec's audio section; the job's AUDIO stage generates them (cached by params, files stored on the server and downloaded into the project's audio/ folder). Scenes can follow the voiceover sentences with dur "vo:a-b". Uzbek TTS: model eleven_v4, language "uz"; STT: el_stt (scribe_v2). Before spending credits run el_estimate; if ask_user is true, ask the user. Standalone tools: el_tts, el_sfx, el_music(_plan), el_dialogue, el_stt + transcript_get/transcript_edit, el_align, el_isolate, el_voice_change, el_dub, el_voice_design, el_voice_clone (only with the owner's consent), audio_tasks_status.

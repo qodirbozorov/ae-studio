@@ -252,6 +252,15 @@ const SERVER_MESSAGES: Record<string, unknown> = {
     mono: true,
     upload: { url: "https://s3.example.com/b", storage_key: "u/1/p/2/audio-in/b.opus" },
   },
+  "frames.sheet.request": {
+    type: "frames.sheet.request",
+    request_id: "r10",
+    files: ["frames/a/frame_01.png", "frames/a/frame_02.png"],
+    labels: ["0.60 s", "2.00 s"],
+    cols: 3,
+    cell_px: 360,
+    upload: { url: "https://s3.example.com/s", storage_key: "u/1/p/2/frames/s.jpg" },
+  },
   "file.upload.request": {
     type: "file.upload.request",
     request_id: "r9",

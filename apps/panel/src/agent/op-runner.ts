@@ -43,6 +43,8 @@ export function createOpRunner(options: {
   log: LogStore;
   getRoot: () => string;
   now?: () => number;
+  /** AE javobidan keyingi tekshiruv (masalan `frames.capture` fayllarini kutish); xato bo'lsa op.failed. */
+  afterOp?: (op: OpEnvelope, result: OpResultData) => Promise<AesError | null>;
 }): OpRunner {
   const { bridge, log, getRoot } = options;
   const now = options.now ?? Date.now;
@@ -100,6 +102,10 @@ export function createOpRunner(options: {
     try {
       const response = await bridge.runOp(op, { root: getRoot() });
       if (!response.ok) return failed(op, response.error, started, jobId);
+      if (options.afterOp !== undefined) {
+        const after = await options.afterOp(op, response.data);
+        if (after !== null) return failed(op, after, started, jobId);
+      }
       const duration = now() - started;
       const reused = response.data.reused ? " (avvaldan bor)" : "";
       log.add({

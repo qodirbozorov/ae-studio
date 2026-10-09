@@ -5,7 +5,7 @@
 Javob formati: `{ ok: true, data } | { ok: false, error: { code, retryable, hint, message?, details? } }`.
 Xato kodlari: [errors.md](errors.md).
 
-Jami: **54** tool, **4** prompt.
+Jami: **55** tool, **4** prompt.
 
 ## Muhit
 
@@ -409,13 +409,25 @@ Recent jobs (all projects or one project) with state and outcome.
 
 ### `frames_capture` — Capture frames · faqat o'qish
 
-Renders still frames of the built video (main composition) in After Effects and shows them to you as images. Default times = the plan's key moments (scene middles and transitions), max 8. Use during VERIFY to check the result against the brief before verify_approve / verify_patch. With spec.variants, pass variant (e.g. "16:9") to check that format too.
+Renders still frames of the built video (main composition) in After Effects and shows them to you as separate images. Default times = the key moments of the plan, max 8. Prefer contact_sheet (one grid image, faster to read). With spec.variants, pass variant (e.g. "16:9") to check that format too.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
 | `job_id` | uuid | ha |  |
 | `times` | number[] |  |  |
 | `max_px` | integer |  | default `768`, ≥ 128, ≤ 1280 |
+| `variant` | `9:16` \\| `1:1` \\| `16:9` |  |  |
+
+### `contact_sheet` — Contact sheet · faqat o'qish
+
+One grid image of the built video for VERIFY: each cell is a frame with its time written under it. times "auto" (default) = the key moments of the plan (scene hits, transitions, end). Faster and cheaper to read than separate frames. grid "3x2" = 3 columns x 2 rows. With spec.variants, pass variant.
+
+| Parametr | Turi | Majburiy | Izoh |
+|---|---|---|---|
+| `job_id` | uuid | ha |  |
+| `times` | `"auto"` \\| number[] |  | default `"auto"` |
+| `max_px` | integer |  | Cell width in pixels · default `540`, ≥ 128, ≤ 1280 |
+| `grid` | string |  | columns x rows · default `"3x2"` |
 | `variant` | `9:16` \\| `1:1` \\| `16:9` |  |  |
 
 ### `verify_approve` — Approve result

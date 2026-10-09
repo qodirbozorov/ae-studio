@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 6 — Tezlik, ishonchlilik, vositalar · jarayonda (1/9)
-- **Oxirgi bajarilgan:** P6.01 — Tezkor tuzatishlar (#4–#8) (2026-10-10)
-- **Keyingi todo:** P6.02 — frames_capture qayta + contact_sheet
+- **Faza:** 6 — Tezlik, ishonchlilik, vositalar · jarayonda (2/9)
+- **Oxirgi bajarilgan:** P6.02 — frames_capture qayta + contact_sheet (2026-10-10)
+- **Keyingi todo:** P6.03 — aes_runtime.jsx
 - **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -108,6 +108,7 @@
 | 2026-10-07 | Login | Kabinetga kirish faqat Telegram deep link (email/magic link olib tashlandi) | foydalanuvchi talabi; xat xizmati kerak emas, kirish bilan xabarnoma chati ham ulanadi |
 | 2026-10-10 | Faza 6–7 | update-technicalguidline.md 2 fazaga: 6 (tuzatish, bundle kompilyator, vositalar), 7 (Spec v2, kutubxona, ae_run_jsx) | foydalanuvchi tasdiqladi; avval tezlik va VERIFY, keyin ifoda imkoniyatlari |
 | 2026-10-10 | P6.01 | Dirty loyiha default'da _autosave_vNNN qilinadi (fail emas) | guideline §6 (a): hech narsa yo'qolmaydi, qo'lda aralashuv kerak emas |
+| 2026-10-10 | P6.02 | Kadrlar AE saveFrameToPng bilan, kutish Node agentida (aerender emas) | aerender ishga tushishi ~10 s; asinxron yozish muammosi kutishni ko'chirish bilan hal bo'ldi |
 
 ---
 
@@ -1610,3 +1611,33 @@ Test yordamchisi `login()` sessiyani to'g'ridan-to'g'ri beradi. To'liq to'plam: 
 To'liq to'plam: 511 o'tdi (docs qayta generatsiyasidan keyin hammasi yashil).
 
 **👤:** #4 ni haqiqiy AE'da ko'rish — och fonli sahnalar endi to'g'ri rangda bo'lishi kerak.
+
+### P6.02 — frames_capture qayta + contact_sheet (2026-10-10)
+
+**Nima qilindi** (update-technicalguidline #3, §5.3, §6):
+- **Kadrlar AE'ni bloklamaydi:**
+  - Sabab: `saveFrameToPng` asinxron yozadi. Eski jsx fayl paydo bo'lishini ExtendScript ichida kutardi, AE esa skript tugamaguncha faylni yozmasdi, natijada `AE_TIMEOUT`.
+  - Tuzatish: jsx `frames.capture` endi kutmaydi, `info.pending: true` qaytaradi. Fayllarni panel agenti (Node) diskda kutadi (`waitForFrames`, `op-runner` dagi `afterOp` hook). Har kadrga 10 s, jami 60 s; vaqt tugasa `FRAME_CAPTURE_FAILED { reason: "timeout", missing }`.
+- **Server `captureFrames`:**
+  - Avval ping (10 s): javob bo'lmasa `AE_MODAL_SUSPECTED` (ochiq dialog).
+  - So'ng job `.aep` i ochiladi, keyin `frames.capture`.
+  - Xatolar sababi bilan qaytadi: `AE_NOT_FOUND` → `FRAME_CAPTURE_FAILED{comp_not_found}`, `AE_TIMEOUT` → `{timeout}`.
+- **Yangi `contact_sheet` tool:**
+  - Parametrlar: `times: "auto" | number[]`, `grid: "3x2"`, `max_px` (katak eni, default 540), `variant`.
+  - Natija: bitta JPEG (har katak ostida vaqt yozuvi) va `frames[]`, `sheet_path`.
+  - Qanday ishlaydi: server panelga yangi WS xabar `frames.sheet.request` yuboradi; agent ffmpeg `xstack` + `drawtext` bilan grid yig'adi, `<dir>/contact_sheet.jpg` ga saqlaydi va storage'ga yuklaydi.
+  - MCP ko'rsatmalari va promptlarda VERIFY uchun `contact_sheet` tavsiya etiladi.
+- Yangi xato kodi `FRAME_CAPTURE_FAILED` (retryable). Hujjatlar qayta generatsiya qilindi (`contact_sheet` "Tekshirish" guruhida).
+- **Rejadan farq:** kadrlar fon `aerender` bilan emas, AE'ning o'zida `saveFrameToPng` bilan olinadi, faqat kutish Node'ga ko'chirildi. Natija va kod bir xil, `aerender` ishga tushishiga ketadigan ~10 s tejaladi. Haqiqiy AE'da bloklanish qolsa, `aerender`ga o'tish P6.09 gate'da ko'riladi.
+
+**Testlar:**
+- mock AE: `asyncFrames` rejimi (PNG skript tugagach yoziladi).
+- jsx: `frames.capture` pending qaytaradi.
+- `waitForFrames`: timeout va missing, root'dan tashqari yo'l.
+- `sheetFilter`: `xstack` layout, yozuvlar, bitta kadr.
+- server `mcp-verify`: `contact_sheet`, modal va `comp_not_found` holatlari.
+- **KPI:** haqiqiy agent + ffmpeg bilan `contact_sheet` ketma-ket 10/10 muvaffaqiyatli.
+
+To'liq to'plam: 519 o'tdi, 2 tasi skip.
+
+**👤:** haqiqiy AE'da `contact_sheet`: AE bloklanmasligi va kadrlar 10 s ichida yozilishini tekshirish.

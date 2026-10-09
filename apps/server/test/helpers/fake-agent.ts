@@ -68,6 +68,8 @@ export class FakeAgent {
   readonly previews: string[] = [];
   /** `file.upload.request` so'ralgan yo'llar. */
   readonly uploads: string[] = [];
+  /** Contact sheet so'rovlari. */
+  readonly sheets: { files: string[]; labels: string[]; cols: number }[] = [];
   /** `project.open` (MCP project_create): loyihani ro'yxatdan o'tkazadi. */
   onProjectOpen:
     ((root: string) => Promise<{ id: string; name: string; root_path: string }>) | null = null;
@@ -201,6 +203,21 @@ export class FakeAgent {
           sha256: createHash("sha256").update(audio).digest("hex"),
           size: audio.length,
           duration_s: 2,
+        },
+        socket,
+      );
+    } else if (message.type === "frames.sheet.request") {
+      this.sheets.push({ files: message.files, labels: message.labels, cols: message.cols });
+      if (this.storage === null) return;
+      const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0xff, 0xd9]);
+      await this.storage.putBytes(message.upload.storage_key, jpeg, "image/jpeg");
+      this.deliver(
+        {
+          type: "file.uploaded",
+          request_id: message.request_id,
+          storage_key: message.upload.storage_key,
+          sha256: createHash("sha256").update(jpeg).digest("hex"),
+          size: jpeg.length,
         },
         socket,
       );

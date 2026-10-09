@@ -83,6 +83,12 @@ ixtiyoriy `message` va `details`. Job BLOCKED bo'lsa sabab tuzatilgach `job_resu
 |---|---|---|
 | `LOOP_PATCH_LIMIT` | yo'q | Patch chegarasi (3) tugadi. Foydalanuvchidan yo'l-yo'riq so'rang (ask_user). |
 
+## Kadrlar (VERIFY)
+
+| Kod | Qayta urinish | Nima qilish kerak |
+|---|---|---|
+| `FRAME_CAPTURE_FAILED` | ha | Kadrlar olinmadi. details.reason ga qarang: modal_suspected — AE'dagi dialogni yoping; comp_not_found — job qurilganini tekshiring; timeout/render_error — qayta urining. |
+
 ## Tizim
 
 | Kod | Qayta urinish | Nima qilish kerak |
