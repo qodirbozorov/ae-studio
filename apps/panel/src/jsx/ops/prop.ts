@@ -1,6 +1,8 @@
 /** Property oplari: keyframe'lar (ease bilan) va kutubxonadan expression. */
 import type { Ease, OpResultData, PropExpressionParams, PropKeyframesParams } from "@aes/shared/ae";
 import { buildExpression } from "../lib/expressions";
+import { anim } from "../lib/runtime";
+import type { AnimKey } from "../lib/runtime";
 import { hasLayerTag, requireLayer, stampLayer } from "../lib/trace";
 import { raise } from "../lib/util";
 
@@ -34,6 +36,15 @@ export function resolveProperty(layer: Layer, path: string): Property {
   }
   return current as Property;
 }
+
+/** v1 ease qiymatlari: har kalitga alohida (eski xulq o'zgarmaydi). */
+const LEGACY: { [ease: string]: boolean | undefined } = {
+  linear: true,
+  hold: true,
+  ease_in: true,
+  ease_out: true,
+  ease_in_out: true,
+};
 
 function easeDimensions(prop: Property): number {
   const type = prop.propertyValueType;
@@ -92,12 +103,31 @@ export function propKeyframes(p: PropKeyframesParams, opId: string): OpResultDat
   };
   if (hasLayerTag(layer, opId)) return result;
   const prop = resolveProperty(layer, p.prop);
+  let segmented = typeof p.ease !== "string" || LEGACY[p.ease] !== true;
+  for (let i = 0; i < p.keys.length && !segmented; i++) {
+    if (p.keys[i]!.ease !== undefined) segmented = true;
+  }
+  if (segmented) {
+    // P6.03: segment ease (token/bezier/xom) — runtime `AES.anim`, setValuesAtTimes bilan.
+    const keys: AnimKey[] = [];
+    for (let i = 0; i < p.keys.length; i++) {
+      const key = p.keys[i]!;
+      keys.push([p.relative ? layer.inPoint + key.t : key.t, key.v, key.ease]);
+    }
+    // Kalitda ease bo'lmasa: v1 ease_* → "soft" (AE Easy Ease), linear/hold — o'zi.
+    const fallback = typeof p.ease === "string" && p.ease.indexOf("ease_") === 0 ? "soft" : p.ease;
+    anim(prop, keys, fallback, { spatial: p.spatial });
+    stampLayer(layer, opId);
+    result.reused = false;
+    result.info = { keys: p.keys.length };
+    return result;
+  }
   for (let i = 0; i < p.keys.length; i++) {
     const key = p.keys[i]!;
     const time = p.relative ? layer.inPoint + key.t : key.t;
     prop.setValueAtTime(time, key.v as never);
     // setValueAtTime hech narsa qaytarmaydi: kalit indeksi vaqt bo'yicha olinadi.
-    applyEase(prop, prop.nearestKeyIndex(time), p.ease);
+    applyEase(prop, prop.nearestKeyIndex(time), p.ease as Ease);
   }
   stampLayer(layer, opId);
   result.reused = false;

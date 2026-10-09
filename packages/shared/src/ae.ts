@@ -21,6 +21,9 @@ export type RelPath = string;
 
 export type Fit = "cover" | "contain" | "stretch" | "none";
 export type Ease = "linear" | "ease_in" | "ease_out" | "ease_in_out" | "hold";
+/** Segment egri chizig'i (P6.03): token (`enter`, `$pop` …), `[x1,y1,x2,y2]` yoki xom `{ in, out }`. */
+export type EaseCurve =
+  string | [number, number, number, number] | { in: [number, number]; out: [number, number] };
 export type PropAlias = "position" | "scale" | "rotation" | "opacity" | "anchor_point";
 /** Alias yoki matchName yo'li: `ADBE Transform Group/ADBE Position`. */
 export type PropPath = string;
@@ -139,14 +142,19 @@ export interface Keyframe {
   /** Soniya; `relative` bo'lsa layer boshidan. */
   t: number;
   v: number | number[] | string;
+  /** Oldingi kalitdan shu kalitgacha bo'lgan segment ease'i (op `ease` ini almashtiradi). */
+  ease?: EaseCurve | undefined;
 }
 
 export interface PropKeyframesParams {
   layer: Ref;
   prop: PropPath;
   keys: Keyframe[];
-  ease: Ease;
+  /** Eski qiymatlar (`ease_in` …) — har kalitga; yangi (token/bezier/xom) — segment bo'yicha (§11-B). */
+  ease: Ease | EaseCurve;
   relative: boolean;
+  /** Spatial yo'l: `linear` (sukut, tangentlar 0) yoki `auto`. */
+  spatial?: "linear" | "auto" | undefined;
 }
 
 export interface PropExpressionParams {

@@ -199,17 +199,36 @@ const layerAddAudioParams = z.strictObject({
   name: nameSchema.optional(),
 });
 
+const easePair = z.tuple([z.number().min(-1e6).max(1e6), z.number().min(0.1).max(100)]);
+
+/** Segment ease'i (P6.03, update-technicalguidline §4.3): token, CSS cubic-bezier yoki xom AE qiymatlari. */
+export const easeCurveSchema = z.union([
+  z.string().regex(/^\$?(enter|exit|move|soft|pop)$|^(linear|hold)$/),
+  z.tuple([
+    z.number().min(0).max(1),
+    z.number().min(-5).max(5),
+    z.number().min(0).max(1),
+    z.number().min(-5).max(5),
+  ]),
+  z.strictObject({ in: easePair, out: easePair }),
+]);
+
 const keyframeSchema = z.strictObject({
   t: z.number().min(-36_000).max(36_000),
   v: z.union([z.number(), z.array(z.number()).min(1).max(4), z.string().max(5000)]),
+  ease: easeCurveSchema.optional(),
 });
 
 const propKeyframesParams = z.strictObject({
   layer: refSchema,
   prop: propPathSchema,
   keys: z.array(keyframeSchema).min(1).max(1000),
-  ease: z.enum(["linear", "ease_in", "ease_out", "ease_in_out", "hold"]),
+  ease: z.union([
+    z.enum(["linear", "ease_in", "ease_out", "ease_in_out", "hold"]),
+    easeCurveSchema,
+  ]),
   relative: z.boolean(),
+  spatial: z.enum(["linear", "auto"]).optional(),
 });
 
 const propExpressionParams = z.strictObject({

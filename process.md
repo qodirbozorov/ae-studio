@@ -10,9 +10,9 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 6 — Tezlik, ishonchlilik, vositalar · jarayonda (2/9)
-- **Oxirgi bajarilgan:** P6.02 — frames_capture qayta + contact_sheet (2026-10-10)
-- **Keyingi todo:** P6.03 — aes_runtime.jsx
+- **Faza:** 6 — Tezlik, ishonchlilik, vositalar · jarayonda (3/9)
+- **Oxirgi bajarilgan:** P6.03 — aes_runtime.jsx (2026-10-10)
+- **Keyingi todo:** P6.04 — Bundle kompilyator (sahna = 1 evalScript)
 - **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -109,6 +109,7 @@
 | 2026-10-10 | Faza 6–7 | update-technicalguidline.md 2 fazaga: 6 (tuzatish, bundle kompilyator, vositalar), 7 (Spec v2, kutubxona, ae_run_jsx) | foydalanuvchi tasdiqladi; avval tezlik va VERIFY, keyin ifoda imkoniyatlari |
 | 2026-10-10 | P6.01 | Dirty loyiha default'da _autosave_vNNN qilinadi (fail emas) | guideline §6 (a): hech narsa yo'qolmaydi, qo'lda aralashuv kerak emas |
 | 2026-10-10 | P6.02 | Kadrlar AE saveFrameToPng bilan, kutish Node agentida (aerender emas) | aerender ishga tushishi ~10 s; asinxron yozish muammosi kutishni ko'chirish bilan hal bo'ldi |
+| 2026-10-10 | P6.03 | v1 ease qiymatlari eski yo'lda, token/bezier/xom — AES.anim segment ease | v1 plan'lar regressiyasiz; yangi ease Spec v2 uchun tayyor |
 
 ---
 
@@ -1641,3 +1642,52 @@ To'liq to'plam: 511 o'tdi (docs qayta generatsiyasidan keyin hammasi yashil).
 To'liq to'plam: 519 o'tdi, 2 tasi skip.
 
 **👤:** haqiqiy AE'da `contact_sheet`: AE bloklanmasligi va kadrlar 10 s ichida yozilishini tekshirish.
+
+### P6.03 — aes_runtime.jsx (2026-10-10)
+
+**Nima qilindi** (update-technicalguidline §3.2, §3.4, §4.3, §11-A/B/D):
+- **Yangi `@aes/shared/easing` moduli:**
+  - ES3-xavfsiz, jsx bundle'iga ham kiradi.
+  - Ease tokenlari: `enter`, `exit`, `move`, `soft`, `pop`.
+  - `resolveCurve` qabul qiladi: token (`$pop` ham), `[x1,y1,x2,y2]`, `linear`/`hold`, xom `{in, out}`.
+  - `bezierEase` cubic-bezier'ni §11-B formulasi bo'yicha KeyframeEase'ga o'giradi:
+    - Δv/T o'rtacha tezlik;
+    - influence 0.1–100 oralig'ida;
+    - ko'p o'lchamli xususiyatda har o'lcham ishorasi bilan alohida;
+    - spatial'da yo'l uzunligi;
+    - rang uchun tezlik 0.
+- **jsx runtime (`jsx/lib/runtime.ts`):**
+  - Bundle yuklanganda global `AES` paydo bo'ladi (`$.global.AES` va `$[NS].AES`).
+  - Tarkibi: `version`, `hex`, `findComp`/`comp`, `anim`, `segmentEase`, `straightPath`, `dump`, `json`, `saveVersion`.
+  - `AES.anim` §3.4 qoidalari bo'yicha ishlaydi:
+    - kalitlar bitta `setValuesAtTimes` bilan yoziladi;
+    - har kalit interpolatsiyasi va ease'i xotirada hisoblanib, bir marta yoziladi (qiymat qayta o'qilmaydi);
+    - spatial yo'l sukut bo'yicha to'g'ri chiziq (tangentlar 0).
+- **`prop.keyframes` kengaydi:**
+  - `ease` endi token, bezier yoki xom qiymat bo'lishi mumkin.
+  - Kalitda o'z `ease` i bo'lishi mumkin; u oldingi kalitdan shu kalitgacha bo'lgan segmentga tegishli.
+  - Yangi `spatial: linear | auto`.
+  - v1 qiymatlari (`linear`, `hold`, `ease_*`) eski yo'lda qoldi, regressiya yo'q.
+- **Versiya tekshiruvi:**
+  - `JSX_VERSION` 0.2.0 ga ko'tarildi.
+  - Agent har opda `$[NS].version` ni tekshiradi. AE sessiyasida eski bundle qolgan bo'lsa (panel yangilangan), uni avtomatik qayta yuklaydi.
+  - Diskdagi fayl ham boshqa versiya bo'lsa, aniq xato chiqadi: "jsx versiyasi X, panel Y kutadi".
+- **Doiradan tashqari:** §11-D dagi qolgan funksiyalar (`shapeLayer`, `text`, `fx`, `mask`, `camera`, `component` …) Spec v2 qatlam turlari bilan birga Faza 7 da qo'shiladi, chunki ularni chaqiradigan kompilyator kodi o'sha yerda.
+
+**Testlar:**
+- shared `easing`:
+  - §11-A jadvali (`enter` 6.25×/16% → 0/70%, `pop` 4.59×/34% → 0/36% …);
+  - ishora, rang, T=0, influence chegaralari;
+  - `resolveCurve`, zod sxema.
+- panel `aes-runtime` (haqiqiy ES3 bundle, mock AE):
+  - global `AES`;
+  - `anim`: bitta `setValuesAtTimes`, hold/linear segmentlari, spatial tangentlar, Scale har o'lchamda, xom ease, noto'g'ri ease;
+  - `prop.keyframes`: token va kalit ease'i, v1 o'zgarmagani;
+  - `dump`, `saveVersion`;
+  - bridge eski versiyani qayta yuklaydi.
+- Mock AE'ga `setValuesAtTimes`, `setSpatialTangentsAtKey` va `$.global` qo'shildi.
+- ES3 bundle tekshiruvlari o'tdi: ASCII, regex `/`, ichma-ich ternar yo'q.
+
+**👤:** haqiqiy AE'da `AES.anim` ease'larini Graph Editor'da ko'rish.
+
+To'liq to'plam: 533 o'tdi, 2 skip.

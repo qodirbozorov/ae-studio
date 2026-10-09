@@ -12,3 +12,4 @@ export * from "./ws";
 export * from "./template";
 export * from "./brand";
 export * from "./paths";
+export * from "./easing";

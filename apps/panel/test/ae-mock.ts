@@ -37,6 +37,8 @@ export interface MockKey {
   outInterp: number;
   inEase: KeyframeEase[] | null;
   outEase: KeyframeEase[] | null;
+  inTangent?: number[];
+  outTangent?: number[];
 }
 
 type Factory = () => MockProperty;
@@ -95,6 +97,32 @@ export class MockProperty {
       this.keys.push(key);
       this.keys.sort((a, b) => a.time - b.time);
     }
+  }
+
+  /** Haqiqiy AE kabi: vaqtlar va qiymatlar soni teng bo'lishi shart. */
+  setValuesAtTimes(times: number[], values: unknown[]): void {
+    if (times.length !== values.length) throw new Error("setValuesAtTimes: uzunliklar teng emas");
+    this.bulkWrites++;
+    for (let i = 0; i < times.length; i++) this.setValueAtTime(times[i]!, values[i]);
+  }
+
+  /** `setValuesAtTimes` chaqiruvlari soni (tezlik qoidasi testlari uchun). */
+  bulkWrites = 0;
+
+  setSpatialTangentsAtKey(index: number, inTangent: number[], outTangent?: number[]) {
+    if (!/SPATIAL/.test(String(this.propertyValueTypeName))) {
+      throw new Error("Spatial bo'lmagan property'ga tangent");
+    }
+    const key = this.key(index);
+    key.inTangent = inTangent;
+    key.outTangent = outTangent ?? inTangent;
+  }
+
+  private get propertyValueTypeName(): string {
+    const type = this.propertyValueType;
+    return type === PropertyValueType.TwoD_SPATIAL || type === PropertyValueType.ThreeD_SPATIAL
+      ? "SPATIAL"
+      : "OTHER";
   }
 
   removeKey(index: number): void {
@@ -869,7 +897,7 @@ export function createMockAE(
     files,
     globals: {
       app,
-      $: { os: "Windows/10 (mock)", sleep: () => undefined },
+      $: { os: "Windows/10 (mock)", sleep: () => undefined } as Record<string, unknown>,
       File: FileCtor,
       Folder: FolderCtor,
       RQItemStatus,

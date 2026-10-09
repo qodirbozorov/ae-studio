@@ -5,10 +5,14 @@
  */
 import { JSX_VERSION, NS } from "../shared/constants";
 import { runOp } from "./dispatcher";
+import { AES } from "./lib/runtime";
 
-const host = $ as unknown as { [key: string]: unknown };
+const host = $ as unknown as { [key: string]: unknown; global?: { [key: string]: unknown } };
 
 host[NS] = {
   version: JSX_VERSION,
   runOp: runOp,
+  AES: AES,
 };
+// Sahna dasturlari (P6.04) global `AES` ni chaqiradi (update-technicalguidline §3.2).
+if (typeof host.global === "object" && host.global !== null) host.global.AES = AES;

@@ -29,6 +29,8 @@ export async function loadJsx(
   const code = await jsxCode();
   const context = vm.createContext({ ...ae.globals });
   vm.runInContext("delete this.JSON;", context);
+  // ExtendScript'da `$.global` — global obyekt (runtime `AES` shu yerga yoziladi).
+  (context.$ as Record<string, unknown>).global = context;
   // `$.evalFile(path)` — panel jsx'ni shu bilan yuklaydi.
   (context.$ as Record<string, unknown>).evalFile = () => vm.runInContext(code, context);
   const evalScript = async (script: string) => {

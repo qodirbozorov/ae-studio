@@ -218,7 +218,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 
 - [x] **P6.01 — Tezkor tuzatishlar.** #4 `bg` (nested comp foni main'da ko'rinmaydi → to'liq kadrli solid), #5 `AE_PROJECT_DIRTY` + `_autosave_vNNN`, #6 panel papkasini avtomatik tiklash, #7 `env_check` qurilmani loyihadan, #8 `el_estimate` `cached`/`total_uncached`.
 - [x] **P6.02 — `frames_capture` qayta + `contact_sheet`.** Fon `aerender` bilan kadrlar (UI bloklanmaydi), bitta grid JPEG (vaqt yozuvlari bilan), `FRAME_CAPTURE_FAILED{reason}`, `AE_MODAL_SUSPECTED`.
-- [ ] **P6.03 — `aes_runtime.jsx` (§11-D).** `AES.*`: hex, cubic-bezier → KeyframeEase, `setValuesAtTimes`, json, dump, versiya tekshiruvi; ES3 bundle tekshiruvlari.
+- [x] **P6.03 — `aes_runtime.jsx` (§11-D).** `AES.*`: hex, cubic-bezier → KeyframeEase, `setValuesAtTimes`, json, dump, versiya tekshiruvi; ES3 bundle tekshiruvlari.
 - [ ] **P6.04 — Bundle kompilyator (§3.2–3.4).** Sahna = 1 JSX = 1 evalScript; sahna darajasida progress/resume/cancel; > 400 qatlam bo'linadi; `jobs/<id>/scene_sNN.jsx` audit; `scene.timing` ms.
 - [ ] **P6.05 — v1 → yangi kompilyator (§4.14).** v1 plan'lar bundle orqali; regressiya snapshot'lari.
 - [ ] **P6.06 — Plan boshqaruvi (#9, §5.6).** `plan_patch` id bo'yicha (`@s5b`), `plan_scene_put`, `plan_write(defer_validation)` + `plan_validate`, `plan_diff`.
