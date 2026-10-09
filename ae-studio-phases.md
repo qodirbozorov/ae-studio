@@ -230,7 +230,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P7.03 — Effektlar va mesh (§4.6, §11-C).** `effects[]`: alias → matchName/indeks, istalgan matchName, params nom/indeks bo'yicha, foiz shkalasi, effekt keyframe'lari, `FX_UNKNOWN`/`FX_PARAM_UNKNOWN`. Mesh/deformatsiya: Bezier Warp (nuqtalar), Mesh Warp, Wave Warp, Bulge, Turbulent Displace, CC Bend It; mesh gradient (4-Color Gradient).
 - [x] **P7.04 — Maska va matte (§4.7).** rect/ellipse/points/`svg_d`, mode/feather/expansion/opacity/inverted, maska keyframe'lari; `matte` (`setTrackMatte` AE 23+, eski `trackMatteType`).
 - [x] **P7.05 — Aniqlik vositalari (§5.2).** `ae_effects` (o'rnatilgan effektlar, qidiruv), `fx_params` (effekt parametrlari: nom, indeks, tur), `ae_inspect` (qurilgan qatlam/xususiyat daraxti); `spec_schema` izohlari va server instructions.
-- [ ] **P7.06 — Yakun.** Bitta professional sahna e2e (mock AE), docs, deploy.
+- [x] **P7.06 — Yakun.** Bitta professional sahna e2e (mock AE), docs, deploy.
 
 **Shartli (kerak bo'lsa keyin):** matn v2 (box, runs, text animator, counter) · 3D/kamera/yorug'lik · o'tishlar v2 · `ae_run_jsx` (opt-in) · `preview_render` · presetlar kutubxonasi · plan boshqaruvi (`plan_scene_put`, `plan_diff`) · `vo_timings` · 👤 haqiqiy AE'da tezlik o'lchovi. Bitta loyihaga xos qismlar (promo KPI, phone/chat komponentlari) olib tashlandi.
 
