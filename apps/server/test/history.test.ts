@@ -77,7 +77,7 @@ async function doneJob(): Promise<string> {
   await s.call("plan_write", { project_id: projectId, spec: THREE_SCENES });
   const id = (await s.call("build_start", { project_id: projectId })).result.data.id;
   await t.app.jobs.idle();
-  await s.call("verify_approve", { job_id: id });
+  await s.call("verify_approve", { job_id: id, render: true, user_confirmed: true });
   await t.app.jobs.idle();
   return id;
 }
@@ -118,7 +118,7 @@ describe("report_get va Tarix", () => {
     await t.app.jobs.idle();
     const early = await s.call("report_get", { job_id: id });
     expect(early.result.error).toMatchObject({ code: "JOB_BAD_ACTION" });
-    await s.call("verify_approve", { job_id: id });
+    await s.call("verify_approve", { job_id: id, render: true, user_confirmed: true });
     await t.app.jobs.idle();
     const report = await s.call("report_get", { job_id: id });
     expect(report.result.data).toMatchObject({

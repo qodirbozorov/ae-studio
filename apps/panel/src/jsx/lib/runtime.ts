@@ -177,7 +177,35 @@ export interface DumpNode {
   keys?: number;
   expression?: string;
   children?: DumpNode[];
+  /** Tugunlar chegarasiga yetildi — qolgani ko'rsatilmadi. */
+  truncated?: boolean;
 }
+
+/**
+ * JSON'ga xavfsiz qiymat: son, satr, boolean, sonlar massivi; TextDocument → matn; Shape → qisqa tavsif.
+ * AE host obyektlari (MarkerValue va h.k.) seriyalanmaydi — json2 ularni sanab AE'ni qotirishi mumkin.
+ */
+export function plainValue(value: unknown): unknown {
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "string") {
+    return value;
+  }
+  if (isArray(value)) {
+    for (let i = 0; i < value.length; i++) if (typeof value[i] !== "number") return undefined;
+    return value;
+  }
+  if (typeof value === "object" && value !== null) {
+    const text = (value as { text?: unknown }).text;
+    if (typeof text === "string") return text;
+    const vertices = (value as { vertices?: unknown }).vertices;
+    if (isArray(vertices)) {
+      return { vertices: vertices.length, closed: (value as { closed?: unknown }).closed === true };
+    }
+  }
+  return undefined;
+}
+
+/** `dump` tugunlari chegarasi (katta qatlamda javob va vaqt cheklangan bo'lsin). */
+const DUMP_MAX_NODES = 1500;
 
 function safe<T>(read: () => T, fallback: T): T {
   try {
@@ -188,8 +216,10 @@ function safe<T>(read: () => T, fallback: T): T {
 }
 
 /** Property daraxti (matchName'larni aniqlash uchun, §11-C "dump"). */
-export function dump(prop: PropertyBase, depth?: number): DumpNode {
+export function dump(prop: PropertyBase, depth?: number, budget?: { left: number }): DumpNode {
   const limit = depth === undefined ? 3 : depth;
+  const left = budget === undefined ? { left: DUMP_MAX_NODES } : budget;
+  left.left--;
   const node: DumpNode = {
     name: safe(() => prop.name, ""),
     match_name: safe(() => prop.matchName, ""),
@@ -200,18 +230,19 @@ export function dump(prop: PropertyBase, depth?: number): DumpNode {
     if (limit > 0) {
       node.children = [];
       for (let i = 1; i <= count; i++) {
+        if (left.left <= 0) {
+          node.truncated = true;
+          break;
+        }
         const child = safe<PropertyBase | null>(() => (prop as PropertyGroup).property(i), null);
-        if (child !== null) node.children.push(dump(child, limit - 1));
+        if (child !== null) node.children.push(dump(child, limit - 1, left));
       }
     }
     return node;
   }
   const leaf = prop as Property;
-  const value = safe<unknown>(() => leaf.value, undefined);
-  if (value !== undefined && value !== null) {
-    const text = (value as { text?: unknown }).text;
-    node.value = typeof value === "object" && typeof text === "string" ? text : value;
-  }
+  const value = plainValue(safe<unknown>(() => leaf.value, undefined));
+  if (value !== undefined) node.value = value;
   const keys = safe(() => leaf.numKeys, 0);
   if (typeof keys === "number" && keys > 0) node.keys = keys;
   const expression = safe(() => leaf.expression, "");

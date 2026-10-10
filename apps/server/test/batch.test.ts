@@ -105,6 +105,7 @@ describe("batch", () => {
     };
     const started = await s.call("batch_start", {
       project_id: projectId,
+      user_confirmed: true,
       template: "top3_list",
       csv: CSV,
       format: "1:1",
@@ -130,6 +131,7 @@ describe("batch", () => {
   it("oldindan tekshiruv: noto'g'ri qatorlar — hech narsa boshlanmaydi", async () => {
     const res = await s.call("batch_start", {
       project_id: projectId,
+      user_confirmed: true,
       template: "top3_list",
       csv: `title,item1,item2,item3\nYaxshi,a,b,c\n${"x".repeat(41)},a,b,c\n,a,b,c`,
     });
@@ -140,6 +142,7 @@ describe("batch", () => {
     expect(await t.db.db.select().from(jobs)).toHaveLength(0);
     const badMap = await s.call("batch_start", {
       project_id: projectId,
+      user_confirmed: true,
       template: "top3_list",
       csv: "a\n1",
       mapping: { a: "nope" },
@@ -152,6 +155,7 @@ describe("batch", () => {
     agent.onRender = () => (++n === 2 ? makeError("RENDER_FAILED", "disk to'la") : "ok");
     const started = await s.call("batch_start", {
       project_id: projectId,
+      user_confirmed: true,
       template: "top3_list",
       csv: CSV,
     });
@@ -165,6 +169,7 @@ describe("batch", () => {
     agent.onRender = () => "drop";
     const started = await s.call("batch_start", {
       project_id: projectId,
+      user_confirmed: true,
       template: "top3_list",
       csv: CSV,
     });

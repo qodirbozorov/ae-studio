@@ -93,7 +93,20 @@ export function createWsClient(options: WsClientOptions): WsClient {
 
   // Runner eventlari serverga (faqat server yuborgan oplar uchun job_id bor).
   runner.onEvent((event: RunnerEvent) => {
-    if (event.job_id === undefined || event.op === null || event.batch === true) return;
+    if (event.job_id === undefined || event.batch === true) return;
+    if (event.op === null) {
+      // Sxemadan o'tmagan op (masalan eski panelga yangi format): server timeout kutmasin.
+      if (event.type === "op.failed" && event.op_id !== undefined) {
+        send({
+          type: "op.failed",
+          job_id: event.job_id,
+          op_id: event.op_id,
+          error: event.error,
+          duration_ms: event.duration_ms,
+        });
+      }
+      return;
+    }
     if (event.type === "op.started") {
       send({ type: "op.started", job_id: event.job_id, op_id: event.op.op_id, ts: event.ts });
     } else if (event.type === "op.done") {

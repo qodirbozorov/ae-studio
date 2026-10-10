@@ -44,8 +44,8 @@ export function newReelPrompt(args: Record<string, string>): GetPromptResult {
     `5. Rejani foydalanuvchiga 3–6 qatorda ko'rsat (sahnalar, matnlar, ovoz, musiqa) va tasdiq so'ra. Keyin plan_write va el_estimate: ask_user bo'lsa narxni aytib ruxsat so'ra.`,
     `6. preflight — missing[] bo'sh va ready=true bo'lguncha tuzat (plan_patch). Keyin build_start (audio AUDIO bosqichida generatsiya qilinadi, keshdan qayta ishlatiladi).`,
     `7. job_status ni 5–10 s oralig'ida tekshir (VERIFY, BLOCKED yoki DONE gacha). Progressni qisqa ayt.`,
-    `8. VERIFY: contact_sheet (bitta grid rasm, har katak ostida vaqt; yirik kadr kerak bo'lsa frames_capture). Kadrlarni brief bilan tanqidiy solishtir: matn sig'adimi va o'qiladimi, kompozitsiya, rang, kesilgan joylar. Muammo bo'lsa verify_patch (aniq sabab bilan, ko'pi bilan 3 marta), keyin yana contact_sheet. Yaxshi bo'lsa verify_approve.`,
-    `9. Render tugagach report_get: hisobotni va out/ dagi MP4 yo'lini foydalanuvchiga ko'rsat.`,
+    `8. VERIFY: foydalanuvchiga AE'da qaysi .aep va comp'ni ochib timeline'da ko'rishini ayt va fikrini so'ra — uning tekshiruvi ustuvor. contact_sheet (bitta kadr uchun frames_capture) faqat foydalanuvchi so'rasa yoki bitta tezkor tekshiruv uchun (bir marta). Tuzatishlar bo'lsa verify_patch (aniq sabab bilan, ko'pi bilan 3 marta). Foydalanuvchi rozi bo'lsa verify_approve — render'siz.`,
+    `9. Render kompyuterni band qiladi: faqat foydalanuvchi aniq so'rasa (verify_approve render: true + user_confirmed: true yoki render_start). report_get bilan yakuniy hisobotni ko'rsat.`,
     ``,
     `ElevenLabs kaliti bo'lmasa audio'siz qur va foydalanuvchiga kabinet → Sozlamalar → ElevenLabs ni eslat. Hech narsa o'chirilmaydi: plan, .aep va audio versiyalanadi. Foydalanuvchi bilan uning tilida (odatda o'zbekcha) gaplash.`,
   ];
@@ -68,7 +68,7 @@ export function subtitlePrompt(args: Record<string, string>): GetPromptResult {
     `2. Ovoz shovqinli bo'lsa avval el_isolate (toza ovoz).`,
     `3. el_stt (language "${language}", diarize kerak bo'lsa) → transcript_get. Matnni o'qib, imlo va nomlarni transcript_edit bilan tuzat (vaqtlar o'zgarmaydi). O'zbekcha transkriptni foydalanuvchiga ko'rsatib tasdiqlat.`,
     `4. Spec: bitta sahna (dur = video davomiyligi), media layer asset:<video> (fit cover), audio.source_audio {asset, transcribe: true, isolate: <2-qadamga qarab>}, audio.captions {from: "source_audio", method: "stt", style: "${style}"}.`,
-    `5. plan_write → preflight → build_start → job_status → contact_sheet (subtitr o'qiladimi, ekrandan chiqmaydimi) → verify_approve yoki verify_patch → report_get.`,
+    `5. plan_write → preflight → build_start → job_status → foydalanuvchi AE timeline'ida subtitrni ko'radi (o'qiladimi, ekrandan chiqmaydimi) → verify_patch yoki verify_approve (render'siz; render faqat foydalanuvchi so'rasa) → report_get.`,
   ];
   return { description: "AE Studio: videoga subtitr", messages: [text(steps.join("\n"))] };
 }
@@ -85,7 +85,7 @@ export function dubPrompt(args: Record<string, string>): GetPromptResult {
     `2. el_estimate items [{kind: "dub", input_seconds: <video davomiyligi>}] — ask_user bo'lsa narxni aytib ruxsat ol.`,
     `3. el_dub (target_lang "${target}", wait_s 0) → audio_tasks_status bilan kuzat (uzun video bir necha daqiqa).`,
     `4. Tayyor dublyaj fayli audio/ papkasida (assets_scan qilsang asset bo'lib chiqadi). Spec: sahna — asl video (ovozsiz), audio.voiceover {kind: "asset", asset: asset:<dublyaj>}; xohlasa subtitr uchun el_stt dublyaj faylidan → audio.captions.`,
-    `5. plan_write → preflight → build_start → VERIFY → report_get.`,
+    `5. plan_write → preflight → build_start → VERIFY (foydalanuvchi AE'da ko'radi) → verify_approve (render faqat foydalanuvchi so'rasa) → report_get.`,
   ];
   return { description: "AE Studio: dublyaj", messages: [text(steps.join("\n"))] };
 }
@@ -107,8 +107,8 @@ export function fromTemplatePrompt(args: Record<string, string>): GetPromptResul
     `1. env_check → loyiha (project_list yoki project_create) → assets_scan → assets_list. Media slotlariga faqat status=ok asset:<key> qo'y.`,
     `2. template_get: majburiy slotlar (required), max_chars, davomiylik oralig'i. Matnlarni chegaraga sig'dir, qisqa va o'qiladigan qil.`,
     `3. template_apply (mode "new" — yangi video; "append" — mavjud planga sahna qo'shish). Bir nechta shablonli sahna bo'lsa har biri uchun template_apply (append). Ovoz/musiqa kerak bo'lsa plan_patch bilan audio qo'sh (/new-reel dagi kabi).`,
-    `4. preflight (ready=true bo'lguncha tuzat) → build_start → job_status → VERIFY'da contact_sheet: matn sig'ishi, kesilish, kontrast. Muammo bo'lsa verify_patch (slot matnini qisqartirish, dur), aks holda verify_approve.`,
-    `5. Render tugagach report_get: MP4 yo'lini ko'rsat. Ko'p variant (masalan CSV'dan) kerak bo'lsa batch_start ni taklif qil.`,
+    `4. preflight (ready=true bo'lguncha tuzat) → build_start → job_status → VERIFY: foydalanuvchi AE timeline'ida ko'radi (matn sig'ishi, kesilish, kontrast). Tuzatish bo'lsa verify_patch (slot matnini qisqartirish, dur), aks holda verify_approve (render'siz).`,
+    `5. Render faqat foydalanuvchi so'rasa (render_start, user_confirmed: true). Ko'p variant (masalan CSV'dan) kerak bo'lsa batch_start ni taklif qil — u renderlaydi, shuning uchun avval ruxsat so'ra.`,
     ``,
     `Yaxshi chiqqan sahnani keyin qayta ishlatish uchun template_save taklif qil. Foydalanuvchi bilan uning tilida (odatda o'zbekcha) gaplash.`,
   ].filter((line, i, all) => !(line === "" && all[i - 1] === ""));

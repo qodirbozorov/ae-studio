@@ -141,7 +141,7 @@ export async function runReelScenario(options: {
   // 5. Approve → RENDER → REPORT
   const final = await mcp.call("preflight", { project_id: projectId });
   process.env.AES_FAKE_RENDER_S = String(final.result.data.duration_s);
-  await mcp.call("verify_approve", { job_id: jobId });
+  await mcp.call("verify_approve", { job_id: jobId, render: true, user_confirmed: true });
   status = await poll(mcp, jobId, (s) => ["DONE", "BLOCKED"].includes(s), timeout);
   expect(status.result.data, JSON.stringify(status.result.data.error)).toMatchObject({
     state: "DONE",

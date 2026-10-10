@@ -12,7 +12,7 @@ export const batchTools = [
     name: "batch_start",
     title: "Start batch",
     description:
-      "Template + CSV → one video per row. The CSV header names columns; by default a column whose name equals a slot fills that slot (or pass mapping {column: slot}); an optional 'name' column sets the output file name. All rows are validated first (SPEC_INVALID lists bad rows); then jobs run one after another without VERIFY (auto-approved), each with its own render. Poll batch_status.",
+      "Template + CSV → one video per row. The CSV header names columns; by default a column whose name equals a slot fills that slot (or pass mapping {column: slot}); an optional 'name' column sets the output file name. All rows are validated first (SPEC_INVALID lists bad rows); then jobs run one after another without VERIFY (auto-approved), each with its own render — heavy for the user's computer, so start it only after the user explicitly agreed (user_confirmed: true). Poll batch_status.",
     input: z.object({
       project_id: uuidArg("project_id"),
       template: slugSchema,
@@ -24,6 +24,9 @@ export const batchTools = [
       variants: z.array(z.enum(ASPECTS)).max(3).optional(),
       dur: z.number().positive().max(3600).optional(),
       brand: slugSchema.optional(),
+      user_confirmed: z
+        .boolean()
+        .describe("true only if the user explicitly agreed to render all rows"),
     }),
     annotations: {
       readOnlyHint: false,
@@ -32,6 +35,12 @@ export const batchTools = [
       openWorldHint: false,
     },
     async handler(ctx, input) {
+      if (!input.user_confirmed) {
+        return fail(
+          "RENDER_NOT_CONFIRMED",
+          "Batch har qatorni renderlaydi: avval foydalanuvchi ruxsati (user_confirmed: true)",
+        );
+      }
       const project = await ownProject(ctx, input.project_id);
       if (!project.ok) return project;
       const started = await ctx.app.batches.start(ctx.userId, {

@@ -42,6 +42,11 @@ export function buildReport(input: ReportInput): string {
       `- Video: \`${render.path}\` (${render.duration_s.toFixed(2)} s, ${(render.size_bytes / 1048576).toFixed(1)} MB, ${render.preset})`,
     );
   }
+  if (input.renders.length === 0 && input.outcome === "success" && input.aepPath !== null) {
+    lines.push(
+      "- Render: qilinmagan — natijani AE timeline'ida ko'ring; MP4 kerak bo'lsa render faqat foydalanuvchi ruxsati bilan (render_start).",
+    );
+  }
   lines.push(`- Oplar: ${input.ops.done}/${input.ops.total} bajarildi`);
   if (input.ops.failed > 0) lines.push(`- Xato bergan oplar: ${input.ops.failed}`);
   if (input.patchCount > 0) lines.push(`- Patch'lar: ${input.patchCount}`);

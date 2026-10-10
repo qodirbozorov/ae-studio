@@ -22,6 +22,8 @@ export type RunnerEvent =
   | {
       type: "op.failed";
       op: OpEnvelope | null;
+      /** Op sxemadan o'tmaganda (op null) — xom kirishdagi op_id: server timeout kutmasin. */
+      op_id?: string;
       job_id?: string;
       error: AesError;
       duration_ms: number;
@@ -77,16 +79,30 @@ export function createOpRunner(options: {
     for (const listener of listeners) listener(event);
   };
 
-  function failed(op: OpEnvelope | null, error: AesError, started: number, jobId?: string) {
+  function failed(
+    op: OpEnvelope | null,
+    error: AesError,
+    started: number,
+    jobId?: string,
+    rawOpId?: string,
+  ) {
     const duration = now() - started;
+    const opId = op?.op_id ?? rawOpId;
     log.add({
       level: "error",
       message: `❌ ${op?.op ?? "op"} — ${error.code}${error.message ? ": " + error.message : ""}`,
-      op_id: op?.op_id,
+      op_id: opId,
       job_id: jobId,
       data: error,
     });
-    emit({ type: "op.failed", op, job_id: jobId, error, duration_ms: duration });
+    emit({
+      type: "op.failed",
+      op,
+      ...(opId === undefined ? {} : { op_id: opId }),
+      job_id: jobId,
+      error,
+      duration_ms: duration,
+    });
     return { op, response: failWith(error), duration_ms: duration };
   }
 
@@ -106,7 +122,16 @@ export function createOpRunner(options: {
   async function execute(input: unknown, jobId?: string): Promise<OpOutcome> {
     const started = now();
     const parsed = parseOpEnvelope(input);
-    if (!parsed.ok) return failed(null, parsed.error, started, jobId);
+    if (!parsed.ok) {
+      const rawId = (input as { op_id?: unknown } | null)?.op_id;
+      return failed(
+        null,
+        parsed.error,
+        started,
+        jobId,
+        typeof rawId === "string" ? rawId : undefined,
+      );
+    }
     const op = parsed.data;
 
     const pathError = checkPaths(op);

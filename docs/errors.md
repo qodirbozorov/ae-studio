@@ -67,6 +67,7 @@ ixtiyoriy `message` va `details`. Job BLOCKED bo'lsa sabab tuzatilgach `job_resu
 
 | Kod | Qayta urinish | Nima qilish kerak |
 |---|---|---|
+| `RENDER_NOT_CONFIRMED` | yo'q | Render foydalanuvchi kompyuterini band qiladi: avval foydalanuvchi natijani AE timeline'ida ko'rsin; render faqat u aniq so'rasa (user_confirmed: true). |
 | `RENDER_FAILED` | ha | Render muvaffaqiyatsiz. Qayta urinib ko'riladi; takrorlansa render logini tekshiring. |
 | `RENDER_DURATION_MISMATCH` | ha | Render davomiyligi Spec'ga mos emas. Qayta render qilinadi. |
 

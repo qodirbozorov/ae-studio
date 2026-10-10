@@ -159,7 +159,7 @@ describe("Telegram", () => {
   it("render tugadi → xabar (fayl yo'li); BLOCKED → xabar", async () => {
     await link();
     const id = await runJob();
-    await s.call("verify_approve", { job_id: id });
+    await s.call("verify_approve", { job_id: id, render: true, user_confirmed: true });
     await t.app.jobs.idle();
     await t.app.telegram.idle();
     await t.app.jobs.idle();
@@ -173,7 +173,7 @@ describe("Telegram", () => {
 
     agent.onRender = () => makeError("RENDER_FAILED", "disk to'la");
     const second = await runJob();
-    await s.call("verify_approve", { job_id: second });
+    await s.call("verify_approve", { job_id: second, render: true, user_confirmed: true });
     await t.app.jobs.idle();
     await t.app.telegram.idle();
     const blocked = tg.sent.filter((m) => m.text.startsWith("⚠️"));
@@ -185,6 +185,7 @@ describe("Telegram", () => {
     await link();
     const started = await s.call("batch_start", {
       project_id: projectId,
+      user_confirmed: true,
       template: "top3_list",
       csv: "name,title,item1,item2,item3\nA,Sarlavha,a,b,c\nB,Sarlavha,d,e,f",
     });

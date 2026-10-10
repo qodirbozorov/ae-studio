@@ -121,6 +121,10 @@ export const ERROR_DEFS = {
     retryable: true,
     hint: "AE'da ochiq loyihada saqlanmagan o'zgarishlar bor. Uni saqlang (yoki job avtomatik _autosave nusxasini yaratsin) va qayta urining.",
   },
+  RENDER_NOT_CONFIRMED: {
+    retryable: false,
+    hint: "Render foydalanuvchi kompyuterini band qiladi: avval foydalanuvchi natijani AE timeline'ida ko'rsin; render faqat u aniq so'rasa (user_confirmed: true).",
+  },
   FX_UNKNOWN: {
     retryable: false,
     hint: "Effekt AE'da topilmadi (plagin o'rnatilmaganmi?). ae_effects bilan o'rnatilgan effektlar va matchName'ni tekshiring.",

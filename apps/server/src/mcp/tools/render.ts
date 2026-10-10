@@ -1,8 +1,8 @@
 /**
  * RENDER toollari (§8): render_presets, render_start (yakunlangan job'ni qayta render, masalan boshqa preset bilan).
- * Odatiy oqimda render verify_approve'dan keyin job ichida avtomatik bo'ladi.
+ * Render faqat foydalanuvchi aniq so'raganda (user_confirmed) — u foydalanuvchi kompyuterini band qiladi.
  */
-import { OUTPUT_PRESETS, RENDER_PRESETS, ok } from "@aes/shared";
+import { fail, OUTPUT_PRESETS, RENDER_PRESETS, ok } from "@aes/shared";
 import { z } from "zod";
 import { defineTool } from "../registry";
 import { jobView, ownJob } from "./build";
@@ -25,10 +25,13 @@ export const renderTools = [
     name: "render_start",
     title: "Render again",
     description:
-      "Renders an already finished (DONE) job again, optionally with another preset. Runs in the background: poll job_status (renders[]). Never overwrites: a new file name is chosen if needed. During VERIFY use verify_approve instead — it renders automatically.",
+      "Renders a finished (DONE) job to MP4 (aerender on the user's computer — heavy, the computer stays busy). Call it ONLY when the user explicitly asked to render in this conversation and pass user_confirmed: true; otherwise the user reviews the result in the After Effects timeline. Runs in the background: poll job_status (renders[]). Never overwrites: a new file name is chosen if needed.",
     input: z.object({
       job_id: uuidArg("job_id"),
       preset: z.enum(OUTPUT_PRESETS).optional(),
+      user_confirmed: z
+        .boolean()
+        .describe("true only if the user explicitly asked to render in this conversation"),
     }),
     annotations: {
       readOnlyHint: false,
@@ -37,6 +40,12 @@ export const renderTools = [
       openWorldHint: false,
     },
     async handler(ctx, input) {
+      if (!input.user_confirmed) {
+        return fail(
+          "RENDER_NOT_CONFIRMED",
+          "Render faqat foydalanuvchi aniq ruxsat berganda (user_confirmed: true)",
+        );
+      }
       const job = await ownJob(ctx, input.job_id);
       if (!job.ok) return job;
       const started = await ctx.engine.renderAgain(job.data.id, input.preset);

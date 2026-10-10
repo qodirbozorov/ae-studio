@@ -133,7 +133,7 @@ async function build(mcp: McpSession, projectId: string, spec: unknown) {
 async function approveAndRender(mcp: McpSession, projectId: string, jobId: string) {
   const timed = await mcp.call("preflight", { project_id: projectId });
   process.env.AES_FAKE_RENDER_S = String(timed.result.data.duration_s);
-  await mcp.call("verify_approve", { job_id: jobId });
+  await mcp.call("verify_approve", { job_id: jobId, render: true, user_confirmed: true });
   const done = await eventually(
     () => mcp.call("job_status", { job_id: jobId }),
     (res) => ["DONE", "BLOCKED"].includes(res.result.data.state),

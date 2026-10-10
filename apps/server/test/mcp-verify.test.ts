@@ -176,14 +176,31 @@ describe("contact_sheet (P6.02)", () => {
 });
 
 describe("verify_approve / verify_patch", () => {
-  it("approve → RENDER → REPORT → DONE", async () => {
+  it("sukut: approve render'siz → DONE; ruxsatsiz render rad etiladi", async () => {
     const id = await verifyJob();
-    const res = await s.call("verify_approve", { job_id: id });
+    expect((await s.call("verify_approve", { job_id: id, render: true })).result.error.code).toBe(
+      "RENDER_NOT_CONFIRMED",
+    );
+    expect((await s.call("verify_approve", { job_id: id })).result.ok).toBe(true);
+    expect(await state(id)).toMatchObject({ state: "DONE", outcome: "success" });
+    // Panelga render so'rovi yuborilmagan; hisobot AE timeline'iga yo'naltiradi.
+    expect(agent.ofType("render.request")).toHaveLength(0);
+    const report = await s.call("report_get", { job_id: id });
+    expect(JSON.stringify(report.result.data)).toContain("Render: qilinmagan");
+    expect(
+      (await s.call("render_start", { job_id: id, user_confirmed: false })).result.error.code,
+    ).toBe("RENDER_NOT_CONFIRMED");
+  });
+
+  it("approve (render: true, user_confirmed) → RENDER → REPORT → DONE", async () => {
+    const id = await verifyJob();
+    const res = await s.call("verify_approve", { job_id: id, render: true, user_confirmed: true });
     expect(res.result.ok).toBe(true);
     expect(await state(id)).toMatchObject({ state: "DONE", outcome: "success" });
-    expect((await s.call("verify_approve", { job_id: id })).result.error.code).toBe(
-      "JOB_BAD_ACTION",
-    );
+    expect(
+      (await s.call("verify_approve", { job_id: id, render: true, user_confirmed: true })).result
+        .error.code,
+    ).toBe("JOB_BAD_ACTION");
   });
 
   it("3 ta patch o'tadi (har biri yangi .aep), 4-chisi LOOP_PATCH_LIMIT", async () => {

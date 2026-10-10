@@ -13,7 +13,8 @@ import type {
 import { resolveInRoot } from "../lib/paths";
 import { effectParam, paramNames, toAeValue } from "../lib/props";
 import { hasLayerTag, requireLayer, stampLayer } from "../lib/trace";
-import { isArray, raise } from "../lib/util";
+import { plainValue } from "../lib/runtime";
+import { raise } from "../lib/util";
 
 function layerResult(opId: string, layer: Layer, reused: boolean): OpResultData {
   return { op_id: opId, reused: reused, target: { kind: "layer", name: layer.name } };
@@ -136,10 +137,8 @@ export function fxParams(p: FxParamsParams, opId: string): OpResultData {
       };
       if (type !== "group" && type !== "custom") {
         try {
-          const value = prop.value as unknown;
-          if (typeof value === "number" || typeof value === "boolean" || isArray(value)) {
-            entry.value = value;
-          }
+          const value = plainValue(prop.value as unknown);
+          if (value !== undefined) entry.value = value;
           if (prop.hasMin) entry.min = prop.minValue;
           if (prop.hasMax) entry.max = prop.maxValue;
         } catch (_e) {

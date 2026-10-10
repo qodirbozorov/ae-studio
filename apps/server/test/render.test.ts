@@ -85,7 +85,7 @@ describe("durationMatches (±1 kadr)", () => {
 describe("RENDER holati", () => {
   it("approve → render.request (to'g'ri parametrlar) → renders done → hisobotda video", async () => {
     const id = await toVerify();
-    await s.call("verify_approve", { job_id: id });
+    await s.call("verify_approve", { job_id: id, render: true, user_confirmed: true });
     const done = await status(id);
     expect(done).toMatchObject({ state: "DONE", outcome: "success" });
     const request = agent.ofType("render.request")[0]!;
@@ -118,7 +118,7 @@ describe("RENDER holati", () => {
       }
       return "ok";
     };
-    await s.call("verify_approve", { job_id: id });
+    await s.call("verify_approve", { job_id: id, render: true, user_confirmed: true });
     const blocked = await status(id);
     expect(blocked).toMatchObject({
       state: "BLOCKED",
@@ -137,7 +137,7 @@ describe("RENDER holati", () => {
   it("panel render xatosi → BLOCKED RENDER_FAILED", async () => {
     const id = await toVerify();
     agent.onRender = () => makeError("RENDER_FAILED", "aerender kodi 1");
-    await s.call("verify_approve", { job_id: id });
+    await s.call("verify_approve", { job_id: id, render: true, user_confirmed: true });
     expect((await status(id)).error.code).toBe("RENDER_FAILED");
   });
 
@@ -147,7 +147,7 @@ describe("RENDER holati", () => {
       agent.disconnect();
       return "drop";
     };
-    await s.call("verify_approve", { job_id: id });
+    await s.call("verify_approve", { job_id: id, render: true, user_confirmed: true });
     expect(await status(id)).toMatchObject({ state: "WAITING_AGENT", prev_state: "RENDER" });
     agent.onRender = () => "ok";
     agent.connect();
@@ -170,19 +170,25 @@ describe("MCP render_presets / render_start", () => {
     ]);
 
     const id = await toVerify();
-    expect((await s.call("render_start", { job_id: id })).result.error.code).toBe("JOB_BAD_ACTION");
-    await s.call("verify_approve", { job_id: id });
+    expect(
+      (await s.call("render_start", { job_id: id, user_confirmed: true })).result.error.code,
+    ).toBe("JOB_BAD_ACTION");
+    await s.call("verify_approve", { job_id: id, render: true, user_confirmed: true });
     await status(id);
-    const again = await s.call("render_start", { job_id: id, preset: "h264_hq" });
+    const again = await s.call("render_start", {
+      job_id: id,
+      preset: "h264_hq",
+      user_confirmed: true,
+    });
     expect(again.result).toMatchObject({ ok: true, data: { started: true } });
     const done = await status(id);
     expect(
       done.renders.map((r: { preset: string; status: string }) => `${r.preset}:${r.status}`).sort(),
     ).toEqual(["h264_hq:done", "h264_social:done"]);
     agent.disconnect();
-    expect((await s.call("render_start", { job_id: id })).result.error.code).toBe(
-      "ENV_AGENT_OFFLINE",
-    );
+    expect(
+      (await s.call("render_start", { job_id: id, user_confirmed: true })).result.error.code,
+    ).toBe("ENV_AGENT_OFFLINE");
   });
 });
 
@@ -206,7 +212,7 @@ describe("format variantlari (P5.05)", () => {
         .details.variants,
     ).toEqual(["1:1", "16:9"]);
 
-    await s.call("verify_approve", { job_id: id });
+    await s.call("verify_approve", { job_id: id, render: true, user_confirmed: true });
     expect(await status(id)).toMatchObject({ state: "DONE", outcome: "success" });
     expect(requests).toEqual([
       { comp: "aes.main", out: "out/reel_v1_v001" },
@@ -223,7 +229,9 @@ describe("format variantlari (P5.05)", () => {
     );
 
     requests.length = 0;
-    expect((await s.call("render_start", { job_id: id })).result.ok).toBe(true);
+    expect((await s.call("render_start", { job_id: id, user_confirmed: true })).result.ok).toBe(
+      true,
+    );
     await t.app.jobs.idle();
     expect(requests.map((r) => r.comp)).toEqual(["aes.main", "aes.main.1x1", "aes.main.16x9"]);
   });
@@ -242,7 +250,7 @@ describe("format variantlari (P5.05)", () => {
         ? makeError("RENDER_FAILED", "disk to'la")
         : "ok";
     };
-    await s.call("verify_approve", { job_id: id });
+    await s.call("verify_approve", { job_id: id, render: true, user_confirmed: true });
     expect(await status(id)).toMatchObject({ state: "BLOCKED", error: { code: "RENDER_FAILED" } });
     await s.call("job_resume", { job_id: id });
     expect(await status(id)).toMatchObject({ state: "DONE", outcome: "success" });

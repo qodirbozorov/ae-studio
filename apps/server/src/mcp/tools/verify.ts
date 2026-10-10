@@ -68,6 +68,9 @@ async function captureFrames(
   if (!project.ok) return project;
   const deviceId = requireOnline(ctx, project.data);
   if (!deviceId.ok) return deviceId;
+  // Panel qayta ulangan bo'lsa papka hali tiklanmagan bo'lishi mumkin (ENV_NO_FOLDER o'rniga ochamiz).
+  const folder = await ctx.engine.prepareFolder(job.data);
+  if (!folder.ok) return folder;
 
   let comp = MAIN_COMP;
   if (input.variant !== undefined) {
@@ -285,8 +288,18 @@ export const verifyTools = [
     name: "verify_approve",
     title: "Approve result",
     description:
-      "Approves the built video after checking its frames. The job continues to RENDER and REPORT; poll job_status, then report_get.",
-    input: z.object({ job_id: uuidArg("job_id") }),
+      "Approves the build once the user is satisfied with it in the After Effects timeline. By default it does NOT render: the job finishes (REPORT → DONE) and the .aep stays in the user's AE. Rendering is heavy for the user's computer — pass render: true only if the user explicitly asked to render in this conversation, together with user_confirmed: true.",
+    input: z.object({
+      job_id: uuidArg("job_id"),
+      render: z
+        .boolean()
+        .default(false)
+        .describe("Render after approval (only when the user explicitly asked)"),
+      user_confirmed: z
+        .boolean()
+        .default(false)
+        .describe("The user explicitly allowed rendering in this conversation"),
+    }),
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -296,7 +309,13 @@ export const verifyTools = [
     async handler(ctx, input) {
       const job = await ownJob(ctx, input.job_id);
       if (!job.ok) return job;
-      const res = await ctx.engine.act(job.data.id, "approve");
+      if (input.render && !input.user_confirmed) {
+        return fail(
+          "RENDER_NOT_CONFIRMED",
+          "Render faqat foydalanuvchi aniq ruxsat berganda (user_confirmed: true)",
+        );
+      }
+      const res = await ctx.engine.act(job.data.id, "approve", { render: input.render });
       if (!res.ok) return res;
       return ok(await jobView(ctx, res.data, 5));
     },

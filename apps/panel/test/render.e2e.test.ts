@@ -70,7 +70,7 @@ async function buildAndApprove(mcp: McpSession, projectId: string) {
     60_000,
   );
   expect(verify.result.data.error).toBeNull();
-  await mcp.call("verify_approve", { job_id: jobId });
+  await mcp.call("verify_approve", { job_id: jobId, render: true, user_confirmed: true });
   const done = await eventually(
     () => mcp.call("job_status", { job_id: jobId }),
     (res) => ["DONE", "BLOCKED"].includes(res.result.data.state),
@@ -123,7 +123,7 @@ describe.skipIf(!FFMPEG_AVAILABLE)("RENDER e2e", () => {
     expect(readdirSync(join(root, "out"))).toEqual(["promo_v001.mp4"]);
 
     // Qayta render: ustiga yozilmaydi → promo_v001_2.mp4
-    await mcp.call("render_start", { job_id: jobId, preset: "h264_hq" });
+    await mcp.call("render_start", { job_id: jobId, preset: "h264_hq", user_confirmed: true });
     const again = await eventually(
       () => mcp.call("job_status", { job_id: jobId }),
       (res) => res.result.data.renders.every((r: { status: string }) => r.status !== "running"),

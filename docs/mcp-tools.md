@@ -432,11 +432,13 @@ One grid image of the built video for VERIFY: each cell is a frame with its time
 
 ### `verify_approve` — Approve result
 
-Approves the built video after checking its frames. The job continues to RENDER and REPORT; poll job_status, then report_get.
+Approves the build once the user is satisfied with it in the After Effects timeline. By default it does NOT render: the job finishes (REPORT → DONE) and the .aep stays in the user's AE. Rendering is heavy for the user's computer — pass render: true only if the user explicitly asked to render in this conversation, together with user_confirmed: true.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
 | `job_id` | uuid | ha |  |
+| `render` | boolean |  | Render after approval (only when the user explicitly asked) · default `false` |
+| `user_confirmed` | boolean |  | The user explicitly allowed rendering in this conversation · default `false` |
 
 ### `verify_patch` — Patch and rebuild
 
@@ -494,12 +496,13 @@ Parametrsiz.
 
 ### `render_start` — Render again
 
-Renders an already finished (DONE) job again, optionally with another preset. Runs in the background: poll job_status (renders[]). Never overwrites: a new file name is chosen if needed. During VERIFY use verify_approve instead — it renders automatically.
+Renders a finished (DONE) job to MP4 (aerender on the user's computer — heavy, the computer stays busy). Call it ONLY when the user explicitly asked to render in this conversation and pass user_confirmed: true; otherwise the user reviews the result in the After Effects timeline. Runs in the background: poll job_status (renders[]). Never overwrites: a new file name is chosen if needed.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
 | `job_id` | uuid | ha |  |
 | `preset` | `h264_social` \\| `h264_hq` |  |  |
+| `user_confirmed` | boolean | ha | true only if the user explicitly asked to render in this conversation |
 
 ## Shablonlar
 
@@ -573,7 +576,7 @@ Creates or updates a brand kit by slug. Applied by the compiler: default text fo
 
 ### `batch_start` — Start batch
 
-Template + CSV → one video per row. The CSV header names columns; by default a column whose name equals a slot fills that slot (or pass mapping {column: slot}); an optional 'name' column sets the output file name. All rows are validated first (SPEC_INVALID lists bad rows); then jobs run one after another without VERIFY (auto-approved), each with its own render. Poll batch_status.
+Template + CSV → one video per row. The CSV header names columns; by default a column whose name equals a slot fills that slot (or pass mapping {column: slot}); an optional 'name' column sets the output file name. All rows are validated first (SPEC_INVALID lists bad rows); then jobs run one after another without VERIFY (auto-approved), each with its own render — heavy for the user's computer, so start it only after the user explicitly agreed (user_confirmed: true). Poll batch_status.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
@@ -585,6 +588,7 @@ Template + CSV → one video per row. The CSV header names columns; by default a
 | `variants` | `9:16` \\| `1:1` \\| `16:9`[] |  |  |
 | `dur` | number |  | ≤ 3600 |
 | `brand` | string |  |  |
+| `user_confirmed` | boolean | ha | true only if the user explicitly agreed to render all rows |
 
 ### `batch_status` — Batch status · faqat o'qish
 

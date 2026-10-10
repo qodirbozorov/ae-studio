@@ -284,6 +284,11 @@ export class AgentHub {
       default:
         break;
     }
+    // Panel papkani ochdi (`project.open` javobi): holat darhol yangilanadi — keyingi bosqichlar
+    // papkani qayta ochishni so'ramasin.
+    if (message.type === "project.opened") {
+      connection.state = { ...connection.state, projectRoot: message.project.root_path };
+    }
     if ("request_id" in message && message.request_id !== undefined) {
       const pending = this.requests.get(message.request_id);
       if (pending !== undefined && pending.deviceId === connection.identity.deviceId) {

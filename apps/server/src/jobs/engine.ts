@@ -326,7 +326,8 @@ export class JobEngine {
   async act(
     jobId: string,
     action: JobAction,
-    input: { spec?: unknown } = {},
+    /** `render: false` — tasdiq render'siz (Claude: foydalanuvchi ruxsatisiz render yo'q). */
+    input: { spec?: unknown; render?: boolean } = {},
   ): Promise<Result<JobRow>> {
     const job = await this.get(jobId);
     if (job === null) return fail("SYS_NOT_FOUND", "Job topilmadi");
@@ -351,11 +352,26 @@ export class JobEngine {
         return ok(job);
       case "patch":
         return this.patch(job, input.spec);
-      case "approve":
-        updated = await this.transition(job, { state: "RENDER", prevState: null });
-        if (updated !== null)
-          await this.event(job, "info", "verify.approved", "VERIFY tasdiqlandi");
+      case "approve": {
+        // Render og'ir (AE band, ping'lar kechikadi): faqat aniq so'ralganda. Aks holda natija
+        // foydalanuvchining AE timeline'ida qoladi, job REPORT → DONE.
+        const render = input.render !== false;
+        updated = await this.transition(job, {
+          state: render ? "RENDER" : "REPORT",
+          prevState: null,
+        });
+        if (updated !== null) {
+          await this.event(
+            job,
+            "info",
+            "verify.approved",
+            render
+              ? "VERIFY tasdiqlandi"
+              : "VERIFY tasdiqlandi (render'siz: natija AE timeline'ida; render faqat foydalanuvchi ruxsati bilan)",
+          );
+        }
         break;
+      }
       case "cancel":
         updated = await this.transition(job, {
           state: "REPORT",
@@ -702,6 +718,61 @@ export class JobEngine {
 
   // ------------------------------------------------------------------ handlerlar
 
+  /**
+   * #6: panelda job loyihasining papkasi ochiqmi; bo'lmasa (AE/panel qayta ochilgan, boshqa papka) uni
+   * `project.open` bilan ochadi. CHECK, BUILD, RENDER va VERIFY kadrlaridan oldin — panel qayta ulanganda
+   * papkani o'zi ham tiklaydi, server kutmasdan op yuborsa ENV_NO_FOLDER bo'lardi. null — tayyor.
+   */
+  private async ensureFolder(job: JobRow, stage: string): Promise<Step | null> {
+    const project = await this.project(job.projectId);
+    if (project === null) {
+      return { kind: "block", error: makeError("SYS_NOT_FOUND", "Loyiha yo'q") };
+    }
+    if (job.deviceId === null) {
+      return { kind: "block", error: makeError("AUTH_DEVICE_REVOKED", "Qurilma bekor qilingan") };
+    }
+    const agent = this.ctx.hub.state(job.deviceId);
+    if (agent === null) return { kind: "wait_agent", reason: `${stage}: panel ulanmagan` };
+    const root = agent.projectRoot === null ? null : normalizeRootPath(agent.projectRoot);
+    if (root === project.rootPath) return null;
+    const reopened = await this.ctx.hub.request(
+      job.deviceId,
+      { type: "project.open", request_id: randomUUID(), root_path: project.rootPath },
+      PROJECT_OPEN_TIMEOUT_MS,
+    );
+    if (!reopened.ok && reopened.error.code === "ENV_AGENT_OFFLINE") {
+      return { kind: "wait_agent", reason: `${stage}: panel uzildi (papka tiklash)` };
+    }
+    if (!reopened.ok || reopened.data.type !== "project.opened") {
+      return {
+        kind: "block",
+        error: makeError(
+          "ENV_NO_FOLDER",
+          `Panelda ${root === null ? "papka ochilmagan" : `boshqa papka ochiq: ${root}`}; kerak: ${project.rootPath}` +
+            (reopened.ok
+              ? ""
+              : ` (avtomatik ochilmadi: ${reopened.error.message ?? reopened.error.code})`),
+        ),
+      };
+    }
+    await this.event(
+      job,
+      "info",
+      "check.folder_restored",
+      `Ish papkasi avtomatik ochildi: ${project.rootPath}`,
+      { data: { previous: root, root: project.rootPath, stage } },
+    );
+    return null;
+  }
+
+  /** VERIFY vositalari uchun: papka ochiq bo'lmasa ochadi (`ensureFolder`). */
+  async prepareFolder(job: JobRow): Promise<Result<void>> {
+    const step = await this.ensureFolder(job, "VERIFY");
+    if (step === null) return ok(undefined);
+    if (step.kind === "block") return { ok: false, error: step.error };
+    return fail("ENV_AGENT_OFFLINE", "Panel ulanmagan");
+  }
+
   private async check(job: JobRow): Promise<Step> {
     const project = await this.project(job.projectId);
     if (project === null)
@@ -742,38 +813,8 @@ export class JobEngine {
         return { kind: "block", error: makeError("EL_QUOTA", "ElevenLabs kvotasi tugagan") };
       }
     }
-    const root = agent.projectRoot === null ? null : normalizeRootPath(agent.projectRoot);
-    if (root !== project.rootPath) {
-      // #6: panel papkani "unutgan" (AE qayta ochilgan) yoki boshqasi ochiq — job loyihasining papkasini
-      // avtomatik ochamiz; faqat bu ham bo'lmasa BLOCKED.
-      const reopened = await this.ctx.hub.request(
-        job.deviceId,
-        { type: "project.open", request_id: randomUUID(), root_path: project.rootPath },
-        PROJECT_OPEN_TIMEOUT_MS,
-      );
-      if (!reopened.ok && reopened.error.code === "ENV_AGENT_OFFLINE") {
-        return { kind: "wait_agent", reason: "CHECK: panel uzildi (papka tiklash)" };
-      }
-      if (!reopened.ok || reopened.data.type !== "project.opened") {
-        return {
-          kind: "block",
-          error: makeError(
-            "ENV_NO_FOLDER",
-            `Panelda ${root === null ? "papka ochilmagan" : `boshqa papka ochiq: ${root}`}; kerak: ${project.rootPath}` +
-              (reopened.ok
-                ? ""
-                : ` (avtomatik ochilmadi: ${reopened.error.message ?? reopened.error.code})`),
-          ),
-        };
-      }
-      await this.event(
-        job,
-        "info",
-        "check.folder_restored",
-        `Ish papkasi avtomatik ochildi: ${project.rootPath}`,
-        { data: { previous: root, root: project.rootPath } },
-      );
-    }
+    const folder = await this.ensureFolder(job, "CHECK");
+    if (folder !== null) return folder;
     const ping = await this.ctx.hub.run(
       job.deviceId,
       makeOp("ping", "check.ping", 0, {}, { timeout_ms: CHECK_PING_TIMEOUT_MS }),
@@ -790,6 +831,7 @@ export class JobEngine {
       return { kind: "block", error };
     }
     const info = ping.data.info ?? {};
+    const root = project.rootPath;
     await this.event(job, "info", "check.env", `AE ${String(info.ae_version ?? "?")} · ${root}`, {
       data: { ...info, project_root: root, server: "ok", panel: "online" },
     });
@@ -956,6 +998,8 @@ export class JobEngine {
     if (job.deviceId === null) {
       return { kind: "block", error: makeError("AUTH_DEVICE_REVOKED", "Qurilma bekor qilingan") };
     }
+    const folder = await this.ensureFolder(job, "BUILD");
+    if (folder !== null) return folder;
     const rows = await this.ctx.db
       .select()
       .from(ops)
@@ -1536,6 +1580,8 @@ export class JobEngine {
     if (!this.ctx.hub.isOnline(job.deviceId)) {
       return { kind: "wait_agent", reason: "RENDER: panel ulanmagan" };
     }
+    const folder = await this.ensureFolder(job, "RENDER");
+    if (folder !== null) return folder;
     // Asosiy format va har variant alohida render qilinadi (§11.4.1); bajarilganlari qayta qilinmaydi.
     const done = new Set(
       (await this.rendersOf(job.id))

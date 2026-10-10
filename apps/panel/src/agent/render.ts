@@ -166,6 +166,20 @@ export async function renderJob(
     // 1. AE → oraliq fayl
     const aerender = findAerender(deps.aerenderPath, deps.appPath);
     let method: RenderResult["method"];
+    const renderQueue = async () => {
+      const res = await deps.bridge.runOp(
+        makeOp(
+          "render.queue",
+          `render.rq.${id}`,
+          0,
+          { comp: message.comp.op_id, preset: message.preset, out: `${tmpRel}/render.mov` },
+          { timeout_ms: Math.min(3_600_000, renderTimeout) },
+        ),
+        { root: deps.root },
+      );
+      if (!res.ok) throw new RenderError(res.error);
+    };
+    let aerenderOutput = "";
     if (aerender !== null) {
       method = "aerender";
       deps.log.add({ level: "info", message: `🎬 aerender: ${message.comp.name}` });
@@ -178,27 +192,25 @@ export async function renderJob(
         path.join(tmp, "render.mov"),
       ];
       if (deps.omTemplate !== null) args.push("-OMtemplate", deps.omTemplate);
-      await runAerender(aerender, args, renderTimeout, deps.log);
+      aerenderOutput = await runAerender(aerender, args, renderTimeout, deps.log);
     } else {
       method = "render_queue";
       deps.log.add({
         level: "warn",
         message: "aerender topilmadi — AE Render Queue (UI band bo'ladi)",
       });
-      const res = await deps.bridge.runOp(
-        makeOp(
-          "render.queue",
-          `render.rq.${id}`,
-          0,
-          { comp: message.comp.op_id, preset: message.preset, out: `${tmpRel}/render.mov` },
-          { timeout_ms: Math.min(3_600_000, renderTimeout) },
-        ),
-        { root: deps.root },
-      );
-      if (!res.ok) throw new RenderError(res.error);
+      await renderQueue();
     }
     const intermediate = await largestFile(tmp);
-    if (intermediate === null) fail("AE render fayl yaratmadi");
+    // aerender 0 kodi bilan tugab, fayl yozmasligi mumkin (comp topilmadi, OM shabloni …): sababi
+    // xatoga qo'shiladi. Qayta render (AE Render Queue) avtomatik qilinmaydi — kompyuterni band qiladi.
+    const aerenderError = /^.*ERROR.*$/im.exec(aerenderOutput)?.[0]?.trim().slice(0, 300) ?? null;
+    if (intermediate === null) {
+      fail(
+        `AE render fayl yaratmadi${aerenderError === null ? "" : ` (aerender: ${aerenderError})`}`,
+        { aerender: aerenderOutput.slice(-1500) },
+      );
+    }
 
     // 2. ffmpeg → preset mp4 (ustiga yozmaslik: -n va noyob nom)
     const encoder = await pickEncoder(deps.bins);

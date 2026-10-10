@@ -151,7 +151,7 @@ describe.skipIf(!FFMPEG_AVAILABLE)("Faza 5 gate", () => {
     expect(frames.images.length).toBeGreaterThan(0);
 
     process.env.AES_FAKE_RENDER_S = "3";
-    await mcp.call("verify_approve", { job_id: jobId });
+    await mcp.call("verify_approve", { job_id: jobId, render: true, user_confirmed: true });
     const done = await untilState(mcp, jobId, ["DONE", "BLOCKED"]);
     expect(done).toMatchObject({ state: "DONE", outcome: "success" });
     for (const file of ["launch_v001.mp4", "launch_1x1_v001.mp4", "launch_16x9_v001.mp4"]) {
@@ -183,6 +183,7 @@ describe.skipIf(!FFMPEG_AVAILABLE)("Faza 5 gate", () => {
     ].join("\n");
     const started = await mcp.call("batch_start", {
       project_id: project.id,
+      user_confirmed: true,
       template: "top3_list",
       csv,
       format: "1:1",

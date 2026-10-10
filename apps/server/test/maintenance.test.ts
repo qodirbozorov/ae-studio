@@ -59,7 +59,7 @@ beforeEach(async () => {
   await s.call("plan_write", { project_id: project!.id, spec: THREE_SCENES });
   jobId = (await s.call("build_start", { project_id: project!.id })).result.data.id;
   await t.app.jobs.idle();
-  await s.call("verify_approve", { job_id: jobId });
+  await s.call("verify_approve", { job_id: jobId, render: true, user_confirmed: true });
   await t.app.jobs.idle();
   await t.app.jobs.idle();
   await t.app.inject({
