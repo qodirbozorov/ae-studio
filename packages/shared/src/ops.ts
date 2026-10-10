@@ -31,6 +31,7 @@ export const OP_NAMES = [
   "layer.add_solid",
   "layer.set",
   "layer.mask",
+  "jsx.run",
 ] as const;
 
 /** Tizim oplari: diagnostika uchun, Spec'dan chiqmaydi. */
@@ -41,6 +42,8 @@ export const SYSTEM_OP_NAMES = [
   "fx.catalog",
   "fx.params",
   "layer.inspect",
+  "presets.list",
+  "preset.inspect",
 ] as const;
 
 export type OpName = (typeof OP_NAMES)[number];
@@ -424,11 +427,35 @@ const propKeyframesParams = z.strictObject({
   spatial: z.enum(["linear", "auto"]).optional(),
 });
 
-const propExpressionParams = z.strictObject({
-  layer: refSchema,
-  prop: propPathSchema,
-  expr_id: slugSchema,
-  args: z.record(z.string().min(1).max(64), scalarSchema).optional(),
+const propExpressionParams = z
+  .strictObject({
+    layer: refSchema,
+    prop: propPathSchema,
+    expr_id: slugSchema.optional(),
+    args: z.record(z.string().min(1).max(64), scalarSchema).optional(),
+    code: z.string().min(1).max(5000).optional(),
+  })
+  .refine((p) => (p.expr_id === undefined) !== (p.code === undefined), {
+    error: "expr_id yoki code (bittasi)",
+    path: ["expr_id"],
+  });
+
+const jsxRunParams = z.strictObject({
+  code: z.string().min(1).max(50_000),
+  args: z.record(z.string().min(1).max(64), z.unknown()).optional(),
+  raw: z.boolean().optional(),
+  once: z.boolean().optional(),
+  label: z.string().max(128).optional(),
+});
+
+const presetsListParams = z.strictObject({
+  query: z.string().max(128).optional(),
+  limit: z.number().int().min(1).max(2000).optional(),
+});
+
+const presetInspectParams = z.strictObject({
+  name: z.string().min(1).max(256),
+  layer_type: z.enum(["text", "solid", "shape"]).optional(),
 });
 
 const fxApplyPresetParams = z.strictObject({
@@ -545,6 +572,9 @@ export const OP_PARAMS_SCHEMAS = {
   "fx.catalog": fxCatalogParams,
   "fx.params": fxParamsParams,
   "layer.inspect": layerInspectParams,
+  "jsx.run": jsxRunParams,
+  "presets.list": presetsListParams,
+  "preset.inspect": presetInspectParams,
 } as const;
 
 // ---------------------------------------------------------------- konvert
@@ -592,6 +622,9 @@ export const opEnvelopeSchema = z.discriminatedUnion(
     envelope("fx.catalog"),
     envelope("fx.params"),
     envelope("layer.inspect"),
+    envelope("jsx.run"),
+    envelope("presets.list"),
+    envelope("preset.inspect"),
   ],
   { error: "Noma'lum op. Ruxsat etilganlar: " + [...SYSTEM_OP_NAMES, ...OP_NAMES].join(", ") },
 );

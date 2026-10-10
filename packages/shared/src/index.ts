@@ -15,3 +15,4 @@ export * from "./paths";
 export * from "./easing";
 export * from "./pro";
 export * from "./icons";
+export * from "./scripts";

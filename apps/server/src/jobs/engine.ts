@@ -1135,11 +1135,29 @@ export class JobEngine {
     }) as OpEnvelope;
   }
 
-  private async opDone(row: OpRow, result: OpResultData): Promise<void> {
+  private async opDone(row: OpRow, result: OpResultData, job?: JobRow): Promise<void> {
     await this.ctx.db
       .update(ops)
       .set({ status: "done", result, finishedAt: this.ctx.now() })
       .where(eq(ops.id, row.id));
+    // Gibrid skript: natija (ok, result, error, line, ms) job log'iga; xato job'ni to'xtatmaydi.
+    if (job !== undefined && row.op === "jsx.run") {
+      const info = result.info ?? {};
+      const good = info.ok !== false;
+      const label = typeof info.label === "string" ? info.label : row.opId;
+      const detail = good
+        ? info.skipped === true
+          ? "avval bajarilgan"
+          : "ok"
+        : `${String(info.error ?? "xato")}${typeof info.line === "number" ? ` (qator ${info.line})` : ""}`;
+      await this.event(
+        job,
+        good ? "info" : "warn",
+        "script.result",
+        `${label}: ${detail}${typeof info.ms === "number" ? ` · ${info.ms} ms` : ""}`,
+        { opId: row.opId, data: info },
+      );
+    }
   }
 
   /** Op xatosi: `failed`, hodisa va BLOCKED (sabab bilan). */
@@ -1172,7 +1190,7 @@ export class JobEngine {
     await this.notify(job, sceneId);
     const result = await this.ctx.hub.run(deviceId, this.envelope(row, sceneId), job.id);
     if (result.ok) {
-      await this.opDone(row, result.data);
+      await this.opDone(row, result.data, job);
       await this.event(job, "debug", "op.done", `${row.op} ✓`, {
         opId: row.opId,
         data: { reused: result.data.reused },
@@ -1246,7 +1264,7 @@ export class JobEngine {
         await resetFrom(index + 1);
         return this.opFailed(job, row, item.error as AesError);
       }
-      await this.opDone(row, item.result);
+      await this.opDone(row, item.result, job);
       index++;
     }
     if (index < group.length) {

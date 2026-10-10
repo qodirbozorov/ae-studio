@@ -25,4 +25,5 @@ export { buildLook } from "./brand";
 export type { Look } from "./brand";
 export { textBox } from "./compile";
 export { FX_ALIASES, fxMatchName } from "./effects";
+export { EXPRESSION_LIB, SCRIPT_LIB, expandExpression, scriptParams } from "./scripts";
 export { parseSvgPath } from "./svg";

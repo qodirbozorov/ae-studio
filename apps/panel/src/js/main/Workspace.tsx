@@ -120,6 +120,18 @@ export function Settings({
           <option value="warn">warn</option>
           <option value="error">error</option>
         </select>
+        <label className="hint" htmlFor="raw-scripts">
+          Xom skriptlar (Claude yozgan kod)
+        </label>
+        <select
+          id="raw-scripts"
+          value={settings.raw_scripts}
+          onChange={(e) => update({ raw_scripts: e.target.value as PanelSettings["raw_scripts"] })}
+        >
+          <option value="ask">Har safar so'ra</option>
+          <option value="allow">So'ramasdan bajar</option>
+          <option value="off">O'chiq</option>
+        </select>
       </div>
     </section>
   );

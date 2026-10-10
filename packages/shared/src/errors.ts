@@ -125,6 +125,14 @@ export const ERROR_DEFS = {
     retryable: false,
     hint: "Render foydalanuvchi kompyuterini band qiladi: avval foydalanuvchi natijani AE timeline'ida ko'rsin; render faqat u aniq so'rasa (user_confirmed: true).",
   },
+  SCRIPT_DENIED: {
+    retryable: false,
+    hint: "Xom skript panel sozlamasi bilan rad etildi (Sozlamalar → Xom skriptlar). Kutubxona snippetini ishlating yoki foydalanuvchidan ruxsat so'rang.",
+  },
+  SCRIPT_UNSAFE: {
+    retryable: false,
+    hint: "Skriptda taqiqlangan chaqiruv bor (fayl o'chirish, tizim buyrug'i, loyihani yopish). Kodni o'zgartiring yoki kutubxona snippetini ishlating.",
+  },
   FX_UNKNOWN: {
     retryable: false,
     hint: "Effekt AE'da topilmadi (plagin o'rnatilmaganmi?). ae_effects bilan o'rnatilgan effektlar va matchName'ni tekshiring.",

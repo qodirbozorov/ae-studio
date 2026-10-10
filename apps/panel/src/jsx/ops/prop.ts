@@ -120,7 +120,10 @@ export function propExpression(p: PropExpressionParams, opId: string): OpResultD
   const prop = resolveProperty(layer, p.prop);
   if (!prop.canSetExpression)
     return raise("AE_BAD_PARAMS", "Bu property'ga expression qo'yib bo'lmaydi");
-  prop.expression = buildExpression(p.expr_id, p.args);
+  prop.expression = p.code !== undefined ? p.code : buildExpression(p.expr_id as string, p.args);
+  if (p.code !== undefined && prop.expressionError) {
+    return raise("AE_BAD_PARAMS", "Expression xatosi (" + p.prop + "): " + prop.expressionError);
+  }
   stampLayer(layer, opId);
   result.reused = false;
   return result;

@@ -5,7 +5,7 @@
 Javob formati: `{ ok: true, data } | { ok: false, error: { code, retryable, hint, message?, details? } }`.
 Xato kodlari: [errors.md](errors.md).
 
-Jami: **59** tool, **4** prompt.
+Jami: **63** tool, **4** prompt.
 
 ## Muhit
 
@@ -452,6 +452,46 @@ Fixes the video during VERIFY (or a BLOCKED job): give either a full corrected s
 | `reason` | string |  | What was wrong (goes to the job log) · ≤ 500 belgi |
 
 ## Effektlar va AE tekshiruvi
+
+### `ae_run_jsx` — Run script in AE
+
+Runs a short script in After Effects right now (outside a build) — for fixes and checks. Prefer lib (tested snippets, scripts_lib_list); raw code is ES3 ExtendScript with AES helpers (AES.target(args), AES.layer(comp, id), AES.preset(layer, name, sec), AES.prop(layer, path), AES.anim, AES.dump) and may require the user's approval in the panel. Keep it to one task (1–2 s): it cannot be interrupted. Returns {ok, result | error, line, ms}.
+
+| Parametr | Turi | Majburiy | Izoh |
+|---|---|---|---|
+| `lib` | string |  |  |
+| `code` | string |  | ≤ 50000 belgi |
+| `args` | object |  |  |
+| `device_id` | uuid |  | Usually not needed |
+| `project_id` | uuid |  | Resolve the device of this project |
+
+### `scripts_lib_list` — Script snippets · faqat o'qish
+
+Tested script snippets for spec scripts[] (hook after_layer:<id> | after_scene:<id> | after_build) and ae_run_jsx, with their args; plus expression templates for layer expressions ("lib:name(args)").
+
+Parametrsiz.
+
+### `presets_list` — Animation presets · faqat o'qish
+
+Lists .ffx animation presets available to AE: the project's presets/ folder, User Presets and AE's built-in Presets. Use the name in a layer's presets [{name, at}] or the apply_preset snippet.
+
+| Parametr | Turi | Majburiy | Izoh |
+|---|---|---|---|
+| `query` | string |  | ≤ 128 belgi |
+| `limit` | integer |  | default `100`, ≥ 1, ≤ 500 |
+| `device_id` | uuid |  | Usually not needed |
+| `project_id` | uuid |  | Resolve the device of this project |
+
+### `preset_inspect` — Inspect preset · faqat o'qish
+
+Applies a preset to a temporary layer in AE and reports what it adds: effects, keyframed properties (with key counts) and expressions. Use it to learn a preset before using it.
+
+| Parametr | Turi | Majburiy | Izoh |
+|---|---|---|---|
+| `name` | string | ha | ≤ 256 belgi |
+| `layer_type` | `text` \\| `solid` \\| `shape` |  | default `"text"` |
+| `device_id` | uuid |  | Usually not needed |
+| `project_id` | uuid |  | Resolve the device of this project |
 
 ### `icons_search` — Search icons · faqat o'qish
 

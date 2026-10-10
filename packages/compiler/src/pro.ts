@@ -20,6 +20,7 @@ import type {
 } from "@aes/shared";
 import { fxMatchName, fxParamKey, mapFxParam } from "./effects";
 import { round } from "./layout";
+import { SCRIPT_LIB, expandExpression } from "./scripts";
 import { ellipsePath, fitPaths, parseSvgPath, pointsPath, rectPath } from "./svg";
 
 export type AddOp = <N extends AeOpName>(op: N, opId: string, params: OpParamsMap[N]) => string;
@@ -288,7 +289,30 @@ export function emitPro(
   for (const extra of extraKeys)
     keyOps(extra.prop, extra.keys, extra.prop.endsWith(".scale") ? pair : undefined);
 
-  // 5. Parent va matte — sahnaning hamma layerlari yaratilgandan keyin.
+  // 5. Gibrid: expression'lar, presetlar, text animator (skript natijasi log'ga, job to'xtamaydi).
+  for (const [prop, value] of Object.entries(layer.expressions ?? {})) {
+    const code = expandExpression(value);
+    if (!code.ok) return code;
+    add("prop.expression", `${opId}.x${n++}`, { layer: opId, prop, code: code.data });
+  }
+  for (const [i, preset] of (layer.presets ?? []).entries()) {
+    add("jsx.run", `${opId}.preset${i}`, {
+      code: SCRIPT_LIB.apply_preset!.code,
+      args: { __ref: opId, name: preset.name, at: preset.at },
+      once: true,
+      label: `preset:${preset.name}`,
+    });
+  }
+  if (layer.text_anim !== undefined && layer.type === "text") {
+    add("jsx.run", `${opId}.textanim`, {
+      code: SCRIPT_LIB.text_words!.code,
+      args: { __ref: opId, ...layer.text_anim },
+      once: true,
+      label: "text_anim",
+    });
+  }
+
+  // 6. Parent va matte — sahnaning hamma layerlari yaratilgandan keyin.
   if (layer.parent !== undefined || layer.matte !== undefined) {
     const link: OpParamsMap["layer.set"] = { layer: opId };
     if (layer.parent !== undefined) link.parent = refOf(layer.parent);

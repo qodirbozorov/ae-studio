@@ -149,7 +149,7 @@ describe("MCP prompts", () => {
     // Promptda tilga olingan barcha toollar haqiqatda mavjud.
     const tools = (await s.rpc("tools/list")).tools.map((tool: { name: string }) => tool.name);
     const mentioned = [...new Set(body.match(/\b[a-z]+_[a-z_]+\b/g) ?? [])].filter((name) =>
-      /^(env|project|assets?|spec|plan|preflight|build|job|frames|verify|render|report|el|audio|transcript|templates?|brands?|batch|contact|ae|fx|icons|fonts|vo|preview|presets?|mogrt)_/.test(
+      /^(env|project|assets?|spec|plan|preflight|build|job|frames|verify|render|report|el|audio|transcript|templates?|brands?|batch|contact|ae|fx|icons|scripts|fonts|vo|preview|presets?|mogrt)_/.test(
         name,
       ),
     );
@@ -167,7 +167,7 @@ describe("MCP instructions", () => {
     const tools = (await s.rpc("tools/list")).tools.map((tool: { name: string }) => tool.name);
     const mentioned = [...new Set(MCP_INSTRUCTIONS.match(/\b[a-z]+_[a-z_]+\b/g) ?? [])].filter(
       (name) =>
-        /^(env|project|assets?|spec|plan|preflight|build|job|frames|verify|render|report|el|audio|transcript|templates?|brands?|batch|contact|ae|fx|icons|fonts|vo|preview|presets?|mogrt)_/.test(
+        /^(env|project|assets?|spec|plan|preflight|build|job|frames|verify|render|report|el|audio|transcript|templates?|brands?|batch|contact|ae|fx|icons|scripts|fonts|vo|preview|presets?|mogrt)_/.test(
           name,
         ),
     );
@@ -197,7 +197,7 @@ describe("audio promptlari (P4.13)", () => {
     expect(bodies[2]).toContain("ru");
     for (const body of bodies) {
       const mentioned = [...new Set(body.match(/\b[a-z]+_[a-z_]+\b/g) ?? [])].filter((name) =>
-        /^(env|project|assets?|spec|plan|preflight|build|job|frames|verify|render|report|el|audio|transcript|templates?|brands?|batch|contact|ae|fx|icons|fonts|vo|preview|presets?|mogrt)_/.test(
+        /^(env|project|assets?|spec|plan|preflight|build|job|frames|verify|render|report|el|audio|transcript|templates?|brands?|batch|contact|ae|fx|icons|scripts|fonts|vo|preview|presets?|mogrt)_/.test(
           name,
         ),
       );

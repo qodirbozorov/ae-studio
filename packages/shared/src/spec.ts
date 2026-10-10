@@ -6,6 +6,7 @@
  * Pikselli o'lchamlar asosiy `format` ga nisbatan; variantlar uchun compiler moslashtiradi.
  */
 import { z } from "zod";
+import { scriptSchema } from "./scripts";
 import { checkContents, maskShapeCount, proLayerFields, shapeContentSchema } from "./pro";
 import {
   ASSET_REF_RE,
@@ -526,6 +527,8 @@ export const videoSpecSchema = z
     audio: specAudioSchema.optional(),
     scenes: z.array(sceneSchema).min(1).max(100),
     output: outputSchema.default({ preset: "h264_social", name: "video" }),
+    /** Gibrid usul: spec qila olmaydigan qisqa ishlar (hook bo'yicha build ichida). */
+    scripts: z.array(scriptSchema).max(30).optional(),
   })
   .superRefine((spec, ctx) => {
     const issue = (path: PropertyKey[], message: string) =>

@@ -32,7 +32,10 @@ const GROUPS: [RegExp, string][] = [
   [/^(el_|audio_|transcript_)/, "Audio (ElevenLabs)"],
   [/^(preflight|build_start|job_)/, "Qurish"],
   [/^(frames_|verify_|contact_sheet)/, "Tekshirish"],
-  [/^(ae_effects|fx_params|ae_inspect|icons_search)$/, "Effektlar va AE tekshiruvi"],
+  [
+    /^(ae_effects|fx_params|ae_inspect|icons_search|ae_run_jsx|scripts_lib_list|presets_list|preset_inspect)$/,
+    "Effektlar va AE tekshiruvi",
+  ],
   [/^render_/, "Render"],
   [/^templates?_/, "Shablonlar"],
   [/^brands?_/, "Brand kit"],
@@ -142,6 +145,7 @@ const PREFIXES: [string, string][] = [
   ["LOOP_", "VERIFY sikli"],
   ["FRAME_", "Kadrlar (VERIFY)"],
   ["FX_", "Effektlar"],
+  ["SCRIPT_", "Skriptlar"],
   ["JSX_", "ExtendScript skriptlar"],
   ["SYS_", "Tizim"],
 ];

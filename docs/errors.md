@@ -97,6 +97,13 @@ ixtiyoriy `message` va `details`. Job BLOCKED bo'lsa sabab tuzatilgach `job_resu
 | `FX_UNKNOWN` | yo'q | Effekt AE'da topilmadi (plagin o'rnatilmaganmi?). ae_effects bilan o'rnatilgan effektlar va matchName'ni tekshiring. |
 | `FX_PARAM_UNKNOWN` | yo'q | Effekt parametri topilmadi yoki qiymat mos emas. fx_params bilan aniq nom, indeks va turini oling. |
 
+## Skriptlar
+
+| Kod | Qayta urinish | Nima qilish kerak |
+|---|---|---|
+| `SCRIPT_DENIED` | yo'q | Xom skript panel sozlamasi bilan rad etildi (Sozlamalar → Xom skriptlar). Kutubxona snippetini ishlating yoki foydalanuvchidan ruxsat so'rang. |
+| `SCRIPT_UNSAFE` | yo'q | Skriptda taqiqlangan chaqiruv bor (fayl o'chirish, tizim buyrug'i, loyihani yopish). Kodni o'zgartiring yoki kutubxona snippetini ishlating. |
+
 ## Tizim
 
 | Kod | Qayta urinish | Nima qilish kerak |

@@ -28,6 +28,7 @@ import { aspectOf, brandTokens, expandTemplate } from "./template";
 import type { CompileTemplate, ExpandedTemplate, TokenValue } from "./template";
 import { planTiming, resolveAt, shiftWords, voiceSegments } from "./timing";
 import { compileContents, emitPro, hasPixelFields, scalePro } from "./pro";
+import { scriptParams } from "./scripts";
 import type { AddOp } from "./pro";
 import type { CaptionWord } from "@aes/shared";
 
@@ -359,6 +360,51 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
 
   const list = new OpList();
   const save = { version: ctx.version, path: ctx.projectPath };
+
+  // Gibrid skriptlar: hook bo'yicha asosiy formatda (after_layer / after_scene / after_build).
+  const scripts = spec.scripts ?? [];
+  const sceneIds = new Set(spec.scenes.map((scene) => scene.id));
+  const layerIds = new Set(spec.scenes.flatMap((scene) => (scene.layers ?? []).map((l) => l.id)));
+  for (const script of scripts) {
+    if ((script.lib === undefined) === (script.code === undefined)) {
+      return fail("SPEC_INVALID", `/scripts/${script.id}: lib yoki code (bittasi)`);
+    }
+    const [kind, target] = script.hook.split(":");
+    if (kind === "after_scene" && !sceneIds.has(target!)) {
+      return fail("SPEC_INVALID", `/scripts/${script.id}: sahna yo'q: ${target}`);
+    }
+    if (kind === "after_layer" && !layerIds.has(target)) {
+      return fail("SPEC_INVALID", `/scripts/${script.id}: layer yo'q: ${target}`);
+    }
+  }
+  const emitted = new Set<string>();
+  const hookScripts = (
+    hook: string,
+    sceneId: string | undefined,
+    extra: Record<string, unknown>,
+    refs?: Map<string, string>,
+  ): Result<void> => {
+    for (const script of scripts) {
+      if (script.hook !== hook || emitted.has(script.id)) continue;
+      emitted.add(script.id);
+      const more = { ...extra };
+      const named = script.args?.layer;
+      if (more.__ref === undefined && typeof named === "string" && refs?.has(named)) {
+        more.__ref = refs.get(named);
+      }
+      const params = scriptParams(script, more);
+      if (!params.ok)
+        return {
+          ...params,
+          error: {
+            ...params.error,
+            message: `/scripts/${script.id}: ${params.error.message ?? ""}`,
+          },
+        };
+      list.add("jsx.run", `script.${script.id}`, params.data, sceneId);
+    }
+    return ok(undefined);
+  };
   list.add("project.open_or_create", "aes.project", { path: ctx.projectPath });
   for (const key of assets.data) {
     list.add("item.import", `asset.${key}`, {
@@ -490,8 +536,24 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
           { refOf: (id) => refs.get(id) ?? `${tree.prefix}${scene.id}.${id}`, links },
         );
         if (!compiled.ok) return compiled;
+        if (tree.tag === null && layer.id !== undefined) {
+          const hooked = hookScripts(`after_layer:${layer.id}`, scene.id, {
+            __comp: `${String(i + 1).padStart(2, "0")}_${scene.id}`,
+            __ref: `${tree.prefix}${opId}`,
+          });
+          if (!hooked.ok) return hooked;
+        }
       }
       for (const link of links) link();
+      if (tree.tag === null) {
+        const hooked = hookScripts(
+          `after_scene:${scene.id}`,
+          scene.id,
+          { __comp: `${String(i + 1).padStart(2, "0")}_${scene.id}` },
+          refs,
+        );
+        if (!hooked.ok) return hooked;
+      }
       const nest = list.add(
         "comp.nest",
         `${tree.prefix}${scene.id}.nest`,
@@ -520,6 +582,8 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
     if (tree.tag === null) warnings.push(...audioWarnings);
   }
 
+  const finalScripts = hookScripts("after_build", undefined, {});
+  if (!finalScripts.ok) return finalScripts;
   list.add("project.save", "aes.save", save);
 
   return ok({

@@ -41,6 +41,8 @@ export interface PanelSettings {
   onboarded: boolean;
   /** Oxirgi ish papkasi: AE qayta ochilganda ulanish bilan avtomatik tiklanadi (#6). */
   last_project_root: string | null;
+  /** Claude yuborgan xom skript (kutubxonadan emas): so'ramasdan / har safar so'ra / o'chiq. */
+  raw_scripts: "allow" | "ask" | "off";
 }
 
 const DEFAULT_SETTINGS: PanelSettings = {
@@ -51,6 +53,7 @@ const DEFAULT_SETTINGS: PanelSettings = {
   render_om_template: null,
   onboarded: false,
   last_project_root: null,
+  raw_scripts: "ask",
 };
 
 const optionalString = (value: unknown): string | null =>
@@ -79,6 +82,9 @@ export function loadSettings(dataDir: string): PanelSettings {
       render_om_template: optionalString(raw.render_om_template),
       onboarded: raw.onboarded === true,
       last_project_root: optionalString(raw.last_project_root),
+      raw_scripts: ["allow", "ask", "off"].includes(raw.raw_scripts as string)
+        ? (raw.raw_scripts as PanelSettings["raw_scripts"])
+        : "ask",
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

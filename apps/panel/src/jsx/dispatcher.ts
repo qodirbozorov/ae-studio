@@ -24,6 +24,7 @@ import { framesCapture } from "./ops/frames";
 import { templateInstantiate } from "./ops/template";
 import { layerInspect } from "./ops/inspect";
 import { layerAddSolid, layerMask, layerSet } from "./ops/pro";
+import { jsxRun, presetInspect, presetsList } from "./ops/script";
 import { info } from "./ops/info";
 import { ping } from "./ops/ping";
 import { projectOpenOrCreate, projectSave } from "./ops/project";
@@ -69,6 +70,9 @@ registerOp("layer.mask", layerMask as OpHandler);
 registerOp("fx.catalog", fxCatalog as OpHandler);
 registerOp("fx.params", fxParams as OpHandler);
 registerOp("layer.inspect", layerInspect as OpHandler);
+registerOp("jsx.run", jsxRun as OpHandler);
+registerOp("presets.list", presetsList as OpHandler);
+registerOp("preset.inspect", presetInspect as OpHandler);
 
 /** O'zgartirmaydigan oplar: undo group ochilmaydi. */
 const READ_ONLY: { [op: string]: boolean | undefined } = {
@@ -76,6 +80,7 @@ const READ_ONLY: { [op: string]: boolean | undefined } = {
   info: true,
   "fx.catalog": true,
   "layer.inspect": true,
+  "presets.list": true,
 };
 
 /** Loyihani ochish/saqlash undo tarixiga kirmaydi (undo group ichida loyiha almashtirilmaydi). */

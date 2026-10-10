@@ -169,9 +169,31 @@ export interface PropKeyframesParams {
 export interface PropExpressionParams {
   layer: Ref;
   prop: PropPath;
-  /** Faqat kutubxonadagi expression id (masalan `wiggle`). */
-  expr_id: string;
+  /** Kutubxonadagi expression id (masalan `wiggle`) yoki `code` (kompilyator yoyib bergan matn). */
+  expr_id?: string | undefined;
   args?: { [name: string]: ScalarValue } | undefined;
+  code?: string | undefined;
+}
+
+/** Skript op: `code` AES prelude bilan bajariladi; natija doim log'ga (job to'xtamaydi). */
+export interface JsxRunParams {
+  code: string;
+  args?: { [name: string]: unknown } | undefined;
+  /** Xom kod (kutubxonadan emas): panel sozlamasiga qarab tasdiq so'raladi. */
+  raw?: boolean | undefined;
+  /** Build ichida bir marta (resume'da qayta bajarilmaydi). */
+  once?: boolean | undefined;
+  label?: string | undefined;
+}
+
+export interface PresetsListParams {
+  query?: string | undefined;
+  limit?: number | undefined;
+}
+
+export interface PresetInspectParams {
+  name: string;
+  layer_type?: "text" | "solid" | "shape" | undefined;
 }
 
 export interface FxApplyPresetParams {
@@ -452,6 +474,9 @@ export interface OpParamsMap {
   "fx.catalog": FxCatalogParams;
   "fx.params": FxParamsParams;
   "layer.inspect": LayerInspectParams;
+  "jsx.run": JsxRunParams;
+  "presets.list": PresetsListParams;
+  "preset.inspect": PresetInspectParams;
 }
 
 export type AeOpName = keyof OpParamsMap;

@@ -160,8 +160,45 @@ export const BLEND_MODES = [
   "silhouette_luma",
 ] as const;
 
+export const TEXT_ANIM_PRESETS = ["fade_up", "word_bounce", "blur_in", "pop_in"] as const;
+
+/** Gibrid usul: preset (.ffx), expression va text animator — build ichida skript op'lari bilan. */
+const hybridFields = {
+  presets: z
+    .array(
+      z.strictObject({
+        name: z
+          .string()
+          .min(1)
+          .max(128)
+          .describe("Preset name from presets_list (.ffx without extension)"),
+        at: z.number().min(0).max(3600).default(0).describe("Seconds from the layer start"),
+      }),
+    )
+    .max(10)
+    .optional()
+    .describe("Animation presets applied in order; a missing preset is logged, the job continues"),
+  expressions: z
+    .record(z.string().regex(PRO_PATH_RE), z.string().min(1).max(5000))
+    .optional()
+    .describe(
+      'Expressions by property path. Value: raw AE expression or "lib:name(args)" — inertial_bounce(amp,freq,decay), float_idle(amp,speed), wiggle(freq,amp), loop_out(type)',
+    ),
+  text_anim: z
+    .strictObject({
+      by: z.enum(["chars", "words", "lines"]).default("words"),
+      preset: z.enum(TEXT_ANIM_PRESETS).default("fade_up"),
+      stagger: z.number().min(0.01).max(2).default(0.08),
+      at: z.number().min(0).max(3600).default(0),
+      dur: z.number().min(0.05).max(10).default(0.4).describe("Each unit's animation length"),
+    })
+    .optional()
+    .describe("Text animator (text layers): units appear one by one"),
+};
+
 /** Barcha ko'rinadigan qatlamlarga qo'shiladigan maydonlar. */
 export const proLayerFields = {
+  ...hybridFields,
   transform: transformSchema.optional(),
   keyframes: keyframesSchema.optional(),
   effects: z.array(effectSchema).max(30).optional(),

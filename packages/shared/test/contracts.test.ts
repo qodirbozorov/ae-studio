@@ -150,6 +150,9 @@ const VALID_PARAMS: { [N in AeOpName]: OpParamsMap[N] } = {
   "fx.catalog": { query: "blur", limit: 20 },
   "fx.params": { match_name: "ADBE Glo2" },
   "layer.inspect": { comp: "MAIN", layer: "Title", depth: 2 },
+  "jsx.run": { code: "return 1;", args: { a: 1 }, once: true },
+  "presets.list": { query: "blur" },
+  "preset.inspect": { name: "wan apple opacity blur in", layer_type: "text" },
 };
 
 /** Har op uchun bitta noto'g'ri params va kutilgan xato path. */
@@ -208,6 +211,9 @@ const INVALID_PARAMS: { [N in AeOpName]: [unknown, string] } = {
   "fx.catalog": [{ limit: 0 }, "/params/limit"],
   "fx.params": [{ match_name: "" }, "/params/match_name"],
   "layer.inspect": [{ depth: 99 }, "/params/depth"],
+  "jsx.run": [{ code: "" }, "/params/code"],
+  "presets.list": [{ limit: 0 }, "/params/limit"],
+  "preset.inspect": [{ name: "x", layer_type: "camera" }, "/params/layer_type"],
 };
 
 describe("oplar ↔ asl reja §10.1", () => {
@@ -216,7 +222,7 @@ describe("oplar ↔ asl reja §10.1", () => {
     const fromPlan = [...table.matchAll(/^\| `([a-z_.]+)` \|/gm)].map((m) => m[1]);
     expect(fromPlan).toHaveLength(18);
     expect([...OP_NAMES].sort()).toEqual(
-      [...fromPlan, "layer.add_solid", "layer.set", "layer.mask"].sort(),
+      [...fromPlan, "layer.add_solid", "layer.set", "layer.mask", "jsx.run"].sort(),
     );
   });
 

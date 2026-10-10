@@ -2,7 +2,7 @@
  * AE vositalari (Faza 7, update-technicalguidline §5.2): o'rnatilgan effektlar, effekt parametrlari
  * va qurilgan comp/qatlam tuzilmasi — Claude spec'ni aniq yozishi va natijani tekshirishi uchun.
  */
-import { FX_ALIASES, fxMatchName } from "@aes/compiler";
+import { EXPRESSION_LIB, FX_ALIASES, SCRIPT_LIB, fxMatchName, scriptParams } from "@aes/compiler";
 import { fail, makeOp, ok } from "@aes/shared";
 import type { AeOpName, OpEnvelope, OpParamsMap, Result } from "@aes/shared";
 import { z } from "zod";
@@ -36,6 +36,90 @@ async function runInfo<N extends AeOpName>(
 }
 
 export const aeTools = [
+  defineTool({
+    name: "ae_run_jsx",
+    title: "Run script in AE",
+    description:
+      "Runs a short script in After Effects right now (outside a build) — for fixes and checks. Prefer lib (tested snippets, scripts_lib_list); raw code is ES3 ExtendScript with AES helpers (AES.target(args), AES.layer(comp, id), AES.preset(layer, name, sec), AES.prop(layer, path), AES.anim, AES.dump) and may require the user's approval in the panel. Keep it to one task (1–2 s): it cannot be interrupted. Returns {ok, result | error, line, ms}.",
+    input: z.object({
+      lib: z
+        .string()
+        .regex(/^[a-z0-9_]+$/)
+        .optional(),
+      code: z.string().min(1).max(50_000).optional(),
+      args: z.record(z.string(), z.unknown()).optional(),
+      ...deviceFields,
+    }),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    async handler(ctx, input) {
+      if ((input.lib === undefined) === (input.code === undefined)) {
+        return fail("SYS_BAD_REQUEST", "lib yoki code (bittasi) kerak");
+      }
+      const params = scriptParams(input, {}, false);
+      if (!params.ok) return params;
+      return runInfo(ctx, input, "jsx.run", params.data, 30_000);
+    },
+  }),
+
+  defineTool({
+    name: "scripts_lib_list",
+    title: "Script snippets",
+    description:
+      'Tested script snippets for spec scripts[] (hook after_layer:<id> | after_scene:<id> | after_build) and ae_run_jsx, with their args; plus expression templates for layer expressions ("lib:name(args)").',
+    input: z.object({}),
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    async handler() {
+      return ok({
+        snippets: Object.entries(SCRIPT_LIB).map(([name, entry]) => ({
+          name,
+          description: entry.description,
+          args: entry.args,
+        })),
+        expressions: EXPRESSION_LIB,
+      });
+    },
+  }),
+
+  defineTool({
+    name: "presets_list",
+    title: "Animation presets",
+    description:
+      "Lists .ffx animation presets available to AE: the project's presets/ folder, User Presets and AE's built-in Presets. Use the name in a layer's presets [{name, at}] or the apply_preset snippet.",
+    input: z.object({
+      query: z.string().max(128).optional(),
+      limit: z.number().int().min(1).max(500).default(100),
+      ...deviceFields,
+    }),
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    async handler(ctx, input) {
+      const params: OpParamsMap["presets.list"] = { limit: input.limit };
+      if (input.query !== undefined) params.query = input.query;
+      return runInfo(ctx, input, "presets.list", params, 60_000);
+    },
+  }),
+
+  defineTool({
+    name: "preset_inspect",
+    title: "Inspect preset",
+    description:
+      "Applies a preset to a temporary layer in AE and reports what it adds: effects, keyframed properties (with key counts) and expressions. Use it to learn a preset before using it.",
+    input: z.object({
+      name: z.string().min(1).max(256),
+      layer_type: z.enum(["text", "solid", "shape"]).default("text"),
+      ...deviceFields,
+    }),
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    async handler(ctx, input) {
+      return runInfo(
+        ctx,
+        input,
+        "preset.inspect",
+        { name: input.name, layer_type: input.layer_type },
+        60_000,
+      );
+    },
+  }),
+
   defineTool({
     name: "icons_search",
     title: "Search icons",

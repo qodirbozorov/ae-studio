@@ -163,9 +163,13 @@ export function findComp(name: string): CompItem | null {
 }
 
 /** Nomi bo'yicha comp: bor bo'lsa o'sha, yo'q bo'lsa yaratiladi. */
-export function comp(name: string, w: number, h: number, dur: number, fps: number): CompItem {
+/** Nomi bo'yicha comp: bor bo'lsa o'sha; o'lcham berilsa yaratiladi, aks holda AE_NOT_FOUND. */
+export function comp(name: string, w?: number, h?: number, dur?: number, fps?: number): CompItem {
   const found = findComp(name);
   if (found !== null) return found;
+  if (w === undefined || h === undefined || dur === undefined || fps === undefined) {
+    return raise("AE_NOT_FOUND", "Comp topilmadi: " + name);
+  }
   return app.project.items.addComp(name, w, h, 1, dur, fps);
 }
 

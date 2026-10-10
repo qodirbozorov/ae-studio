@@ -66,6 +66,8 @@ export function createOpRunner(options: {
   log: LogStore;
   getRoot: () => string;
   now?: () => number;
+  /** AE'ga yuborishdan oldingi ruxsat (masalan xom skript); xato bo'lsa op bajarilmaydi. */
+  beforeOp?: (op: OpEnvelope) => Promise<AesError | null>;
   /** AE javobidan keyingi tekshiruv (masalan `frames.capture` fayllarini kutish); xato bo'lsa op.failed. */
   afterOp?: (op: OpEnvelope, result: OpResultData) => Promise<AesError | null>;
 }): OpRunner {
@@ -134,7 +136,8 @@ export function createOpRunner(options: {
     }
     const op = parsed.data;
 
-    const pathError = checkPaths(op);
+    const pathError =
+      checkPaths(op) ?? (options.beforeOp === undefined ? null : await options.beforeOp(op));
     if (pathError !== null) return failed(op, pathError, started, jobId);
 
     running = { op, job_id: jobId };
@@ -204,7 +207,9 @@ export function createOpRunner(options: {
         rejected = { op: null, opId, error: parsed.error };
         break;
       }
-      const pathError = checkPaths(parsed.data);
+      const pathError =
+        checkPaths(parsed.data) ??
+        (options.beforeOp === undefined ? null : await options.beforeOp(parsed.data));
       if (pathError !== null) {
         rejected = { op: parsed.data, opId, error: pathError };
         break;
