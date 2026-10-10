@@ -208,6 +208,29 @@ const solidLayerSchema = z.strictObject({
   ...proLayerFields,
 });
 
+const iconLayerSchema = z.strictObject({
+  type: z.literal("icon"),
+  ...layerTiming,
+  name: z
+    .string()
+    .regex(/^(lucide:)?[a-z0-9-]{1,64}$/, { error: "Lucide ikonka nomi (icons_search)" })
+    .describe("Lucide icon name from icons_search, e.g. lucide:bell"),
+  /** Piksel (ikonka kvadrati). */
+  size: z.number().positive().max(1024).default(96),
+  color: hexColorSchema.default("#FFFFFF"),
+  stroke_width: z.number().min(0.25).max(6).default(2),
+  pos: positionSchema.default("center"),
+  anim: z.enum(ANIMS).default("none"),
+  opacity: z.number().min(0).max(100).default(100),
+  as_shapes: z
+    .boolean()
+    .default(false)
+    .describe(
+      "Convert to an AE shape layer (Create Shapes from Vector Layer) — only when its paths must be animated (trim draw-on, per-path color)",
+    ),
+  ...proLayerFields,
+});
+
 const nullLayerSchema = z.strictObject({
   type: z.literal("null"),
   ...layerTiming,
@@ -235,13 +258,14 @@ export const layerSchema = z.discriminatedUnion(
     textLayerSchema,
     shapeLayerSchema,
     solidLayerSchema,
+    iconLayerSchema,
     nullLayerSchema,
     adjustmentLayerSchema,
     audioLayerSchema,
   ],
   {
     error:
-      "Layer 'type' quyidagilardan biri bo'lishi kerak: media, text, shape, solid, null, adjustment, audio",
+      "Layer 'type' quyidagilardan biri bo'lishi kerak: media, text, shape, solid, icon, null, adjustment, audio",
   },
 );
 

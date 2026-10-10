@@ -14,3 +14,4 @@ export * from "./brand";
 export * from "./paths";
 export * from "./easing";
 export * from "./pro";
+export * from "./icons";

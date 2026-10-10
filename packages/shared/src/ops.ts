@@ -341,6 +341,8 @@ const layerAddMediaParams = z.strictObject({
   pos: vec2Schema.optional(),
   opacity: z.number().min(0).max(100).optional(),
   keep_audio: z.boolean().optional(),
+  vector: z.boolean().optional(),
+  as_shapes: z.boolean().optional(),
 });
 
 const textStyleOp = z.strictObject({

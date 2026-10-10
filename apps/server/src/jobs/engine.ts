@@ -11,6 +11,7 @@ import { MAIN_COMP, compile, planTiming } from "@aes/compiler";
 import type { CompileAsset, CompileAudio, CompiledVariant } from "@aes/compiler";
 import {
   BATCH_PROTOCOL_VERSION,
+  iconFile,
   MAX_PATCHES,
   audioUsesEleven,
   missingBrandAudio,
@@ -60,6 +61,7 @@ import { wordsOfTask } from "../audio/words";
 import { normalizeRootPath } from "../projects/routes";
 import { storageKey } from "../storage";
 import { buildReport, pad3 } from "./report";
+import { lucidePdf, lucideSvg } from "../icons/lucide";
 import { aeFonts, compileExtras, usesFonts } from "./compile-extras";
 import { IDLE_STATES, actionAllowed, nextState } from "./machine";
 
@@ -954,6 +956,41 @@ export class JobEngine {
       }
     }
 
+    // Lucide ikonkalari: SVG → PDF → panel `icons/` (kesh: bir xil fayl qayta yuborilmaydi).
+    const icons = new Map<string, { name: string; color: string; stroke: number }>();
+    for (const scene of spec.data.scenes) {
+      for (const layer of scene.layers ?? []) {
+        if (layer.type !== "icon") continue;
+        icons.set(iconFile(layer.name, layer.color, layer.stroke_width), {
+          name: layer.name,
+          color: layer.color,
+          stroke: layer.stroke_width,
+        });
+      }
+    }
+    for (const [dest, icon] of icons) {
+      const svg = lucideSvg(icon.name, icon.color, icon.stroke);
+      if (svg === null) {
+        return {
+          kind: "block",
+          error: makeError("SPEC_INVALID", `Lucide ikonka topilmadi: ${icon.name} (icons_search)`),
+        };
+      }
+      const sent = await this.publishBytes(
+        job,
+        dest,
+        await lucidePdf(svg),
+        "pdf",
+        "application/pdf",
+      );
+      if (!sent.ok) {
+        if (sent.error.code === "ENV_AGENT_OFFLINE") {
+          return { kind: "wait_agent", reason: "PREFLIGHT: panel uzildi (ikonka)" };
+        }
+        return { kind: "block", error: sent.error };
+      }
+    }
+
     const hash = createHash("sha256").update(JSON.stringify(compiled.data.ops)).digest("hex");
     if (hash !== job.oplistHash) {
       await this.ctx.db.delete(ops).where(eq(ops.jobId, job.id));
@@ -1763,10 +1800,25 @@ export class JobEngine {
     content: string,
     ext: "json" | "md",
   ): Promise<Result<{ dest: string }>> {
+    return this.publishBytes(
+      job,
+      dest,
+      Buffer.from(content, "utf8"),
+      ext,
+      ext === "json" ? "application/json" : "text/markdown; charset=utf-8",
+    );
+  }
+
+  private async publishBytes(
+    job: JobRow,
+    dest: string,
+    data: Buffer,
+    ext: string,
+    contentType: string,
+  ): Promise<Result<{ dest: string }>> {
     const project = await this.project(job.projectId);
     if (project === null || job.deviceId === null) return fail("SYS_NOT_FOUND", "Loyiha yo'q");
     if (!this.ctx.hub.isOnline(job.deviceId)) return fail("ENV_AGENT_OFFLINE", "Panel ulanmagan");
-    const data = Buffer.from(content, "utf8");
     const sha256 = createHash("sha256").update(data).digest("hex");
     const key = storageKey({
       userId: project.userId,
@@ -1776,11 +1828,7 @@ export class JobEngine {
       ext,
     });
     if ((await this.ctx.storage.head(key)) === null) {
-      await this.ctx.storage.putBytes(
-        key,
-        data,
-        ext === "json" ? "application/json" : "text/markdown; charset=utf-8",
-      );
+      await this.ctx.storage.putBytes(key, data, contentType);
     }
     const reply = await this.ctx.hub.request(
       job.deviceId,

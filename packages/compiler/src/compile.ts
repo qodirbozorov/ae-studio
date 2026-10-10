@@ -5,7 +5,7 @@
  * (+ o'tish) → saqlash. op_id'lar Spec'dagi barqaror nomlardan (sahna id, layer id/indeks) yasaladi:
  * resume'da AE'dagi iz bo'yicha bajarilganlar qayta yaratilmaydi, patch'da faqat o'zgargan qism yangilanadi.
  */
-import { fail, makeOp, ok } from "@aes/shared";
+import { ICON_BASE_PT, fail, iconFile, iconName, makeOp, ok } from "@aes/shared";
 import type {
   AeOpName,
   Aspect,
@@ -197,6 +197,7 @@ function scaleLayer(layer: Layer, k: number, rx = 1, ry = 1): Layer {
     return { ...pro, style };
   }
   if (pro.type === "shape") return { ...pro, radius: round(pro.radius * k) };
+  if (pro.type === "icon") return { ...pro, size: round(pro.size * k) };
   return pro;
 }
 
@@ -656,6 +657,41 @@ function compileLayer(
         sceneId,
       );
       return emitPro(add, layer, opId, pro.refOf, pro.links, extraKeys);
+    }
+    case "icon": {
+      // Lucide → PDF (server PREFLIGHT'da `icons/` ga yetkazadi) → vektor footage.
+      const item = `icon.${iconName(layer.name)}.${layer.color.replace("#", "").toLowerCase()}.${Math.round(layer.stroke_width * 100)}`;
+      if (!list.has(item)) {
+        list.add("item.import", item, {
+          file: iconFile(layer.name, layer.color, layer.stroke_width),
+          folder: "Icons",
+        });
+      }
+      const pos = toPixels(layer.pos, frame);
+      const scale = round(layer.size / ICON_BASE_PT);
+      const params: OpParamsMap["layer.add_media"] = {
+        comp,
+        item,
+        fit: "none",
+        scale,
+        pos,
+        vector: true,
+        ...timingParams,
+        ...named,
+      };
+      if (layer.as_shapes) params.as_shapes = true;
+      if (layer.opacity !== 100) params.opacity = layer.opacity;
+      list.add("layer.add_media", opId, params, sceneId);
+      list.motion(
+        animOps(
+          layer.anim,
+          { layer: opId, kind: "media", pos, scale: [scale * 100, scale * 100], dur },
+          frame,
+        ),
+        opId,
+        sceneId,
+      );
+      return emitPro(add, layer, opId, pro.refOf, pro.links);
     }
     case "solid":
     case "null":

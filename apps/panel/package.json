@@ -1,6 +1,6 @@
 {
   "name": "@aes/panel",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "type": "module",
   "description": "AE Studio CEP paneli (Bolt CEP): React UI + Node agent + ExtendScript oplar",

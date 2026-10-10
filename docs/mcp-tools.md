@@ -5,7 +5,7 @@
 Javob formati: `{ ok: true, data } | { ok: false, error: { code, retryable, hint, message?, details? } }`.
 Xato kodlari: [errors.md](errors.md).
 
-Jami: **58** tool, **4** prompt.
+Jami: **59** tool, **4** prompt.
 
 ## Muhit
 
@@ -452,6 +452,15 @@ Fixes the video during VERIFY (or a BLOCKED job): give either a full corrected s
 | `reason` | string |  | What was wrong (goes to the job log) · ≤ 500 belgi |
 
 ## Effektlar va AE tekshiruvi
+
+### `icons_search` — Search icons · faqat o'qish
+
+Searches Lucide icons (ISC, ~1,600 outline UI icons) by name words, e.g. "bell", "arrow right", "chart". Use the returned name in a spec layer {type: "icon", name, size, color, stroke_width}: it arrives in AE as crisp vector footage (no path drawing needed). Set as_shapes: true only when the icon's paths must be animated (trim draw-on).
+
+| Parametr | Turi | Majburiy | Izoh |
+|---|---|---|---|
+| `query` | string | ha | ≤ 64 belgi |
+| `limit` | integer |  | default `20`, ≥ 1, ≤ 50 |
 
 ### `ae_effects` — Installed effects · faqat o'qish
 

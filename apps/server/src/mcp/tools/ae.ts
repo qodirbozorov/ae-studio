@@ -8,6 +8,7 @@ import type { AeOpName, OpEnvelope, OpParamsMap, Result } from "@aes/shared";
 import { z } from "zod";
 import { defineTool } from "../registry";
 import type { ToolContext } from "../registry";
+import { searchLucide } from "../../icons/lucide";
 import { pickDevice, uuidArg } from "./common";
 
 const deviceFields = {
@@ -35,6 +36,21 @@ async function runInfo<N extends AeOpName>(
 }
 
 export const aeTools = [
+  defineTool({
+    name: "icons_search",
+    title: "Search icons",
+    description:
+      'Searches Lucide icons (ISC, ~1,600 outline UI icons) by name words, e.g. "bell", "arrow right", "chart". Use the returned name in a spec layer {type: "icon", name, size, color, stroke_width}: it arrives in AE as crisp vector footage (no path drawing needed). Set as_shapes: true only when the icon\'s paths must be animated (trim draw-on).',
+    input: z.object({
+      query: z.string().min(1).max(64),
+      limit: z.number().int().min(1).max(50).default(20),
+    }),
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    async handler(_ctx, input) {
+      return ok({ icons: searchLucide(input.query, input.limit) });
+    },
+  }),
+
   defineTool({
     name: "ae_effects",
     title: "Installed effects",

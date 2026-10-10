@@ -89,6 +89,10 @@ export interface LayerAddMediaParams {
   pos?: Vec2 | undefined;
   opacity?: number | undefined;
   keep_audio?: boolean | undefined;
+  /** Vektor footage (PDF/AI): "Continuously Rasterize" — har masshtabda tiniq. */
+  vector?: boolean | undefined;
+  /** Vektor qatlamni AE shape qatlamiga aylantirish (Create Shapes from Vector Layer). */
+  as_shapes?: boolean | undefined;
 }
 
 export interface TextStyleOp {

@@ -157,7 +157,9 @@ describe("parseSpec — xatolar aniq JSON Pointer path bilan", () => {
     const spec = minimal();
     (spec.scenes as Record<string, unknown>[])[0]!.layers = [{ type: "video", src: "asset:a" }];
     const details = expectInvalid(spec, "/scenes/0/layers/0/type");
-    expect(details[0]!.message).toContain("media, text, shape, solid, null, adjustment, audio");
+    expect(details[0]!.message).toContain(
+      "media, text, shape, solid, icon, null, adjustment, audio",
+    );
   });
 
   it("asset havolasi prefikssiz", () => {

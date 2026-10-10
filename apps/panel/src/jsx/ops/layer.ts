@@ -91,8 +91,29 @@ export function layerAddMedia(p: LayerAddMediaParams, opId: string): OpResultDat
   if (p.opacity !== undefined) transformProperty(layer, "ADBE Opacity").setValue(p.opacity);
   if (item.hasAudio && p.keep_audio !== true) layer.audioEnabled = false;
   setLayerTiming(layer, comp, p.start, p.dur);
-  stampLayer(layer, opId);
-  return layerResult(opId, layer, comp, false);
+  // Vektor footage (ikonka PDF): "Continuously Rasterize" — har masshtabda tiniq.
+  if (p.vector === true) (layer as AVLayer).collapseTransformation = true;
+  const result = p.as_shapes === true ? toShapes(comp, layer) : layer;
+  stampLayer(result, opId);
+  return layerResult(opId, result, comp, false);
+}
+
+/** "Create Shapes from Vector Layer": yangi shape qatlam asl qatlam o'rnini egallaydi. */
+function toShapes(comp: CompItem, layer: Layer): Layer {
+  comp.openInViewer();
+  for (let i = 1; i <= comp.numLayers; i++) comp.layer(i).selected = false;
+  layer.selected = true;
+  let command = app.findMenuCommandId("Create Shapes from Vector Layer");
+  if (!command) command = 3973;
+  app.executeCommand(command);
+  const index = layer.index;
+  const shapes = index > 1 ? comp.layer(index - 1) : null;
+  if (shapes === null || shapes.property("ADBE Root Vectors Group") === null) {
+    return raise("AE_SCRIPT_ERROR", "Create Shapes from Vector Layer ishlamadi: " + layer.name);
+  }
+  shapes.name = layer.name;
+  layer.remove();
+  return shapes;
 }
 
 /**
