@@ -179,26 +179,6 @@ export function createAgent(options: AgentOptions): Agent {
     log,
     getRoot: () => root,
     // P6.02: AE `saveFrameToPng` asinxron — kadrlar diskda (AE'ni bloklamasdan) kutiladi.
-    beforeOp: async (op) => {
-      if (op.op !== "jsx.run" || op.params.raw !== true) return null;
-      const mode = settings.raw_scripts;
-      if (mode === "allow") return null;
-      const preview = op.params.code.slice(0, 600);
-      const ask = (globalThis as { confirm?: (text: string) => boolean }).confirm;
-      if (mode === "ask" && typeof ask === "function") {
-        if (
-          ask(
-            `AE Studio: Claude xom skript bajarmoqchi (${op.op_id}).\n\n${preview}\n\nRuxsat berasizmi?`,
-          )
-        ) {
-          return null;
-        }
-      }
-      return makeError(
-        "SCRIPT_DENIED",
-        `Xom skript rad etildi (${mode === "off" ? "sozlamada o'chiq" : "ruxsat berilmadi"})`,
-      );
-    },
     afterOp: async (op, result) => {
       if (op.op !== "frames.capture") return null;
       const info = result.info as { pending?: boolean; files?: { path: string }[] } | undefined;

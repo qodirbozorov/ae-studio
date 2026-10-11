@@ -10,16 +10,20 @@ export const SCRIPT_MAX_BYTES = 50_000;
 
 const DANGER: [RegExp, string][] = [
   [/system\s*\.\s*callSystem/, "system.callSystem"],
-  [/\.\s*(remove|execute|rename)\s*\(/, "fayl/papka .remove/.execute/.rename"],
+  [/\.\s*execute\s*\(/, "File.execute"],
   [/\$\s*\.\s*evalFile/, "$.evalFile"],
   [/\bSocket\b/, "Socket"],
-  [/app\s*\.\s*(quit|exitAfterLaunchAndEval|newProject|open)\s*\(/, "app.quit/newProject/open"],
+  [/app\s*\.\s*(quit|exitAfterLaunchAndEval)\s*\(/, "app.quit"],
   [/app\s*\.\s*project\s*\.\s*close\s*\(/, "app.project.close"],
 ];
 
-/** Xavfli chaqiruv nomi yoki null. */
+/** Xavfli chaqiruv nomi yoki null. AE elementlarini o'chirish (`layer.remove()`) ruxsat. */
 export function scriptDanger(code: string): string | null {
   for (const [re, name] of DANGER) if (re.test(code)) return name;
+  // Fayl yoki papka o'chirish/qayta nomlash: File/Folder bilan birga kelgan .remove()/.rename().
+  if (/\b(File|Folder)\b/.test(code) && /\.\s*(remove|rename)\s*\(/.test(code)) {
+    return "File/Folder .remove/.rename";
+  }
   return null;
 }
 

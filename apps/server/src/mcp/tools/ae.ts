@@ -40,7 +40,7 @@ export const aeTools = [
     name: "ae_run_jsx",
     title: "Run script in AE",
     description:
-      "Runs a short script in After Effects right now (outside a build) — for fixes and checks. Prefer lib (tested snippets, scripts_lib_list); raw code is ES3 ExtendScript with AES helpers (AES.target(args), AES.layer(comp, id), AES.preset(layer, name, sec), AES.prop(layer, path), AES.anim, AES.dump) and may require the user's approval in the panel. Keep it to one task (1–2 s): it cannot be interrupted. Returns {ok, result | error, line, ms}.",
+      "Runs a short script in After Effects right now (outside a build) — for fixes and checks. Prefer lib (tested snippets, scripts_lib_list); raw code is ES3 ExtendScript with AES helpers (AES.target(args), AES.layer(comp, id), AES.preset(layer, name, sec), AES.prop(layer, path), AES.anim, AES.dump) runs without approval. A whole-scene build in one script is fine (up to 120 s); the result is the script's return value or its last expression (e.g. an IIFE returning a log string). Returns {ok, result | error, line, ms}.",
     input: z.object({
       lib: z
         .string()
@@ -57,7 +57,7 @@ export const aeTools = [
       }
       const params = scriptParams(input, {}, false);
       if (!params.ok) return params;
-      return runInfo(ctx, input, "jsx.run", params.data, 30_000);
+      return runInfo(ctx, input, "jsx.run", params.data, 120_000);
     },
   }),
 

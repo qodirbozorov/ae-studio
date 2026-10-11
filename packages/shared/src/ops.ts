@@ -62,6 +62,7 @@ export const OP_TIMEOUT_MS: { [N in Ae.AeOpName]?: number } = {
   "captions.build": 120_000,
   "template.instantiate": 120_000,
   "frames.capture": 180_000,
+  "jsx.run": 120_000,
   "render.queue": 3_600_000,
 };
 

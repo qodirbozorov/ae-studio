@@ -45,6 +45,11 @@ function plain(value: unknown, depth: number): unknown {
   return String(value);
 }
 
+/** To'g'ridan-to'g'ri eval (global `AES` ko'rinadi): oxirgi ifoda qiymatini qaytaradi. */
+function evalCode(code: string): unknown {
+  return eval(code);
+}
+
 export function jsxRun(p: JsxRunParams, opId: string, ctx: AeContext): OpResultData {
   if (p.once === true && findItemByOpId(opId) !== null) {
     return { op_id: opId, reused: true, info: { ok: true, skipped: true } };
@@ -59,11 +64,24 @@ export function jsxRun(p: JsxRunParams, opId: string, ctx: AeContext): OpResultD
   }
   let info: { [key: string]: unknown };
   try {
-    const Make = Function as unknown as new (
-      ...parts: string[]
-    ) => (aes: unknown, args: unknown, ctx: unknown) => unknown;
-    const fn = new Make("AES", "args", "ctx", p.code);
-    const value = fn(AES, p.args === undefined ? {} : p.args, { root: ctx.root });
+    const args = p.args === undefined ? {} : p.args;
+    prelude.args = args;
+    let value: unknown;
+    let asBody = false;
+    // Avval eval: skriptning oxirgi ifodasi (masalan `(function(){ ... return log; })()`) natija bo'ladi.
+    // Yuqori darajadagi `return` (snippetlar) SyntaxError beradi — unda funksiya tanasi sifatida.
+    try {
+      value = evalCode(p.code);
+    } catch (error) {
+      if ((error as { name?: unknown }).name !== "SyntaxError") throw error;
+      asBody = true;
+    }
+    if (asBody) {
+      const Make = Function as unknown as new (
+        ...parts: string[]
+      ) => (aes: unknown, args: unknown, ctx: unknown) => unknown;
+      value = new Make("AES", "args", "ctx", p.code)(AES, args, { root: ctx.root });
+    }
     info = { ok: true, result: plain(value, 0), ms: now() - started };
   } catch (error) {
     const e = error as { message?: unknown; line?: unknown };
