@@ -442,7 +442,7 @@ Approves the build once the user is satisfied with it in the After Effects timel
 
 ### `verify_patch` — Patch and rebuild
 
-Fixes the video during VERIFY (or a BLOCKED job): give either a full corrected spec or an RFC 6902 JSON patch against the job's current plan. Saves a new plan version and rebuilds into a NEW .aep version (the previous file is kept). Max 3 patches per job; after that LOOP_PATCH_LIMIT → ask the user.
+Fixes the video during VERIFY, a BLOCKED job, or an already approved job (DONE with outcome success — e.g. the user approved it with the panel/web button and then asked for changes; the job is reopened). Give either a full corrected spec or an RFC 6902 JSON patch against the job's current plan. Saves a new plan version and rebuilds into a NEW .aep version (the previous file and report are kept). Max 3 patches per job; after that LOOP_PATCH_LIMIT → ask the user.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
@@ -455,7 +455,7 @@ Fixes the video during VERIFY (or a BLOCKED job): give either a full corrected s
 
 ### `ae_run_jsx` — Run script in AE
 
-Runs a short script in After Effects right now (outside a build) — for fixes and checks. Prefer lib (tested snippets, scripts_lib_list); raw code is ES3 ExtendScript with AES helpers (AES.target(args), AES.layer(comp, id), AES.preset(layer, name, sec), AES.prop(layer, path), AES.anim, AES.dump) and may require the user's approval in the panel. Keep it to one task (1–2 s): it cannot be interrupted. Returns {ok, result | error, line, ms}.
+Runs a short script in After Effects right now (outside a build) — for fixes and checks. Prefer lib (tested snippets, scripts_lib_list); raw code is ES3 ExtendScript with AES helpers (AES.target(args), AES.layer(comp, id), AES.preset(layer, name, sec), AES.prop(layer, path), AES.anim, AES.dump) runs without approval. A whole-scene build in one script is fine (up to 120 s); the result is the script's return value or its last expression (e.g. an IIFE returning a log string). Returns {ok, result | error, line, ms}.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
