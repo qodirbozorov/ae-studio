@@ -91,6 +91,12 @@ describe("gibrid skriptlar", () => {
     expect(run("s.ok", { code: "return 1;", once: true })).toMatchObject({
       data: { reused: true },
     });
+    // ae-extendscript uslubi: IIFE natijasi (oxirgi ifoda) qaytadi.
+    expect(
+      run("s.iife", {
+        code: "(function () { var log = []; log.push('ok ' + AES.version); return log.join(''); })();",
+      }),
+    ).toMatchObject({ data: { info: { ok: true, result: expect.stringContaining("ok ") } } });
     const bad = run("s.bad", { code: "var x = 1;\nnull.foo();" });
     expect(bad).toMatchObject({ ok: true, data: { info: { ok: false } } });
     h.run("comp.create", "c", { name: "01_stat", w: 100, h: 100, fps: 30, dur: 2 });
