@@ -1,7 +1,6 @@
 /** Kabinet uchun umumiy UI bo'laklari: kartalar, tugmalar, pill'lar, holat nishonlari, vaqt. */
 import type { LucideIcon } from "lucide-react";
 import { CircleAlert, CircleCheck, CircleX, Info } from "lucide-react";
-import { useId } from "react";
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
@@ -43,34 +42,17 @@ export function ago(value: string | null | undefined): string {
   return `${Math.floor(s / 86_400)} kun oldin`;
 }
 
-/** AE Studio belgisi: to'rt bo'lakli metall olti burchak. */
-export function Logo({ className = "h-14 w-14" }: { className?: string }) {
-  // Har nusxa o'z gradient id'si bilan: yashirin (display:none) nusxadagi gradientga havola chizilmaydi.
-  const metal = `aes-metal-${useId().replace(/:/g, "")}`;
+/** AE Studio belgisi (public/ae-studio-full.svg — "Ae Studio" vordmarki, ae-studio-icon.svg — faqat "Ae"). */
+export function Logo({ icon = false, className }: { icon?: boolean; className?: string }) {
   return (
-    <svg
-      viewBox="0 0 64 64"
-      className={cx(className, "drop-shadow-[0_8px_10px_rgb(0_0_0/0.28)]")}
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id={metal} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#9b9b9b" />
-          <stop offset="0.45" stopColor="#5d5d5d" />
-          <stop offset="0.55" stopColor="#7a7a7a" />
-          <stop offset="1" stopColor="#3a3a3a" />
-        </linearGradient>
-      </defs>
-      <polygon
-        points="32,4 56.5,18 56.5,46 32,60 7.5,46 7.5,18"
-        fill={`url(#${metal})`}
-        stroke="#161616"
-        strokeWidth="4"
-        strokeLinejoin="round"
-      />
-      <path d="M32 4v56M7.5 32h49" stroke="#161616" strokeWidth="3.2" />
-      <circle cx="32" cy="32" r="3.4" fill="#161616" />
-    </svg>
+    <img
+      src={icon ? "/ae-studio-icon.svg" : "/ae-studio-full.svg"}
+      alt="AE Studio"
+      width={icon ? 268 : 690}
+      height={268}
+      draggable={false}
+      className={cx("block w-auto select-none", className)}
+    />
   );
 }
 
@@ -85,7 +67,7 @@ export function Card({
   id?: string;
 }) {
   return (
-    <section id={id} className={cx("surface p-7 sm:p-10", className)}>
+    <section id={id} className={cx("surface min-w-0 p-6 sm:p-10", className)}>
       {children}
     </section>
   );
@@ -105,7 +87,7 @@ export function PageTitle({
     <div className="mb-8 flex flex-wrap items-end justify-between gap-4 sm:mb-10">
       <h1 className="text-[2.25rem] leading-[1.05] font-light tracking-[-0.035em] text-balance sm:text-[3.25rem]">
         {title}
-        {muted ? <span className="text-ink-4"> {muted}</span> : null}
+        {muted ? <span className="text-[#858585]"> {muted}</span> : null}
       </h1>
       {action}
     </div>
@@ -124,9 +106,11 @@ export function CardTitle({ children, aside }: { children: ReactNode; aside?: Re
 /** Kichik yorliq (karta ichidagi bo'lim nomi). */
 export function Label({ children, icon: Icon }: { children: ReactNode; icon?: LucideIcon }) {
   return (
-    <div className="flex items-center gap-2 text-lg font-normal tracking-[-0.015em] text-ink-2">
+    <div className="text-lg leading-snug font-normal tracking-[-0.015em] break-words text-ink-2">
       {children}
-      {Icon ? <Icon className="h-5 w-5 text-ink-4" /> : null}
+      {Icon ? (
+        <Icon className="ml-2 inline-block h-5 w-5 align-[-0.2em] text-ink-4" aria-hidden="true" />
+      ) : null}
     </div>
   );
 }
@@ -142,7 +126,7 @@ export function Figure({
   suffix?: string;
 }) {
   return (
-    <div className="num flex items-baseline text-[4rem] leading-none font-extralight tracking-[-0.045em] sm:text-[4.75rem]">
+    <div className="num flex items-baseline text-[4rem] leading-none font-extralight tracking-[-0.03em] sm:text-[4.75rem]">
       {prefix ? <span className="text-ink-4">{prefix}</span> : null}
       <span>{value}</span>
       {suffix ? (
@@ -317,7 +301,10 @@ export function Segmented<K extends string>({
   onChange: (key: K) => void;
 }) {
   return (
-    <div role="tablist" className="inline-flex rounded-[1rem] bg-well p-1">
+    <div
+      role="tablist"
+      className="inline-flex max-w-full overflow-x-auto rounded-[1rem] bg-well p-1 [scrollbar-width:none]"
+    >
       {options.map((o) => (
         <button
           key={o.key}
@@ -338,7 +325,7 @@ export function Segmented<K extends string>({
 }
 
 export const inputClass =
-  "w-full rounded-[1rem] border border-hair bg-white px-4 py-3 text-[0.95rem] font-normal text-ink outline-none transition-[border-color,box-shadow] duration-200 placeholder:font-light focus:border-ink-4 focus:shadow-[0_0_0_4px_rgb(0_0_0/0.05)]";
+  "w-full rounded-[1rem] border border-hair bg-white px-4 py-3 text-base sm:text-[0.95rem] font-normal text-ink outline-none transition-[border-color,box-shadow] duration-200 placeholder:font-light focus:border-ink-4 focus:shadow-[0_0_0_4px_rgb(0_0_0/0.05)]";
 
 export function Field({
   label,

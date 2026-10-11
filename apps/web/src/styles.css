@@ -79,7 +79,10 @@
   }
   input::placeholder,
   textarea::placeholder {
-    color: #8c8c8c;
+    color: #737373;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
@@ -114,6 +117,17 @@
     top: 0;
     bottom: 0;
     border-left: 1.5px solid var(--color-line);
+  }
+
+  /* Gorizontal suriladigan qator chetlarida yumshoq so'nish (mobil tablar). */
+  .fade-x {
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 1.25rem,
+      #000 calc(100% - 1.25rem),
+      transparent 100%
+    );
   }
 
   .num {

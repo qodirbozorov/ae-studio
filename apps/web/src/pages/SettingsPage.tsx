@@ -107,7 +107,7 @@ function ElevenLabsSettings() {
               <Figure value={number(account.remaining)} />
             </div>
           </div>
-          <div className="grid gap-3 sm:pb-2">
+          <div className="grid grid-cols-1 gap-3 sm:pb-2">
             <div className="flex flex-wrap items-center gap-2">
               <Pill tone={account.error === null ? "go" : "stop"} dot={account.error === null}>
                 {account.tier ?? "—"}
@@ -219,7 +219,7 @@ function TelegramSettings() {
           Serverda Telegram bot sozlanmagan (<code>TELEGRAM_BOT_TOKEN</code>).
         </p>
       ) : status.linked ? (
-        <div className="grid gap-5">
+        <div className="grid grid-cols-1 gap-5">
           <div className="flex flex-wrap items-center gap-3">
             <Pill tone="go" dot>
               Ulangan
@@ -236,13 +236,13 @@ function TelegramSettings() {
           </div>
         </div>
       ) : (
-        <div className="grid gap-5">
+        <div className="grid grid-cols-1 gap-5">
           <p className="text-[0.98rem] text-ink-3">Xabarnomalar uchun Telegram'ni ulang.</p>
           <div>
             <Button onClick={() => void getCode()}>Ulash kodini olish</Button>
           </div>
           {code !== null ? (
-            <div className="grid gap-3 rounded-[1.25rem] bg-well/70 p-5">
+            <div className="grid grid-cols-1 gap-3 rounded-[1.25rem] bg-well/70 p-5">
               <div className="text-[0.98rem] leading-relaxed text-ink-2">
                 {code.link !== null ? (
                   <>
@@ -329,7 +329,7 @@ function BrandSettings() {
           Hali brand yo'q. <code>default</code> slug'li brand barcha videolarga qo'llanadi.
         </p>
       ) : null}
-      <ul className="grid gap-1">
+      <ul className="grid grid-cols-1 gap-1">
         {brands.map((b) => (
           <li
             key={b.slug}
@@ -389,7 +389,7 @@ export function SettingsPage() {
   return (
     <>
       <PageTitle title="Sozlamalar" muted="va kalitlar" />
-      <div className="grid gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <ElevenLabsSettings />
         <TelegramSettings />
         <BrandSettings />

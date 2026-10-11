@@ -84,7 +84,7 @@ export function AuditPage() {
           <Empty>Hali yozuv yo'q.</Empty>
         </Card>
       ) : null}
-      <div className="grid gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {[...days.entries()].map(([label, list]) => (
           <Card key={label}>
             <CardTitle>{label}</CardTitle>

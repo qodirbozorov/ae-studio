@@ -55,14 +55,14 @@ export function LoginPage({ next }: { next: string }) {
   return (
     <main className="flex min-h-dvh items-center justify-center p-3 sm:p-6">
       <div className="w-full max-w-[34rem] rounded-[2rem] bg-shell px-7 py-10 sm:rounded-shell sm:px-12 sm:py-14">
-        <Logo className="h-[4.5rem] w-[4.5rem]" />
+        <Logo className="h-14" />
         <h1 className="mt-10 text-[2.5rem] leading-[1.05] font-light tracking-[-0.035em] sm:text-[3.25rem]">
           AE Studio <span className="text-ink-4">kabineti</span>
         </h1>
 
         <div className="surface mt-10 p-7 sm:p-9">
           {state === "waiting" && start !== null ? (
-            <div className="grid gap-5">
+            <div className="grid grid-cols-1 gap-5">
               <Pill tone="wait" dot>
                 Telegram kutilmoqda
               </Pill>
@@ -85,7 +85,7 @@ export function LoginPage({ next }: { next: string }) {
               </p>
             </div>
           ) : (
-            <div className="grid gap-6">
+            <div className="grid grid-cols-1 gap-6">
               <p className="text-[1.05rem] leading-relaxed text-ink-2">
                 Kirish va ro'yxatdan o'tish Telegram orqali — parol va email kerak emas.
               </p>

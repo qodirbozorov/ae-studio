@@ -87,11 +87,11 @@ export function DeviceActivityPage({ id }: { id: string }) {
         </div>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)]">
         <Card>
           <CardTitle>Oxirgi job'lar</CardTitle>
           {data.jobs.length === 0 ? <Empty>Hali job yo'q.</Empty> : null}
-          <ul className="grid gap-1">
+          <ul className="grid grid-cols-1 gap-1">
             {data.jobs.map((j) => (
               <li
                 key={j.id}

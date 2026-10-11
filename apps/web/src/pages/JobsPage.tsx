@@ -58,7 +58,7 @@ export function JobsPage() {
       {batches.length > 0 ? (
         <Card className="mb-6">
           <CardTitle>Batch'lar</CardTitle>
-          <ul className="grid gap-1">
+          <ul className="grid grid-cols-1 gap-1">
             {batches.map((b) => (
               <li
                 key={b.id}

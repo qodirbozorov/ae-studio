@@ -2,14 +2,17 @@ import type { LucideIcon } from "lucide-react";
 import {
   ChevronDown,
   ChevronUp,
+  Download,
   History,
   LogOut,
   Monitor,
   Plug,
+  RefreshCw,
   Settings,
   ShieldCheck,
+  WifiOff,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, post } from "./api";
 import type { Device, Me } from "./api";
 import { AuditPage } from "./pages/AuditPage";
@@ -21,7 +24,8 @@ import { JobsPage } from "./pages/JobsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { Count, Logo, Spinner, cx } from "./ui";
+import { useInstall, useOnline } from "./pwa";
+import { Button, Count, Logo, Pill, Spinner, cx } from "./ui";
 
 interface Child {
   href: string;
@@ -229,8 +233,127 @@ function ProfileChip({ me, path, onLogout }: { me: Me; path: string; onLogout: (
   );
 }
 
+function MobileHeader({
+  me,
+  path,
+  items,
+  onLogout,
+  onInstall,
+}: {
+  me: Me;
+  path: string;
+  items: Item[];
+  onLogout: () => void;
+  onInstall: (() => Promise<void>) | null;
+}) {
+  const strip = useRef<HTMLElement>(null);
+  const [stuck, setStuck] = useState(false);
+
+  // Faol tab ko'rinadigan joyga — faqat tab qatori suriladi, sahifa emas.
+  useLayoutEffect(() => {
+    const el = strip.current;
+    const current = el?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!el || !current) return;
+    el.scrollLeft = current.offsetLeft - (el.clientWidth - current.offsetWidth) / 2;
+  }, [path]);
+
+  useEffect(() => {
+    const onScroll = () => setStuck(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <header
+      className={cx(
+        "sticky top-0 z-20 rounded-t-[1.75rem] bg-shell pt-5 transition-shadow duration-200 sm:rounded-t-shell lg:hidden",
+        stuck && "rounded-t-none shadow-[0_10px_20px_-16px_rgb(0_0_0/0.25)] sm:rounded-t-none",
+      )}
+    >
+      <div className="flex items-center justify-between gap-3 px-5 sm:px-8">
+        <a href="/" aria-label="AE Studio — bosh sahifa">
+          <Logo className="h-10" />
+        </a>
+        <div className="flex items-center gap-1">
+          {onInstall ? (
+            <button
+              type="button"
+              onClick={() => void onInstall()}
+              aria-label="Ilovani o'rnatish"
+              title="Ilovani o'rnatish"
+              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-[0.9rem] text-ink-2 hover:bg-well hover:text-ink"
+            >
+              <Download className="h-5 w-5" />
+            </button>
+          ) : null}
+          <a
+            href="/profile"
+            aria-label="Profil"
+            aria-current={path === "/profile" ? "page" : undefined}
+            className={cx(
+              "flex h-11 w-11 items-center justify-center rounded-full text-sm font-normal no-underline",
+              path === "/profile" ? "bg-white text-ink shadow-raise" : "bg-well text-ink-2",
+            )}
+          >
+            {initials(me.name)}
+          </a>
+          <button
+            type="button"
+            onClick={onLogout}
+            aria-label="Chiqish"
+            title="Chiqish"
+            className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-[0.9rem] text-ink-3 hover:bg-well hover:text-ink"
+          >
+            <LogOut className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+      <nav
+        ref={strip}
+        aria-label="Asosiy"
+        className="fade-x mt-4 flex gap-2 overflow-x-auto px-5 pb-3 [scrollbar-width:none] sm:px-8 [&::-webkit-scrollbar]:hidden"
+      >
+        {items.map(({ href, label, icon: Icon, match }) => (
+          <a
+            key={href}
+            href={href}
+            aria-current={match(path) ? "page" : undefined}
+            className={cx(
+              "flex h-11 shrink-0 items-center gap-2 rounded-[0.9rem] px-4 text-[0.95rem] no-underline transition-[background-color,box-shadow,color] duration-200",
+              match(path) ? "bg-white font-medium text-ink shadow-raise" : "font-normal text-ink-2",
+            )}
+          >
+            <Icon className="h-4 w-4" /> {label}
+          </a>
+        ))}
+      </nav>
+    </header>
+  );
+}
+
+/** Server bilan aloqa yo'q (oflayn PWA yoki tarmoq xatosi). */
+function Offline() {
+  return (
+    <main className="flex min-h-dvh items-center justify-center p-3 sm:p-6">
+      <div className="w-full max-w-[34rem] rounded-[2rem] bg-shell px-7 py-10 sm:rounded-shell sm:px-12 sm:py-14">
+        <Logo className="h-12" />
+        <h1 className="mt-10 text-[2.25rem] leading-[1.05] font-light tracking-[-0.035em] text-balance sm:text-[3rem]">
+          Aloqa <span className="text-[#858585]">yo'q</span>
+        </h1>
+        <p className="mt-5 max-w-[42ch] text-[1.05rem] leading-relaxed text-ink-2">
+          Server bilan bog'lanib bo'lmadi. Internetni tekshirib, qaytadan urinib ko'ring.
+        </p>
+        <Button className="mt-8" onClick={() => window.location.reload()}>
+          <RefreshCw /> Qayta urinish
+        </Button>
+      </div>
+    </main>
+  );
+}
+
 export function App() {
-  const [me, setMe] = useState<Me | null | undefined>(undefined);
+  const [me, setMe] = useState<Me | null | "offline" | undefined>(undefined);
   const [devices, setDevices] = useState<Device[] | null>(null);
   const path = window.location.pathname;
   // `/login?next=…`: server (masalan OAuth ruxsat sahifasi) kirishdan keyin shu yo'lga qaytishni so'raydi.
@@ -243,12 +366,16 @@ export function App() {
       : path + window.location.search;
 
   useEffect(() => {
-    void api<Me>("/api/me").then((res) => setMe(res.ok ? res.data : null));
+    void api<Me>("/api/me").then((res) =>
+      setMe(res.ok ? res.data : res.error.code === "SYS_INTERNAL" ? "offline" : null),
+    );
   }, []);
+  const online = useOnline();
+  const install = useInstall();
 
   // Yon paneldagi qurilmalar daraxti (10 s da yangilanadi).
   useEffect(() => {
-    if (!me) return;
+    if (!me || me === "offline") return;
     const load = async () => {
       const res = await api<Device[]>("/api/devices");
       if (res.ok) setDevices(res.data);
@@ -265,6 +392,7 @@ export function App() {
       </div>
     );
   }
+  if (me === "offline") return <Offline />;
   if (me === null) return <LoginPage next={next} />;
   if (path === "/login") {
     // Server yo'li (masalan `/oauth/authorize`): to'liq sahifa sifatida ochiladi.
@@ -282,65 +410,43 @@ export function App() {
     <div className="min-h-dvh p-2 sm:p-4 lg:p-5">
       <div className="flex min-h-[calc(100dvh-1rem)] flex-col rounded-[1.75rem] bg-shell sm:min-h-[calc(100dvh-2rem)] sm:rounded-shell lg:min-h-[calc(100dvh-2.5rem)] lg:flex-row">
         <aside className="hidden w-[19.5rem] shrink-0 flex-col gap-10 self-start px-7 pt-11 pb-7 lg:sticky lg:top-5 lg:flex lg:h-[calc(100dvh-2.5rem)] lg:overflow-y-auto">
-          <a href="/" aria-label="AE Studio — bosh sahifa" className="ml-2 w-fit">
-            <Logo className="h-[4.5rem] w-[4.5rem]" />
+          <a href="/" aria-label="AE Studio — bosh sahifa" className="ml-3 w-fit">
+            <Logo className="h-14" />
           </a>
           <SideNav path={path} items={items} />
-          <div className="mt-auto">
+          <div className="mt-auto grid gap-3">
+            {install ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="justify-start"
+                onClick={() => void install()}
+              >
+                <Download /> Ilovani o'rnatish
+              </Button>
+            ) : null}
             <ProfileChip me={me} path={path} onLogout={() => void logout()} />
           </div>
         </aside>
 
-        <header className="px-5 pt-6 lg:hidden">
-          <div className="flex items-center justify-between gap-3">
-            <a href="/" aria-label="AE Studio — bosh sahifa">
-              <Logo className="h-11 w-11" />
-            </a>
-            <div className="flex items-center gap-1">
-              <a
-                href="/profile"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-well text-sm font-normal text-ink-2 no-underline"
-                aria-label="Profil"
-              >
-                {initials(me.name)}
-              </a>
-              <button
-                type="button"
-                onClick={() => void logout()}
-                aria-label="Chiqish"
-                className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-[0.9rem] text-ink-3 hover:bg-well hover:text-ink"
-              >
-                <LogOut className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-          <nav aria-label="Asosiy" className="-mx-5 mt-5 flex gap-2 overflow-x-auto px-5 pb-1">
-            {items.map(({ href, label, icon: Icon, match }) => (
-              <a
-                key={href}
-                href={href}
-                aria-current={match(path) ? "page" : undefined}
-                ref={
-                  match(path)
-                    ? (el) => el?.scrollIntoView({ inline: "center", block: "nearest" })
-                    : undefined
-                }
-                className={cx(
-                  "flex h-10 shrink-0 items-center gap-2 rounded-[0.9rem] px-3.5 text-sm no-underline",
-                  match(path)
-                    ? "bg-white font-medium text-ink shadow-raise"
-                    : "font-normal text-ink-2",
-                )}
-              >
-                <Icon className="h-4 w-4" /> {label}
-              </a>
-            ))}
-          </nav>
-        </header>
+        <MobileHeader
+          me={me}
+          path={path}
+          items={items}
+          onLogout={() => void logout()}
+          onInstall={install}
+        />
 
         <main className="min-w-0 flex-1 px-5 pt-8 pb-12 sm:px-8 lg:pt-14 lg:pr-12 lg:pb-16 lg:pl-6">
           <div className="mx-auto max-w-[72rem]">{page(path, me)}</div>
         </main>
+        {online ? null : (
+          <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-4">
+            <Pill tone="wait" icon={WifiOff}>
+              Internet yo'q — ma'lumotlar yangilanmayapti
+            </Pill>
+          </div>
+        )}
       </div>
     </div>
   );

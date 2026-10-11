@@ -31,13 +31,13 @@ export function ProfilePage({ me }: { me: Me }) {
   return (
     <>
       <PageTitle title={me.name} muted="profili" />
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <Card>
           <div className="flex flex-wrap items-center gap-6">
             <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-well text-[1.75rem] font-extralight tracking-[-0.03em] text-ink-2">
               {initials}
             </span>
-            <div className="grid min-w-0 gap-2.5">
+            <div className="grid grid-cols-1 min-w-0 gap-2.5">
               <div className="flex flex-wrap gap-2">
                 {me.telegram_id !== null ? (
                   <Pill tone="go" icon={Send}>
@@ -73,7 +73,7 @@ export function ProfilePage({ me }: { me: Me }) {
       <Card className="mt-6">
         <CardTitle>Qurilmalar</CardTitle>
         {devices === null ? <Loading /> : null}
-        <ul className="grid gap-1">
+        <ul className="grid grid-cols-1 gap-1">
           {devices?.map((d) => (
             <li key={d.id}>
               <a

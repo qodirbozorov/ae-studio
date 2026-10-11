@@ -50,7 +50,7 @@ export function DevicePage() {
       <PageTitle title="Qurilmani" muted="ulash" />
       <Card className="max-w-[40rem]">
         {result !== null ? (
-          <div className="grid gap-6">
+          <div className="grid grid-cols-1 gap-6">
             <Notice ok={result.ok}>{result.text}</Notice>
             <div>
               <LinkButton href="/">Qurilmalarga qaytish</LinkButton>
