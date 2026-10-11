@@ -2,9 +2,11 @@
  * Web kabinet login (§4.3): Telegram bot deep link orqali (email yo'q). Batafsil — `telegram-login.ts`.
  */
 import { fail, ok } from "@aes/shared";
+import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { AppContext } from "../context";
+import { devices, users } from "../db/schema";
 import { SESSION_COOKIE, SESSION_TTL_MS, requireUser, sessionCookieOptions } from "./session";
 import {
   LOGIN_COOKIE,
@@ -71,9 +73,22 @@ export function registerAuthRoutes(app: FastifyInstance, ctx: AppContext): void 
     return ok({ status: "ok", next: result.next });
   });
 
-  app.get("/api/me", { preHandler: requireUser }, async (request) =>
-    ok({ id: request.user!.id, name: request.user!.name }),
-  );
+  app.get("/api/me", { preHandler: requireUser }, async (request) => {
+    const [user] = await ctx.db.select().from(users).where(eq(users.id, request.user!.id));
+    const owned = await ctx.db
+      .select({ id: devices.id, revokedAt: devices.revokedAt })
+      .from(devices)
+      .where(eq(devices.userId, request.user!.id));
+    return ok({
+      id: request.user!.id,
+      name: request.user!.name,
+      telegram_id: user?.telegramId ?? null,
+      email: user?.email ?? null,
+      created_at: user?.createdAt ?? null,
+      devices: owned.filter((d) => d.revokedAt === null).length,
+      online: owned.filter((d) => d.revokedAt === null && ctx.hub.isOnline(d.id)).length,
+    });
+  });
 
   app.post("/api/auth/logout", { preHandler: requireUser }, async (request, reply) => {
     await revokeToken(ctx.db, request.user!.sessionId, ctx.now());

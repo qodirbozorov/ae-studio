@@ -26,6 +26,21 @@ export const post = <T>(path: string, body?: unknown) =>
 export interface Me {
   id: string;
   name: string;
+  telegram_id: string | null;
+  email: string | null;
+  created_at: string | null;
+  devices: number;
+  online: number;
+}
+
+export interface DeviceJob {
+  id: string;
+  state: string;
+  outcome: string | null;
+  paused: boolean;
+  project: string;
+  updated_at: string;
+  progress: number | null;
 }
 
 export interface Device {
@@ -36,4 +51,41 @@ export interface Device {
   last_seen_at: string | null;
   revoked_at: string | null;
   created_at: string;
+  online: boolean;
+  panel_version: string | null;
+  project_root: string | null;
+  project_path: string | null;
+  ffmpeg: boolean | null;
+  job: DeviceJob | null;
+}
+
+export interface DeviceEvent {
+  ts: string;
+  level: string;
+  type: string;
+  message: string;
+  op_id: string | null;
+  job_id: string;
+  project: string;
+}
+
+export interface DeviceActivity {
+  device: Device;
+  jobs: {
+    id: string;
+    state: string;
+    outcome: string | null;
+    project: string;
+    created_at: string;
+  }[];
+  events: DeviceEvent[];
+}
+
+export interface AuditRow {
+  ts: string;
+  actor: string;
+  action: string;
+  target: string | null;
+  ip: string | null;
+  data: unknown;
 }

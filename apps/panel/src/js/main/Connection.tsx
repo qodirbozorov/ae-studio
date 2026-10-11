@@ -48,6 +48,16 @@ export function Connection({ agent, status }: { agent: Agent; status: Connection
     if (agent.account() !== null && agent.connection() === null) agent.connectSaved();
   }, [agent]);
 
+  // Internet qaytganda yoki panel oynasi faollashganda — darhol qayta ulanish (backoff kutmasdan).
+  useEffect(() => {
+    const retry = () => {
+      if (agent.account() !== null && agent.connection()?.status() !== "connected")
+        agent.connectSaved();
+    };
+    window.addEventListener("online", retry);
+    return () => window.removeEventListener("online", retry);
+  }, [agent]);
+
   // Server qurilmani rad etsa (kabinetda bekor qilingan) — formaga qaytish.
   useEffect(() => {
     if (status === "unauthorized" && agent.account() === null) {
@@ -85,20 +95,43 @@ export function Connection({ agent, status }: { agent: Agent; status: Connection
 
   if (stage.kind === "account") {
     const account = agent.account();
-    return (
-      <section className="dev">
-        <h2>Ulanish</h2>
-        <p className="hint">
-          {account?.server_url} · {statusText(status)}
-        </p>
-        <div className="buttons">
+    const host = account?.server_url.replace(/^https?:\/\//, "") ?? "";
+    // Ulangan bo'lsa ixcham qator; aks holda holat va "Qayta ulanish".
+    if (status === "connected") {
+      return (
+        <section className="dev conn ok">
+          <span className="conn-dot" /> Ulangan: <b>{host}</b>
           <button
+            className="ghost right"
             onClick={() => {
               agent.logout();
               setStage({ kind: "form" });
             }}
           >
             Chiqish
+          </button>
+        </section>
+      );
+    }
+    return (
+      <section className="dev conn bad">
+        <div>
+          <span className="conn-dot" /> {statusText(status)} — <b>{host}</b>
+        </div>
+        <p className="hint">
+          Internet va server manzilini tekshiring. Panel o'zi ham qayta urinadi.
+        </p>
+        <div className="buttons">
+          <button className="primary" onClick={() => agent.connectSaved()}>
+            Qayta ulanish
+          </button>
+          <button
+            onClick={() => {
+              agent.logout();
+              setStage({ kind: "form" });
+            }}
+          >
+            Boshqa serverga
           </button>
         </div>
       </section>

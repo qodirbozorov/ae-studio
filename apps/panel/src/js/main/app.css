@@ -1,12 +1,17 @@
 :root {
-  --bg: #232323;
-  --panel: #2b2b2b;
-  --border: #3a3a3a;
-  --text: #d4d4d4;
-  --muted: #8c8c8c;
-  --accent: #4a90e2;
+  --bg: #1e1e1f;
+  --panel: #262628;
+  --panel-2: #2e2e31;
+  --border: #38383c;
+  --text: #e2e2e4;
+  --muted: #8d8d93;
+  --accent: #4f8ff7;
+  --accent-soft: rgba(79, 143, 247, 0.14);
   --ok: #3fb950;
-  --error: #f85149;
+  --warn: #e3a72f;
+  --error: #f0605a;
+  --radius: 8px;
+  --mono: Consolas, "SF Mono", ui-monospace, monospace;
   color-scheme: dark;
 }
 
@@ -32,49 +37,216 @@ body {
   user-select: none;
 }
 
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #4a4a50;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .app {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   min-height: 100%;
-  padding: 12px;
+  padding: 10px 10px 0;
   background: var(--bg);
 }
 
+/* ---------------------------------------------------------------- sarlavha va holat */
+
 .header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
 }
 
 .header h1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
+}
+
+.header h1 svg {
+  color: var(--accent);
 }
 
 .version {
   color: var(--muted);
+  font-size: 11px;
 }
 
 .status {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 12px;
-  padding: 10px;
+  gap: 6px;
+}
+
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 8px;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 999px;
+  color: var(--muted);
+}
+
+.pill-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.pill-text {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pill.s-ok .pill-dot {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px rgba(63, 185, 80, 0.18);
+}
+.pill.s-off .pill-dot {
+  background: var(--error);
+}
+.pill.s-busy .pill-dot {
+  background: var(--warn);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ---------------------------------------------------------------- bo'limlar (karta) */
+
+.app section:not(.status):not(.log-dock) {
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 h2 {
-  margin: 0 0 6px;
-  font-size: 12px;
+  margin: 0 0 8px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
+
+.hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error-text {
+  color: var(--error);
+}
+
+/* ---------------------------------------------------------------- ulanish */
+
+.conn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.conn-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 2px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.conn.ok .conn-dot {
+  background: var(--ok);
+}
+
+.conn.bad {
+  display: block;
+  border-color: rgba(240, 96, 90, 0.45) !important;
+}
+
+.conn.bad .conn-dot {
+  background: var(--error);
+}
+
+.right {
+  margin-left: auto;
+}
+
+/* ---------------------------------------------------------------- tablar */
+
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.tab {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 2px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-size: 10.5px;
+}
+
+.tab:hover {
+  color: var(--text);
+  background: var(--panel-2);
+}
+
+.tab.on {
+  color: #fff;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(79, 143, 247, 0.45);
+}
+
+.tab-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---------------------------------------------------------------- boshqaruv elementlari */
 
 .buttons {
   display: flex;
@@ -83,109 +255,51 @@ h2 {
 }
 
 button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   padding: 5px 10px;
   color: var(--text);
-  background: var(--panel);
+  background: var(--panel-2);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   font: inherit;
   cursor: pointer;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
 }
 
 button:hover {
   border-color: var(--accent);
 }
 
-.hint {
-  margin: 6px 0 0;
-  color: var(--muted);
-}
-
-.log {
-  flex: 1;
-  min-height: 160px;
-  overflow-y: auto;
-  padding: 6px 8px;
-  background: #1b1b1b;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-family: Consolas, "SF Mono", monospace;
-  font-size: 11px;
-  user-select: text;
-}
-
-.log-row {
-  display: flex;
-  gap: 8px;
-  padding: 1px 0;
-}
-
-.log-time {
-  color: var(--muted);
-  flex: none;
-}
-
-.log-error .log-message {
-  color: var(--error);
-}
-
-.log-warn .log-message {
-  color: #d29922;
-}
-
-.log-empty {
-  color: var(--muted);
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-input {
-  padding: 5px 8px;
-  color: var(--text);
-  background: #1b1b1b;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font: inherit;
-  user-select: text;
-}
-
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
 }
 
-.user-code {
-  margin: 4px 0 8px;
-  font:
-    700 28px/1.2 Consolas,
-    "SF Mono",
-    monospace;
-  letter-spacing: 0.2em;
+button.primary {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+button.primary:hover {
+  background: #3f7ee6;
+}
+
+button.ghost {
+  padding: 3px 6px;
+  color: var(--muted);
+  background: transparent;
+  border-color: transparent;
+}
+
+button.ghost:hover {
   color: var(--text);
-  user-select: text;
-}
-
-.error-text {
-  color: var(--error);
-}
-
-select {
-  padding: 5px 8px;
-  color: var(--text);
-  background: #1b1b1b;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font: inherit;
-}
-
-.recent {
-  margin: 6px 0 0;
-  padding: 0;
-  list-style: none;
+  background: var(--panel-2);
 }
 
 .link-button {
@@ -195,59 +309,117 @@ select {
   border: 0;
 }
 
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+
+.form fieldset {
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+input,
+select,
+textarea {
+  padding: 6px 8px;
+  color: var(--text);
+  background: #19191a;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  outline: none;
+  user-select: text;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.user-code {
+  margin: 4px 0 8px;
+  font: 700 28px/1.2 var(--mono);
+  letter-spacing: 0.2em;
+  color: var(--text);
+  user-select: text;
+}
+
+.recent {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---------------------------------------------------------------- job jarayoni */
+
 .chain {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   padding: 0;
   list-style: none;
   font-size: 10px;
 }
 
 .chain li {
-  padding: 1px 5px;
+  padding: 1px 6px;
   color: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 999px;
 }
 
 .chain .chain-done {
   color: var(--ok);
+  border-color: rgba(63, 185, 80, 0.4);
 }
 
 .chain .chain-current {
-  color: var(--text);
+  color: #fff;
+  background: var(--accent-soft);
   border-color: var(--accent);
 }
 
 .progress {
   position: relative;
-  height: 16px;
+  height: 14px;
   margin: 4px 0 8px;
-  background: #1b1b1b;
+  background: #19191a;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 999px;
   overflow: hidden;
 }
 
 .progress-bar {
   height: 100%;
-  background: var(--accent);
-  opacity: 0.6;
+  background: linear-gradient(90deg, #3b7be0, var(--accent));
+  transition: width 0.3s;
 }
 
 .progress span {
   position: absolute;
   inset: 0;
   font-size: 10px;
-  line-height: 14px;
+  line-height: 12px;
   text-align: center;
 }
 
 .job-log {
-  max-height: 160px;
+  max-height: 140px;
   margin-top: 8px;
+  overflow-y: auto;
 }
 
 .history li {
@@ -255,18 +427,14 @@ select {
   border-bottom: 1px solid var(--border);
 }
 
-.muted {
-  color: var(--muted);
-}
-
 .report {
   max-height: 220px;
   margin: 6px 0 0;
   padding: 8px;
   overflow: auto;
-  background: #1b1b1b;
+  background: #19191a;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 11px;
   white-space: pre-wrap;
   user-select: text;
@@ -274,45 +442,186 @@ select {
 
 /* Shablonlar galereyasi (P5.06) */
 .gallery {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 6px;
 }
+
 .gallery .card {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  width: 110px;
-  padding: 4px;
+  padding: 6px;
   text-align: center;
-  background: transparent;
-  border: 1px solid #444;
-  border-radius: 4px;
+  background: #19191a;
+  border: 1px solid var(--border);
+  border-radius: 6px;
 }
+
 .gallery .card.selected {
-  border-color: #3b82f6;
-}
-.form label {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-bottom: 6px;
-}
-.form fieldset {
-  border: 1px solid #444;
-  margin-bottom: 6px;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 /* Birinchi ishga tushirish ustasi (P5.11) */
 .onboarding {
-  border: 1px solid #3b82f6;
+  border-color: var(--accent) !important;
+}
+
+.steps {
+  padding: 0;
+  list-style: none;
+}
+
+.steps .current {
+  font-weight: 600;
+  color: #fff;
+}
+
+/* ---------------------------------------------------------------- live log (pastda, qat'iy balandlik) */
+
+.log-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  margin: auto -10px 0;
+  background: #19191a;
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.log-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.log-dock.closed .log-bar {
+  border-bottom: 0;
+}
+
+.chips {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+}
+
+.chip {
+  padding: 1px 8px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 10.5px;
+}
+
+.chip.on {
+  color: #fff;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.chip.warn {
+  color: var(--warn);
+  border-color: rgba(227, 167, 47, 0.5);
+}
+
+.log-list {
+  height: 150px;
+  overflow-y: auto;
+  padding: 4px 6px 6px;
+  user-select: text;
+}
+
+.log-dock.tall .log-list {
+  height: 45vh;
+}
+
+.log-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 3px 4px;
   border-radius: 4px;
 }
-.steps {
-  list-style: none;
-  padding: 0;
+
+.log-row:hover {
+  background: rgba(255, 255, 255, 0.03);
 }
-.steps .current {
-  font-weight: bold;
+
+.log-icon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.log-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.log-title {
+  overflow-wrap: anywhere;
+}
+
+.log-detail {
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.log-time {
+  flex: none;
+  color: #6c6c72;
+  font: 10px var(--mono);
+  margin-top: 2px;
+}
+
+.k-done .log-icon {
+  color: var(--ok);
+}
+.k-running .log-icon {
+  color: var(--accent);
+}
+.k-info .log-icon {
+  color: var(--muted);
+}
+.k-warn .log-icon,
+.k-warn .log-title {
+  color: var(--warn);
+}
+.k-error .log-icon,
+.k-error .log-title {
+  color: var(--error);
+}
+.k-error {
+  background: rgba(240, 96, 90, 0.06);
+}
+
+.code-badge {
+  margin-left: 6px;
+  padding: 0 5px;
+  color: var(--error);
+  border: 1px solid rgba(240, 96, 90, 0.45);
+  border-radius: 4px;
+  font: 9.5px var(--mono);
+  vertical-align: 1px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.log-empty {
+  padding: 10px;
+  color: var(--muted);
+  text-align: center;
 }

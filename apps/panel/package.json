@@ -1,6 +1,6 @@
 {
   "name": "@aes/panel",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "description": "AE Studio CEP paneli (Bolt CEP): React UI + Node agent + ExtendScript oplar",
@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@aes/shared": "workspace:*",
+    "lucide-react": "^1.54.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

@@ -69,7 +69,7 @@ export function reconnectDelay(
 
 export function createWsClient(options: WsClientOptions): WsClient {
   const { runner, log } = options;
-  const backoff = options.backoff ?? { baseMs: 1_000, maxMs: 30_000 };
+  const backoff = options.backoff ?? { baseMs: 1_000, maxMs: 10_000 };
   const random = options.random ?? Math.random;
   const statusListeners = new Set<(status: ConnectionStatus) => void>();
   let socket: WebSocket | null = null;

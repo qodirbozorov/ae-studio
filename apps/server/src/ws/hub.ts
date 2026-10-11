@@ -55,6 +55,8 @@ export interface AgentState {
   ffmpeg: boolean | null;
   /** Panel `hello` dagi protokol versiyasi (≥ 2 — `ops.batch`, P6.04). */
   protocol: number;
+  /** Panel (ZXP) versiyasi. */
+  panelVersion: string | null;
 }
 
 /** `request_id` li panel javoblari (`asset.scanned`, `file.*`, `request.failed`). */
@@ -112,7 +114,14 @@ export class AgentHub {
       identity,
       lastSeen: this.now().getTime(),
       pending: new Map(),
-      state: { aeVersion: null, projectRoot: null, projectPath: null, ffmpeg: null, protocol: 1 },
+      state: {
+        aeVersion: null,
+        projectRoot: null,
+        projectPath: null,
+        ffmpeg: null,
+        protocol: 1,
+        panelVersion: null,
+      },
     };
     this.connections.set(identity.deviceId, connection);
     socket.on("message", (data) => void this.onRaw(connection, data.toString()));
@@ -250,6 +259,7 @@ export class AgentHub {
           projectPath: connection.state.projectPath,
           ffmpeg: connection.state.ffmpeg,
           protocol: message.protocol_version,
+          panelVersion: message.panel_version,
         };
         await this.touch(connection.identity.deviceId, { aeVersion: message.ae_version });
         connection.socket.send(
@@ -272,6 +282,7 @@ export class AgentHub {
           projectPath: message.project_path,
           ffmpeg: message.ffmpeg === undefined ? connection.state.ffmpeg : message.ffmpeg,
           protocol: connection.state.protocol,
+          panelVersion: connection.state.panelVersion,
         };
         await this.touch(connection.identity.deviceId, { aeVersion: message.ae_version });
         break;

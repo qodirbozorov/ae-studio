@@ -13,7 +13,7 @@ import { z } from "zod";
 import { requireUser } from "../auth/session";
 import { consumeToken, findActiveToken, issueToken } from "../auth/tokens";
 import type { AppContext } from "../context";
-import { devices, oauthTokens } from "../db/schema";
+import { devices, jobEvents, jobs, oauthTokens, ops, projects } from "../db/schema";
 
 export const DEVICE_CODE_TTL_MS = 10 * 60 * 1000;
 export const POLL_INTERVAL_S = 5;
@@ -200,23 +200,109 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
     });
   });
 
+  /** Qurilmadagi oxirgi job: holat, loyiha va op'lar bo'yicha progress. */
+  const latestJob = async (deviceId: string) => {
+    const [job] = await ctx.db
+      .select({
+        id: jobs.id,
+        state: jobs.state,
+        outcome: jobs.outcome,
+        paused: jobs.paused,
+        project: projects.name,
+        updatedAt: jobs.updatedAt,
+      })
+      .from(jobs)
+      .innerJoin(projects, eq(projects.id, jobs.projectId))
+      .where(eq(jobs.deviceId, deviceId))
+      .orderBy(desc(jobs.createdAt))
+      .limit(1);
+    if (job === undefined) return null;
+    const counts = await ctx.db
+      .select({ status: ops.status, n: sql<number>`count(*)::int` })
+      .from(ops)
+      .where(eq(ops.jobId, job.id))
+      .groupBy(ops.status);
+    const total = counts.reduce((sum, c) => sum + Number(c.n), 0);
+    const done = counts.filter((c) => c.status === "done").reduce((s, c) => s + Number(c.n), 0);
+    return {
+      id: job.id,
+      state: job.state,
+      outcome: job.outcome,
+      paused: job.paused,
+      project: job.project,
+      updated_at: job.updatedAt,
+      progress: total === 0 ? null : Math.round((done / total) * 100),
+    };
+  };
+
+  const present = async (d: typeof devices.$inferSelect) => {
+    const live = ctx.hub.state(d.id);
+    return {
+      id: d.id,
+      name: d.name,
+      os: d.os,
+      ae_version: live?.aeVersion ?? d.aeVersion,
+      last_seen_at: d.lastSeenAt,
+      revoked_at: d.revokedAt,
+      created_at: d.createdAt,
+      online: live !== null,
+      panel_version: live?.panelVersion ?? null,
+      project_root: live?.projectRoot ?? null,
+      project_path: live?.projectPath ?? null,
+      ffmpeg: live?.ffmpeg ?? null,
+      job: d.revokedAt === null ? await latestJob(d.id) : null,
+    };
+  };
+
   app.get("/api/devices", { preHandler: requireUser }, async (request) => {
     const rows = await ctx.db
       .select()
       .from(devices)
       .where(eq(devices.userId, request.user!.id))
       .orderBy(desc(devices.createdAt));
-    return ok(
-      rows.map((d) => ({
-        id: d.id,
-        name: d.name,
-        os: d.os,
-        ae_version: d.aeVersion,
-        last_seen_at: d.lastSeenAt,
-        revoked_at: d.revokedAt,
-        created_at: d.createdAt,
-      })),
-    );
+    return ok(await Promise.all(rows.map(present)));
+  });
+
+  /** Qurilma faolligi: jonli holat, oxirgi job'lar va hodisalar lentasi. */
+  app.get("/api/devices/:id/activity", { preHandler: requireUser }, async (request, reply) => {
+    const id = (request.params as { id: string }).id;
+    if (!z.uuid().safeParse(id).success) return reply.code(404).send(fail("SYS_NOT_FOUND"));
+    const [device] = await ctx.db
+      .select()
+      .from(devices)
+      .where(and(eq(devices.id, id), eq(devices.userId, request.user!.id)));
+    if (device === undefined)
+      return reply.code(404).send(fail("SYS_NOT_FOUND", "Qurilma topilmadi"));
+    const recent = await ctx.db
+      .select({
+        id: jobs.id,
+        state: jobs.state,
+        outcome: jobs.outcome,
+        project: projects.name,
+        created_at: jobs.createdAt,
+      })
+      .from(jobs)
+      .innerJoin(projects, eq(projects.id, jobs.projectId))
+      .where(eq(jobs.deviceId, id))
+      .orderBy(desc(jobs.createdAt))
+      .limit(10);
+    const events = await ctx.db
+      .select({
+        ts: jobEvents.ts,
+        level: jobEvents.level,
+        type: jobEvents.type,
+        message: jobEvents.message,
+        op_id: jobEvents.opId,
+        job_id: jobEvents.jobId,
+        project: projects.name,
+      })
+      .from(jobEvents)
+      .innerJoin(jobs, eq(jobs.id, jobEvents.jobId))
+      .innerJoin(projects, eq(projects.id, jobs.projectId))
+      .where(and(eq(jobs.deviceId, id), sql`${jobEvents.level} <> 'debug'`))
+      .orderBy(desc(jobEvents.id))
+      .limit(120);
+    return ok({ device: await present(device), jobs: recent, events });
   });
 
   app.post("/api/devices/:id/revoke", { preHandler: requireUser }, async (request, reply) => {

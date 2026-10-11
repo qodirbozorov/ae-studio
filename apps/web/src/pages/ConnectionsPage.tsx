@@ -1,5 +1,8 @@
+import { Badge, Button, Card, Spinner } from "flowbite-react";
+import { Bot, Plug, Unplug } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, post } from "../api";
+import { Empty, ago } from "../ui";
 
 interface Connection {
   client_id: string;
@@ -10,45 +13,13 @@ interface Connection {
   active_tokens: number;
 }
 
-interface AuditRow {
-  ts: string;
-  actor: string;
-  action: string;
-  target: string | null;
-  ip: string | null;
-}
-
-const ACTION: Record<string, string> = {
-  "oauth.authorized": "Ilovaga ruxsat berildi",
-  "oauth.denied": "Ilova rad etildi",
-  "oauth.revoked": "Ilova uzildi",
-  "oauth.refresh_reuse": "⚠️ Eski token qayta ishlatildi — ulanish bekor qilindi",
-  "device.approved": "Qurilma ulandi",
-  "device.denied": "Qurilma rad etildi",
-  "device.revoked": "Qurilma bekor qilindi",
-};
-
-function when(value: string): string {
-  return new Date(value).toLocaleString("uz-UZ");
-}
-
-function describe(row: AuditRow): string {
-  if (row.action.startsWith("mcp.")) return `Claude: ${row.action.slice(4)}`;
-  return ACTION[row.action] ?? row.action;
-}
-
-/** "Ulangan ilovalar" (Claude connector tokenlari) va xavfsizlik jurnali (P3.10). */
+/** "Ulangan ilovalar": Claude connector tokenlari (P3.10). Faollik jurnali — Audit sahifasida. */
 export function ConnectionsPage() {
   const [connections, setConnections] = useState<Connection[] | null>(null);
-  const [events, setEvents] = useState<AuditRow[]>([]);
 
   const load = async () => {
-    const [list, log] = await Promise.all([
-      api<Connection[]>("/api/oauth/connections"),
-      api<AuditRow[]>("/api/audit"),
-    ]);
+    const list = await api<Connection[]>("/api/oauth/connections");
     setConnections(list.ok ? list.data : []);
-    setEvents(log.ok ? log.data : []);
   };
 
   useEffect(() => {
@@ -56,55 +27,53 @@ export function ConnectionsPage() {
   }, []);
 
   const revoke = async (clientId: string) => {
+    if (!window.confirm("Ilova uzilsinmi? Claude qayta ulanishi kerak bo'ladi.")) return;
     await post("/api/oauth/connections/revoke", { client_id: clientId });
     await load();
   };
 
   return (
-    <>
-      <section className="card">
-        <h2>Ulangan ilovalar</h2>
-        {connections === null ? <p>Yuklanmoqda…</p> : null}
-        {connections?.length === 0 ? (
-          <p className="muted">
+    <section>
+      <h1 className="mb-4 text-xl font-semibold">Ulangan ilovalar</h1>
+      {connections === null ? <Spinner /> : null}
+      {connections?.length === 0 ? (
+        <Card>
+          <Empty>
             Hali ilova ulanmagan. Claude'da: Settings → Connectors → Add custom connector →{" "}
             <code>{window.location.origin}/mcp</code>
-          </p>
-        ) : null}
-        <ul className="devices">
-          {connections?.map((c) => (
-            <li key={c.client_id}>
-              <div>
-                <b>{c.client_name ?? "Noma'lum ilova"}</b>{" "}
-                <span className="muted">{c.redirect_hosts.join(", ")}</span>
-                <div className="muted small">
-                  ruxsat: {when(c.last_authorized_at)} · faol tokenlar: {c.active_tokens}
+          </Empty>
+        </Card>
+      ) : null}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {connections?.map((c) => (
+          <Card key={c.client_id}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300">
+                  <Bot className="h-5 w-5" />
+                </span>
+                <div>
+                  <div className="font-semibold">{c.client_name ?? "Noma'lum ilova"}</div>
+                  <div className="text-xs text-gray-500">{c.redirect_hosts.join(", ")}</div>
                 </div>
               </div>
-              <button className="secondary" onClick={() => revoke(c.client_id)}>
-                Uzish
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section className="card">
-        <h2>Faollik</h2>
-        {events.length === 0 ? <p className="muted">Hali yozuv yo'q.</p> : null}
-        <ul className="devices">
-          {events.map((e, index) => (
-            <li key={`${e.ts}-${index}`}>
-              <div>
-                {describe(e)} {e.target ? <span className="muted">· {e.target}</span> : null}
-                <div className="muted small">
-                  {when(e.ts)}
-                  {e.ip ? ` · ${e.ip}` : ""}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </>
+              <Badge color={c.active_tokens > 0 ? "success" : "gray"} icon={Plug}>
+                {c.active_tokens} faol
+              </Badge>
+            </div>
+            <div className="text-sm text-gray-500">Oxirgi ruxsat: {ago(c.last_authorized_at)}</div>
+            <Button
+              size="xs"
+              color="red"
+              outline
+              className="w-fit"
+              onClick={() => revoke(c.client_id)}
+            >
+              <Unplug className="mr-1 h-3.5 w-3.5" /> Uzish
+            </Button>
+          </Card>
+        ))}
+      </div>
+    </section>
   );
 }
