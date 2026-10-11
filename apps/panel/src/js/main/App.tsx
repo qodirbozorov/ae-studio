@@ -12,8 +12,9 @@ import type { LucideIcon } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { claudeIndicator } from "../../agent/claude";
 import pkg from "../../../package.json";
+import logo from "./assets/ae-studio-full-dark.svg";
 import { getAgent } from "../lib/agent";
-import { hostEnvironment, isCep, panelBackground } from "../lib/cep";
+import { hostEnvironment, isCep } from "../lib/cep";
 import { Connection, useConnectionStatus } from "./Connection";
 import { Audio } from "./Audio";
 import { DevTools } from "./DevTools";
@@ -38,7 +39,7 @@ function Pill({
 }) {
   return (
     <div className={`pill s-${status}`}>
-      <Icon size={13} />
+      <Icon size={14} />
       <span className="pill-dot" />
       <span className="pill-text">{children}</span>
     </div>
@@ -116,19 +117,22 @@ function ServerStatus({ agent }: { agent: NonNullable<ReturnType<typeof getAgent
 }
 
 export function App() {
-  const [background, setBackground] = useState<string | null>(null);
   const host = hostEnvironment();
   const agent = getAgent();
 
-  useEffect(() => {
-    setBackground(panelBackground());
-  }, []);
-
+  // Fon — o'z palitramiz (--ground): AE rangiga moslash yuzalar kontrastini buzadi.
   return (
-    <main className="app" style={background ? { backgroundColor: background } : undefined}>
+    <main className="app">
       <header className="header">
-        <h1>
-          <Clapperboard size={15} /> AE Studio
+        <h1 style={{ margin: 0 }}>
+          <img
+            className="logo"
+            src={logo}
+            alt="AE Studio"
+            width={67}
+            height={26}
+            draggable={false}
+          />
         </h1>
         <span className="version">v{pkg.version}</span>
       </header>
@@ -236,7 +240,7 @@ function Workbench({
             className={`tab${tab === key ? " on" : ""}`}
             onClick={() => choose(key)}
           >
-            <Icon size={14} />
+            <Icon size={16} />
             <span>{label}</span>
           </button>
         ))}

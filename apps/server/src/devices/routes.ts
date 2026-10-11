@@ -10,10 +10,10 @@ import { fail, ok } from "@aes/shared";
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
-import { requireUser } from "../auth/session";
+import { displayName, requireUser } from "../auth/session";
 import { consumeToken, findActiveToken, issueToken } from "../auth/tokens";
 import type { AppContext } from "../context";
-import { devices, jobEvents, jobs, oauthTokens, ops, projects } from "../db/schema";
+import { devices, jobEvents, jobs, oauthTokens, ops, projects, users } from "../db/schema";
 
 export const DEVICE_CODE_TTL_MS = 10 * 60 * 1000;
 export const POLL_INTERVAL_S = 5;
@@ -253,6 +253,24 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
       job: d.revokedAt === null ? await latestJob(d.id) : null,
     };
   };
+
+  /** Panel profili: qurilma tokeni egasi va qurilma nomi (panel sarlavhasida ko'rsatiladi). */
+  app.get("/api/agent/me", async (request, reply) => {
+    const identity = await authenticateDevice(ctx, request.headers.authorization);
+    if (identity === null) {
+      return reply.code(401).send(fail("AUTH_DEVICE_REVOKED", "Qurilma tokeni yaroqsiz"));
+    }
+    const [user] = await ctx.db.select().from(users).where(eq(users.id, identity.userId));
+    const [device] = await ctx.db
+      .select({ name: devices.name })
+      .from(devices)
+      .where(eq(devices.id, identity.deviceId));
+    return ok({
+      name: user === undefined ? "foydalanuvchi" : displayName(user),
+      telegram: user?.telegramId != null,
+      device_name: device?.name ?? null,
+    });
+  });
 
   app.get("/api/devices", { preHandler: requireUser }, async (request) => {
     const rows = await ctx.db

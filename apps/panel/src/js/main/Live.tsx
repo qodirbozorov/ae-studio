@@ -1,3 +1,4 @@
+import { Pause, Play, Square, Undo2 } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 import { JOB_FLOW } from "@aes/shared";
 import type { Agent, PanelJobAction } from "../../agent";
@@ -12,9 +13,17 @@ function useLive(store: LiveJobStore) {
 }
 
 const STATE_LABEL: Record<string, string> = {
-  BLOCKED: "⛔ To'xtadi",
-  WAITING_AGENT: "⏳ Panel kutilmoqda",
+  BLOCKED: "To'xtadi",
+  WAITING_AGENT: "Panel kutilmoqda",
 };
+
+/** Holat pill'ining rangi (web kabinet bilan bir xil ma'no). */
+function tone(state: string, outcome: string | undefined): string {
+  if (state === "BLOCKED" || outcome === "failed") return "stop";
+  if (state === "WAITING_AGENT" || state === "VERIFY") return "wait";
+  if (state === "DONE" && outcome !== "cancelled") return "go";
+  return "";
+}
 
 function time(iso: string): string {
   return new Date(iso).toTimeString().slice(0, 8);
@@ -70,10 +79,12 @@ export function Live({ agent }: { agent: Agent }) {
         ))}
       </ol>
       <p className="hint">
-        {STATE_LABEL[job.state] ?? job.state}
-        {job.paused ? " · ⏸ pauza" : ""}
+        <span className={`state-pill ${tone(job.state, job.outcome)}`}>
+          {STATE_LABEL[job.state] ?? job.state}
+          {done && job.outcome !== undefined ? ` · ${job.outcome}` : ""}
+        </span>{" "}
+        {job.paused ? " · pauzada" : ""}
         {job.scene_id !== undefined ? ` · sahna: ${job.scene_id}` : ""}
-        {done && job.outcome !== undefined ? ` · ${job.outcome}` : ""}
       </p>
       {job.error !== undefined ? (
         <p className="error-text">
@@ -81,22 +92,30 @@ export function Live({ agent }: { agent: Agent }) {
         </p>
       ) : null}
       {job.progress.total > 0 ? (
-        <div className="progress" aria-label={`${job.progress.done}/${job.progress.total}`}>
-          <div className="progress-bar" style={{ width: `${percent}%` }} />
-          <span>
-            {job.progress.done}/{job.progress.total} op
-          </span>
-        </div>
+        <>
+          <div className="figure-row">
+            <div className="figure">
+              {percent}
+              <small>%</small>
+            </div>
+            <span className="muted">
+              {job.progress.done}/{job.progress.total} op
+            </span>
+          </div>
+          <div className="progress" aria-hidden="true">
+            <div className="progress-bar" style={{ width: `${percent}%` }} />
+          </div>
+        </>
       ) : null}
       {!done ? (
         <div className="buttons">
           {job.paused ? (
             <button disabled={busy !== null} onClick={() => run("resume")}>
-              ▶ Resume
+              <Play size={15} /> Resume
             </button>
           ) : (
             <button disabled={busy !== null || job.state === "REPORT"} onClick={() => run("pause")}>
-              ⏸ Pause
+              <Pause size={15} /> Pause
             </button>
           )}
           <button
@@ -104,7 +123,7 @@ export function Live({ agent }: { agent: Agent }) {
             title="Pauzada: AE'dagi oxirgi opni bekor qiladi"
             onClick={() => run("undo")}
           >
-            ↩ Undo last
+            <Undo2 size={15} /> Undo last
           </button>
           <button
             disabled={busy !== null || job.state === "REPORT"}
@@ -114,7 +133,7 @@ export function Live({ agent }: { agent: Agent }) {
               }
             }}
           >
-            ⏹ Cancel
+            <Square size={14} /> Cancel
           </button>
         </div>
       ) : null}

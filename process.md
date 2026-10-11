@@ -1704,3 +1704,7 @@ Professional qatlamlar: shape contents (SVG, gradient, modifikatorlar), effektla
 ### Render siyosati va log tuzatishlari (2026-10-10)
 
 Claude endi o'zi render qilmaydi: verify_approve render'siz (foydalanuvchi AE timeline'ida ko'radi), render/batch faqat user_confirmed bilan (RENDER_NOT_CONFIRMED). Loglardan: panel qayta ulanganda papka poygasi (ENV_NO_FOLDER) tuzatildi, sxemadan o'tmagan op serverga darhol qaytadi (AE_TIMEOUT emas), aerender xatosi chiqishi bilan, ae_inspect AE obyektlarini seriyalamaydi. Panel 0.2.1.
+
+### Web kabinet va panel dizayni (2026-10-12)
+
+Kabinet: reference uslubi (Inter light, Google Fonts), mobil moslashuv, PWA (manifest, SW, oflayn), og:image, yangi logo. Panel 0.4.0: lokal Inter/Ubuntu Mono (woff2, unicode-range), dark tekis dizayn, profil (`/api/agent/me`), ingichka ikonlar, AE menyu ikonlari. 👤 AE'da panel 0.4.0 ni sinash.

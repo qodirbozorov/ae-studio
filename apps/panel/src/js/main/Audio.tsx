@@ -1,3 +1,5 @@
+import { CircleCheck, CircleX, Clock, Loader, Play, SkipForward } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Agent } from "../../agent";
 
@@ -14,12 +16,12 @@ const KIND: Record<string, string> = {
   voice_design: "Ovoz dizayni",
 };
 
-const STATUS: Record<string, string> = {
-  queued: "⏳ navbatda",
-  running: "⚙️ ishlanmoqda",
-  done: "✅",
-  failed: "❌",
-  skipped: "⏭ o'tkazildi",
+const STATUS: Record<string, { icon: LucideIcon; tone: string; label: string }> = {
+  queued: { icon: Clock, tone: "dim-icon", label: "navbatda" },
+  running: { icon: Loader, tone: "warn-icon spin", label: "ishlanmoqda" },
+  done: { icon: CircleCheck, tone: "ok-icon", label: "tayyor" },
+  failed: { icon: CircleX, tone: "bad-icon", label: "xato" },
+  skipped: { icon: SkipForward, tone: "dim-icon", label: "o'tkazildi" },
 };
 
 function fileUrl(path: string): string {
@@ -60,18 +62,21 @@ export function Audio({ agent, connected }: { agent: Agent; connected: boolean }
       <ul className="recent history">
         {tasks.slice(0, 30).map((task) => {
           const path = task.local_path === null ? null : agent.absolutePath(task.local_path);
+          const status = STATUS[task.status];
+          const Icon = status?.icon ?? Clock;
           return (
             <li key={task.id}>
-              <div>
-                {STATUS[task.status] ?? task.status}{" "}
-                <b>{task.label ?? KIND[task.kind] ?? task.kind}</b>{" "}
-                <span className="muted">
-                  {KIND[task.kind] ?? task.kind}
-                  {task.duration_s !== null ? ` · ${task.duration_s.toFixed(1)} s` : ""}
-                  {task.cached ? " · keshdan" : ""}
-                </span>
+              <div className="row-title" title={status?.label ?? task.status}>
+                <Icon size={15} className={status?.tone ?? "dim-icon"} />
+                <b>{task.label ?? KIND[task.kind] ?? task.kind}</b>
               </div>
-              {task.local_path !== null ? <div className="muted">{task.local_path}</div> : null}
+              <div className="muted">
+                {KIND[task.kind] ?? task.kind}
+                {task.status !== "done" ? ` · ${status?.label ?? task.status}` : ""}
+                {task.duration_s !== null ? ` · ${task.duration_s.toFixed(1)} s` : ""}
+                {task.cached ? " · keshdan" : ""}
+              </div>
+              {task.local_path !== null ? <div className="path">{task.local_path}</div> : null}
               {task.error !== null ? (
                 <div className="error-text">
                   {task.error.code}: {task.error.message ?? task.error.hint}
@@ -83,7 +88,13 @@ export function Audio({ agent, connected }: { agent: Agent; connected: boolean }
                     className="link-button"
                     onClick={() => setPlaying(playing === task.id ? null : task.id)}
                   >
-                    {playing === task.id ? "Yopish" : "▶ Eshitish"}
+                    {playing === task.id ? (
+                      "Yopish"
+                    ) : (
+                      <span className="icon-text">
+                        <Play size={13} /> Eshitish
+                      </span>
+                    )}
                   </button>
                 ) : null}
                 {task.status === "done" && task.kind !== "stt" && task.kind !== "align" ? (

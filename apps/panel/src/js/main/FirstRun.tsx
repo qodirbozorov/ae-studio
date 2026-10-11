@@ -1,3 +1,4 @@
+import { Circle, CircleCheck, CircleDot, CircleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Agent } from "../../agent";
 import { ONBOARDING_STEPS, environmentItems } from "../../agent/onboarding";
@@ -39,7 +40,14 @@ export function FirstRun({ agent, onDone }: { agent: Agent; onDone: () => void }
       <ol className="steps">
         {ONBOARDING_STEPS.map((s, i) => (
           <li key={s.step} className={i < index ? "done" : i === index ? "current" : undefined}>
-            {i < index ? "✅" : i === index ? "👉" : "⬜"} {s.title}
+            {i < index ? (
+              <CircleCheck size={15} className="ok-icon" />
+            ) : i === index ? (
+              <CircleDot size={15} />
+            ) : (
+              <Circle size={15} className="dim-icon" />
+            )}{" "}
+            {s.title}
           </li>
         ))}
       </ol>
@@ -50,7 +58,14 @@ export function FirstRun({ agent, onDone }: { agent: Agent; onDone: () => void }
           <ul className="recent">
             {(items ?? []).map((item) => (
               <li key={item.label}>
-                {item.ok ? "🟢" : "🟡"} {item.label}
+                <span className="icon-text">
+                  {item.ok ? (
+                    <CircleCheck size={15} className="ok-icon" />
+                  ) : (
+                    <CircleAlert size={15} className="warn-icon" />
+                  )}
+                  {item.label}
+                </span>
                 {item.hint !== undefined ? <div className="muted">{item.hint}</div> : null}
               </li>
             ))}

@@ -87,6 +87,12 @@ export interface HistoryJob {
   renders: { id: string; status: string; preset: string; local_path: string }[];
 }
 
+export interface PanelProfile {
+  name: string;
+  telegram: boolean;
+  device_name: string | null;
+}
+
 export interface Agent {
   log: LogStore;
   /** Aktiv job holati va hodisalari (Live ekrani). */
@@ -108,6 +114,8 @@ export interface Agent {
   absolutePath(relative: string): string | null;
   /** Tarix ekrani: joblar, hisobot, qayta render. */
   history(): Promise<HistoryJob[]>;
+  /** Hisob egasi va qurilma nomi (`/api/agent/me`); ulanmagan yoki eski server bo'lsa null. */
+  profile(): Promise<PanelProfile | null>;
   jobReport(jobId: string): Promise<string | null>;
   renderAgain(jobId: string, preset?: string): Promise<{ ok: boolean; message?: string }>;
   /** Shablonlar ekrani (P5.06): galereya, loyiha assetlari, ishga tushirish (Claude'siz). */
@@ -629,6 +637,18 @@ export function createAgent(options: AgentOptions): Agent {
     absolutePath(relative) {
       if (root === "") return null;
       return `${root.replace(/\\/g, "/").replace(/\/+$/, "")}/${relative}`;
+    },
+    async profile() {
+      if (api === null) return null;
+      const { base, headers } = authed();
+      try {
+        const res = await getJson<{ ok: boolean; data?: PanelProfile }>(`${base}/api/agent/me`, {
+          headers,
+        });
+        return res.body.ok ? (res.body.data ?? null) : null;
+      } catch {
+        return null;
+      }
     },
     async history() {
       const { base, headers } = authed();

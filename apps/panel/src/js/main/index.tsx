@@ -1,3 +1,4 @@
+import { LucideProvider } from "lucide-react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
@@ -11,7 +12,9 @@ const container = document.getElementById("app");
 if (container !== null) {
   createRoot(container).render(
     <StrictMode>
-      <App />
+      <LucideProvider strokeWidth={1.5}>
+        <App />
+      </LucideProvider>
     </StrictMode>,
   );
 }

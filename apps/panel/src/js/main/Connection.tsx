@@ -1,5 +1,6 @@
+import { ExternalLink, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Agent, ConnectionStatus, DeviceCode } from "../../agent";
+import type { Agent, ConnectionStatus, DeviceCode, PanelProfile } from "../../agent";
 import { openUrl } from "../lib/cep";
 
 const SERVER_KEY = "aes.server_url";
@@ -10,6 +11,72 @@ function savedServer(): string {
   } catch {
     return "";
   }
+}
+
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .map((part) => part[0] ?? "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+/** Ulangan hisob: kim, qaysi qurilma, qaysi server; kabinetni ochish va chiqish. */
+function Profile({
+  agent,
+  host,
+  onLogout,
+  onCabinet,
+}: {
+  agent: Agent;
+  host: string;
+  onLogout: () => void;
+  onCabinet: () => void;
+}) {
+  const [profile, setProfile] = useState<PanelProfile | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void agent.profile().then((p) => {
+      if (alive) setProfile(p);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [agent]);
+  const name = profile?.name ?? "Ulangan";
+  return (
+    <section className="dev conn ok" aria-label="Profil">
+      <div className="profile">
+        <span className="avatar" aria-hidden="true">
+          {profile === null ? <span className="conn-dot" /> : initials(name)}
+        </span>
+        <div className="profile-body">
+          <div className="profile-name">{name}</div>
+          <div className="profile-meta">
+            <span className="conn-dot" />
+            <span>
+              {profile?.device_name ? `${profile.device_name} · ` : ""}
+              {host}
+            </span>
+          </div>
+        </div>
+        <div className="profile-actions">
+          <button
+            className="ghost icon"
+            title="Kabinetni ochish"
+            aria-label="Kabinetni ochish"
+            onClick={onCabinet}
+          >
+            <ExternalLink size={16} />
+          </button>
+          <button className="ghost icon" title="Chiqish" aria-label="Chiqish" onClick={onLogout}>
+            <LogOut size={16} />
+          </button>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 /** Ulanish holatini kuzatadi (agent ulanishni almashtirsa ham). */
@@ -97,20 +164,17 @@ export function Connection({ agent, status }: { agent: Agent; status: Connection
     const account = agent.account();
     const host = account?.server_url.replace(/^https?:\/\//, "") ?? "";
     // Ulangan bo'lsa ixcham qator; aks holda holat va "Qayta ulanish".
-    if (status === "connected") {
+    if (status === "connected" && account !== null) {
       return (
-        <section className="dev conn ok">
-          <span className="conn-dot" /> Ulangan: <b>{host}</b>
-          <button
-            className="ghost right"
-            onClick={() => {
-              agent.logout();
-              setStage({ kind: "form" });
-            }}
-          >
-            Chiqish
-          </button>
-        </section>
+        <Profile
+          agent={agent}
+          host={host}
+          onLogout={() => {
+            agent.logout();
+            setStage({ kind: "form" });
+          }}
+          onCabinet={() => openUrl(account.server_url)}
+        />
       );
     }
     return (

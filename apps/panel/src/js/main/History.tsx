@@ -1,7 +1,14 @@
+import { CircleCheck, CircleStop, CircleX, Clock, Film } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Agent, HistoryJob } from "../../agent";
 
-const OUTCOME: Record<string, string> = { success: "✅", cancelled: "⏹", failed: "❌" };
+const OUTCOME: Record<string, { icon: LucideIcon; tone: string; label: string }> = {
+  success: { icon: CircleCheck, tone: "ok-icon", label: "Tayyor" },
+  cancelled: { icon: CircleStop, tone: "dim-icon", label: "Bekor qilindi" },
+  failed: { icon: CircleX, tone: "bad-icon", label: "Xato" },
+};
+const PENDING = { icon: Clock, tone: "dim-icon", label: "Jarayonda" };
 
 function when(iso: string): string {
   const date = new Date(iso);
@@ -38,7 +45,7 @@ export function History({ agent, connected }: { agent: Agent; connected: boolean
   const rerender = async (id: string) => {
     setMessage(null);
     const res = await agent.renderAgain(id);
-    setMessage(res.ok ? "🎬 Qayta render boshlandi (natija Live log'da)" : (res.message ?? "Xato"));
+    setMessage(res.ok ? "Qayta render boshlandi (natija Live log'da)" : (res.message ?? "Xato"));
     refresh();
   };
 
@@ -55,17 +62,25 @@ export function History({ agent, connected }: { agent: Agent; connected: boolean
       <ul className="recent history">
         {jobs.map((job) => {
           const video = job.renders.find((r) => r.status === "done");
+          const outcome = job.outcome !== null ? (OUTCOME[job.outcome] ?? PENDING) : PENDING;
+          const Icon = outcome.icon;
           return (
             <li key={job.id}>
-              <div>
-                {job.outcome !== null ? (OUTCOME[job.outcome] ?? "") : "⏳"}{" "}
-                <b>{job.project_name}</b>{" "}
-                <span className="muted">
-                  {job.state} · plan v{job.plan_version} · {when(job.created_at)}
-                </span>
+              <div className="row-title" title={outcome.label}>
+                <Icon size={15} className={outcome.tone} aria-label={outcome.label} />
+                <b>{job.project_name}</b>
               </div>
-              {job.aep_path !== null ? <div className="muted">{job.aep_path}</div> : null}
-              {video !== undefined ? <div className="muted">🎞 {video.local_path}</div> : null}
+              <div className="muted">
+                {job.state} · plan v{job.plan_version} · {when(job.created_at)}
+              </div>
+              {job.aep_path !== null ? <div className="path">{job.aep_path}</div> : null}
+              {video !== undefined ? (
+                <div className="path">
+                  <span className="icon-text">
+                    <Film size={13} /> {video.local_path}
+                  </span>
+                </div>
+              ) : null}
               <div className="buttons">
                 <button className="link-button" onClick={() => void showReport(job.id)}>
                   {open?.id === job.id ? "Yopish" : "Hisobot"}
