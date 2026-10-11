@@ -1,11 +1,36 @@
-/** Kabinet uchun umumiy UI bo'laklari: vaqt, holat nishonlari, hodisa nomlari. */
-import { Badge } from "flowbite-react";
+/** Kabinet uchun umumiy UI bo'laklari: kartalar, tugmalar, pill'lar, holat nishonlari, vaqt. */
 import type { LucideIcon } from "lucide-react";
 import { CircleAlert, CircleCheck, CircleX, Info } from "lucide-react";
-import type { ReactNode } from "react";
+import { useId } from "react";
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
+
+export function cx(...parts: (string | false | null | undefined)[]): string {
+  return parts.filter(Boolean).join(" ");
+}
 
 export function when(value: string | null | undefined): string {
   return value ? new Date(value).toLocaleString("uz-UZ") : "—";
+}
+
+const MONTHS = [
+  "yanvar",
+  "fevral",
+  "mart",
+  "aprel",
+  "may",
+  "iyun",
+  "iyul",
+  "avgust",
+  "sentabr",
+  "oktabr",
+  "noyabr",
+  "dekabr",
+];
+
+/** "12-oktabr, 2026" (brauzerlar uz-UZ oy nomlarini bir xil chiqarmaydi). */
+export function day(value: string): string {
+  const d = new Date(value);
+  return `${d.getDate()}-${MONTHS[d.getMonth()]}, ${d.getFullYear()}`;
 }
 
 /** "3 daqiqa oldin" ko'rinishi. */
@@ -18,45 +43,414 @@ export function ago(value: string | null | undefined): string {
   return `${Math.floor(s / 86_400)} kun oldin`;
 }
 
-const STATE: Record<string, { label: string; color: string }> = {
-  CHECK: { label: "Tekshiruv", color: "info" },
-  PLAN: { label: "Reja", color: "info" },
-  INGEST: { label: "Fayllar", color: "info" },
-  AUDIO: { label: "Audio", color: "purple" },
-  PREFLIGHT: { label: "Tayyorlov", color: "info" },
-  BUILD: { label: "Qurilmoqda", color: "indigo" },
-  VERIFY: { label: "Tekshiruvda", color: "warning" },
-  RENDER: { label: "Render", color: "purple" },
-  REPORT: { label: "Hisobot", color: "info" },
-  DONE: { label: "Tayyor", color: "success" },
-  BLOCKED: { label: "To'xtagan", color: "failure" },
-  WAITING_AGENT: { label: "Panel kutilmoqda", color: "warning" },
+/** AE Studio belgisi: to'rt bo'lakli metall olti burchak. */
+export function Logo({ className = "h-14 w-14" }: { className?: string }) {
+  // Har nusxa o'z gradient id'si bilan: yashirin (display:none) nusxadagi gradientga havola chizilmaydi.
+  const metal = `aes-metal-${useId().replace(/:/g, "")}`;
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      className={cx(className, "drop-shadow-[0_8px_10px_rgb(0_0_0/0.28)]")}
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id={metal} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#9b9b9b" />
+          <stop offset="0.45" stopColor="#5d5d5d" />
+          <stop offset="0.55" stopColor="#7a7a7a" />
+          <stop offset="1" stopColor="#3a3a3a" />
+        </linearGradient>
+      </defs>
+      <polygon
+        points="32,4 56.5,18 56.5,46 32,60 7.5,46 7.5,18"
+        fill={`url(#${metal})`}
+        stroke="#161616"
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+      <path d="M32 4v56M7.5 32h49" stroke="#161616" strokeWidth="3.2" />
+      <circle cx="32" cy="32" r="3.4" fill="#161616" />
+    </svg>
+  );
+}
+
+/** Katta "overview" kartasi. */
+export function Card({
+  children,
+  className,
+  id,
+}: {
+  children: ReactNode;
+  className?: string;
+  id?: string;
+}) {
+  return (
+    <section id={id} className={cx("surface p-7 sm:p-10", className)}>
+      {children}
+    </section>
+  );
+}
+
+/** Ikki tonli sahifa sarlavhasi: "Qurilmalar holati". */
+export function PageTitle({
+  title,
+  muted,
+  action,
+}: {
+  title: string;
+  muted?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4 sm:mb-10">
+      <h1 className="text-[2.25rem] leading-[1.05] font-light tracking-[-0.035em] text-balance sm:text-[3.25rem]">
+        {title}
+        {muted ? <span className="text-ink-4"> {muted}</span> : null}
+      </h1>
+      {action}
+    </div>
+  );
+}
+
+export function CardTitle({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
+  return (
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <h2 className="text-[1.6rem] leading-tight font-normal tracking-[-0.025em]">{children}</h2>
+      {aside}
+    </div>
+  );
+}
+
+/** Kichik yorliq (karta ichidagi bo'lim nomi). */
+export function Label({ children, icon: Icon }: { children: ReactNode; icon?: LucideIcon }) {
+  return (
+    <div className="flex items-center gap-2 text-lg font-normal tracking-[-0.015em] text-ink-2">
+      {children}
+      {Icon ? <Icon className="h-5 w-5 text-ink-4" /> : null}
+    </div>
+  );
+}
+
+/** Katta ingichka raqam: "64%". */
+export function Figure({
+  value,
+  prefix,
+  suffix,
+}: {
+  value: ReactNode;
+  prefix?: string;
+  suffix?: string;
+}) {
+  return (
+    <div className="num flex items-baseline text-[4rem] leading-none font-extralight tracking-[-0.045em] sm:text-[4.75rem]">
+      {prefix ? <span className="text-ink-4">{prefix}</span> : null}
+      <span>{value}</span>
+      {suffix ? (
+        <span className="ml-1 text-[0.45em] tracking-[-0.02em] text-ink-4">{suffix}</span>
+      ) : null}
+    </div>
+  );
+}
+
+/** Aylana ikon qudug'i. */
+export function IconWell({
+  icon: Icon,
+  size = "md",
+}: {
+  icon: LucideIcon;
+  size?: "sm" | "md" | "lg";
+}) {
+  const box = { sm: "h-11 w-11", md: "h-16 w-16", lg: "h-24 w-24" }[size];
+  const glyph = { sm: "h-5 w-5", md: "h-6 w-6", lg: "h-8 w-8" }[size];
+  return (
+    <span
+      className={cx(
+        "flex shrink-0 items-center justify-center rounded-full bg-well text-ink-2",
+        box,
+      )}
+    >
+      <Icon className={glyph} />
+    </span>
+  );
+}
+
+type Variant = "primary" | "secondary" | "ghost" | "danger";
+type Size = "sm" | "md";
+
+const VARIANT: Record<Variant, string> = {
+  primary: "bg-ink text-white hover:bg-black active:bg-black",
+  secondary: "bg-white text-ink shadow-raise hover:bg-[#fafafa] active:shadow-none",
+  ghost: "text-ink-2 hover:bg-well hover:text-ink",
+  danger: "text-stop hover:bg-stop-soft",
+};
+const SIZE: Record<Size, string> = {
+  sm: "h-9 gap-1.5 rounded-[0.85rem] px-3.5 text-sm",
+  md: "h-11 gap-2 rounded-pill px-5 text-[0.95rem]",
 };
 
+function buttonClass(variant: Variant, size: Size, className?: string): string {
+  return cx(
+    "inline-flex shrink-0 cursor-pointer items-center justify-center font-normal whitespace-nowrap no-underline transition-[background-color,box-shadow,color] duration-200 ease-out",
+    "disabled:cursor-not-allowed disabled:opacity-40 [&_svg]:h-4 [&_svg]:w-4",
+    VARIANT[variant],
+    SIZE[size],
+    className,
+  );
+}
+
+export function Button({
+  variant = "primary",
+  size = "md",
+  className,
+  type = "button",
+  ...rest
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: Size }) {
+  return <button type={type} className={buttonClass(variant, size, className)} {...rest} />;
+}
+
+export function LinkButton({
+  variant = "secondary",
+  size = "md",
+  className,
+  ...rest
+}: AnchorHTMLAttributes<HTMLAnchorElement> & { variant?: Variant; size?: Size }) {
+  return <a className={buttonClass(variant, size, className)} {...rest} />;
+}
+
+export type Tone = "go" | "wait" | "stop" | "live" | "neutral";
+
+const TONE: Record<Tone, string> = {
+  go: "border-mint-line bg-mint-soft text-go",
+  wait: "border-[#f5d5c2] bg-peach-soft text-peach-ink",
+  stop: "border-stop-line bg-stop-soft text-stop",
+  live: "border-transparent bg-white text-ink shadow-raise",
+  neutral: "border-transparent bg-well text-ink-2",
+};
+
+/** Holat pill'i: "↑ 36.8%" uslubida chiziqli yumshoq to'rtburchak. */
+export function Pill({
+  tone = "neutral",
+  icon: Icon,
+  dot,
+  children,
+  title,
+}: {
+  tone?: Tone;
+  icon?: LucideIcon;
+  dot?: boolean;
+  children: ReactNode;
+  title?: string;
+}) {
+  return (
+    <span
+      title={title}
+      className={cx(
+        "inline-flex h-8 max-w-full items-center gap-1.5 rounded-[0.8rem] border px-3 text-sm font-normal whitespace-nowrap",
+        TONE[tone],
+      )}
+    >
+      {dot ? (
+        <span
+          className={cx(
+            "h-1.5 w-1.5 shrink-0 rounded-full bg-current",
+            (tone === "go" || tone === "live") && "animate-breathe",
+          )}
+        />
+      ) : null}
+      {Icon ? <Icon className="h-3.5 w-3.5 shrink-0" /> : null}
+      <span className="truncate">{children}</span>
+    </span>
+  );
+}
+
+/** Pastel hisoblagich (nav'dagi "3", "8"). */
+export function Count({
+  tone = "peach",
+  children,
+}: {
+  tone?: "peach" | "mint" | "neutral";
+  children: ReactNode;
+}) {
+  const color = {
+    peach: "bg-peach text-peach-ink",
+    mint: "bg-mint text-mint-ink",
+    neutral: "bg-well text-ink-2",
+  }[tone];
+  return (
+    <span
+      className={cx(
+        "num inline-flex h-7 min-w-7 items-center justify-center rounded-[0.65rem] px-2 text-[0.8rem] font-medium",
+        color,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+/** Kichik ma'lumot qatori: ikon + matn. */
+export function Meta({
+  icon: Icon,
+  children,
+  title,
+}: {
+  icon: LucideIcon;
+  children: ReactNode;
+  title?: string;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2.5 text-[0.95rem] text-ink-3" title={title}>
+      <Icon className="h-4 w-4 shrink-0 text-ink-4" />
+      <span className="min-w-0 truncate">{children}</span>
+    </div>
+  );
+}
+
+/** Segmentli filtr (tablar). */
+export function Segmented<K extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: readonly { key: K; label: string }[];
+  value: K;
+  onChange: (key: K) => void;
+}) {
+  return (
+    <div role="tablist" className="inline-flex rounded-[1rem] bg-well p-1">
+      {options.map((o) => (
+        <button
+          key={o.key}
+          type="button"
+          role="tab"
+          aria-selected={value === o.key}
+          onClick={() => onChange(o.key)}
+          className={cx(
+            "h-8 cursor-pointer rounded-[0.75rem] px-3.5 text-sm font-normal transition-[background-color,box-shadow,color] duration-200",
+            value === o.key ? "bg-white text-ink shadow-raise" : "text-ink-3 hover:text-ink",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export const inputClass =
+  "w-full rounded-[1rem] border border-hair bg-white px-4 py-3 text-[0.95rem] font-normal text-ink outline-none transition-[border-color,box-shadow] duration-200 placeholder:font-light focus:border-ink-4 focus:shadow-[0_0_0_4px_rgb(0_0_0/0.05)]";
+
+export function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="grid gap-2">
+      <label htmlFor={htmlFor} className="text-sm font-normal text-ink-2">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+/** Natija yoki xato xabari. */
+export function Notice({ ok, children }: { ok: boolean; children: ReactNode }) {
+  return (
+    <p
+      role={ok ? "status" : "alert"}
+      className={cx(
+        "flex items-start gap-2 rounded-[1rem] px-4 py-3 text-sm font-normal",
+        ok ? "bg-mint-soft text-mint-ink" : "bg-stop-soft text-stop",
+      )}
+    >
+      {ok ? (
+        <CircleCheck className="mt-px h-4 w-4 shrink-0" />
+      ) : (
+        <CircleX className="mt-px h-4 w-4 shrink-0" />
+      )}
+      <span className="min-w-0 break-words">{children}</span>
+    </p>
+  );
+}
+
+export function Spinner({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <span
+      role="status"
+      aria-label="Yuklanmoqda"
+      className={cx(
+        "inline-block animate-spin rounded-full border-[1.5px] border-line border-t-ink-2",
+        className,
+      )}
+    />
+  );
+}
+
+export function Loading() {
+  return (
+    <div className="flex justify-center py-16">
+      <Spinner />
+    </div>
+  );
+}
+
+export function Empty({ children }: { children: ReactNode }) {
+  return <p className="mx-auto max-w-md py-8 text-center text-[0.95rem] text-ink-3">{children}</p>;
+}
+
+const STATE: Record<string, { label: string; tone: Tone }> = {
+  CHECK: { label: "Tekshiruv", tone: "live" },
+  PLAN: { label: "Reja", tone: "live" },
+  INGEST: { label: "Fayllar", tone: "live" },
+  AUDIO: { label: "Audio", tone: "live" },
+  PREFLIGHT: { label: "Tayyorlov", tone: "live" },
+  BUILD: { label: "Qurilmoqda", tone: "live" },
+  VERIFY: { label: "Tekshiruvda", tone: "wait" },
+  RENDER: { label: "Render", tone: "live" },
+  REPORT: { label: "Hisobot", tone: "live" },
+  DONE: { label: "Tayyor", tone: "go" },
+  BLOCKED: { label: "To'xtagan", tone: "stop" },
+  WAITING_AGENT: { label: "Panel kutilmoqda", tone: "wait" },
+};
+
+export function stateOf(state: string, outcome?: string | null): { label: string; tone: Tone } {
+  if (state === "DONE" && outcome === "cancelled")
+    return { label: "Bekor qilindi", tone: "neutral" };
+  if (state === "DONE" && outcome === "failed") return { label: "Xato", tone: "stop" };
+  return STATE[state] ?? { label: state, tone: "neutral" };
+}
+
 export function StateBadge({ state, outcome }: { state: string; outcome?: string | null }) {
-  if (state === "DONE" && outcome === "cancelled") return <Badge color="gray">Bekor qilindi</Badge>;
-  if (state === "DONE" && outcome === "failed") return <Badge color="failure">Xato</Badge>;
-  const s = STATE[state] ?? { label: state, color: "gray" };
-  return <Badge color={s.color}>{s.label}</Badge>;
+  const s = stateOf(state, outcome);
+  return (
+    <Pill tone={s.tone} dot={s.tone === "live" || s.tone === "go"}>
+      {s.label}
+    </Pill>
+  );
 }
 
 export function OnlineBadge({ online, revoked }: { online: boolean; revoked?: boolean }) {
-  if (revoked) return <Badge color="failure">Bekor qilingan</Badge>;
+  if (revoked) return <Pill tone="stop">Bekor qilingan</Pill>;
   return online ? (
-    <Badge color="success">
-      <span className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-green-500" />
+    <Pill tone="go" dot>
       Onlayn
-    </Badge>
+    </Pill>
   ) : (
-    <Badge color="gray">Oflayn</Badge>
+    <Pill tone="neutral">Oflayn</Pill>
   );
 }
 
 const LEVEL: Record<string, { icon: LucideIcon; tone: string }> = {
-  info: { icon: CircleCheck, tone: "text-blue-600 dark:text-blue-400" },
-  warn: { icon: CircleAlert, tone: "text-amber-500" },
-  error: { icon: CircleX, tone: "text-red-600 dark:text-red-400" },
-  debug: { icon: Info, tone: "text-gray-400" },
+  info: { icon: CircleCheck, tone: "text-ink-4" },
+  warn: { icon: CircleAlert, tone: "text-[#c7702f]" },
+  error: { icon: CircleX, tone: "text-stop" },
+  debug: { icon: Info, tone: "text-ink-4" },
 };
 
 export function LevelIcon({ level }: { level: string }) {
@@ -100,8 +494,4 @@ const EVENT: Record<string, string> = {
 
 export function eventTitle(type: string): string {
   return EVENT[type] ?? type;
-}
-
-export function Empty({ children }: { children: ReactNode }) {
-  return <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">{children}</p>;
 }

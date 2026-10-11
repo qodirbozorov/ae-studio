@@ -1,32 +1,15 @@
-import { Button, Card, Spinner } from "flowbite-react";
 import type { LucideIcon } from "lucide-react";
 import { Bot, KeyRound, Monitor, Server, ShieldAlert, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { AuditRow } from "../api";
-import { Empty } from "../ui";
+import { Card, CardTitle, Empty, Loading, PageTitle, Segmented, cx, day } from "../ui";
 
 const ACTOR: Record<string, { label: string; icon: LucideIcon; tone: string }> = {
-  user: {
-    label: "Siz",
-    icon: UserRound,
-    tone: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
-  },
-  claude: {
-    label: "Claude",
-    icon: Bot,
-    tone: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300",
-  },
-  device: {
-    label: "Qurilma",
-    icon: Monitor,
-    tone: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300",
-  },
-  system: {
-    label: "Tizim",
-    icon: Server,
-    tone: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-  },
+  user: { label: "Siz", icon: UserRound, tone: "bg-white text-ink shadow-raise" },
+  claude: { label: "Claude", icon: Bot, tone: "bg-peach text-peach-ink" },
+  device: { label: "Qurilma", icon: Monitor, tone: "bg-mint text-mint-ink" },
+  system: { label: "Tizim", icon: Server, tone: "bg-well text-ink-2" },
 };
 
 const ACTION: Record<string, string> = {
@@ -79,83 +62,73 @@ export function AuditPage() {
     void api<AuditRow[]>("/api/audit").then((res) => setRows(res.ok ? res.data : []));
   }, []);
 
-  if (rows === null) {
-    return (
-      <div className="flex justify-center py-10">
-        <Spinner />
-      </div>
-    );
-  }
-  const shown = rows.filter((r) =>
+  const shown = (rows ?? []).filter((r) =>
     filter === "all" ? true : filter === "claude" ? r.actor === "claude" : SECURITY.test(r.action),
   );
   const days = new Map<string, AuditRow[]>();
   for (const row of shown) {
-    const day = new Date(row.ts).toLocaleDateString("uz-UZ", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-    days.set(day, [...(days.get(day) ?? []), row]);
+    const label = day(row.ts);
+    days.set(label, [...(days.get(label) ?? []), row]);
   }
 
   return (
-    <section>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">Audit jurnali</h1>
-        <div className="flex gap-1">
-          {FILTERS.map((f) => (
-            <Button
-              key={f.key}
-              size="xs"
-              color={filter === f.key ? "blue" : "light"}
-              onClick={() => setFilter(f.key)}
-            >
-              {f.label}
-            </Button>
-          ))}
-        </div>
-      </div>
-      {shown.length === 0 ? (
+    <>
+      <PageTitle
+        title="Audit"
+        muted="jurnali"
+        action={<Segmented options={FILTERS} value={filter} onChange={setFilter} />}
+      />
+      {rows === null ? <Loading /> : null}
+      {rows !== null && shown.length === 0 ? (
         <Card>
           <Empty>Hali yozuv yo'q.</Empty>
         </Card>
       ) : null}
-      {[...days.entries()].map(([day, list]) => (
-        <Card key={day} className="mb-4">
-          <h2 className="text-sm font-semibold text-gray-500">{day}</h2>
-          <ol className="relative ml-3 border-s border-gray-200 dark:border-gray-700">
-            {list.map((row, i) => {
-              const actor = ACTOR[row.actor] ?? ACTOR.system!;
-              const Icon =
-                SECURITY.test(row.action) && row.action.includes("reuse")
-                  ? ShieldAlert
-                  : actor.icon;
-              return (
-                <li key={`${row.ts}-${i}`} className="ms-6 py-2">
-                  <span
-                    className={`absolute -start-3 flex h-6 w-6 items-center justify-center rounded-full ${actor.tone}`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                  </span>
-                  <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                    <span className="font-medium">{describe(row)}</span>
-                    <span className="text-xs text-gray-500">
-                      {actor.label} · {new Date(row.ts).toLocaleTimeString("uz-UZ")}
-                      {row.ip ? ` · ${row.ip}` : ""}
-                    </span>
-                  </div>
-                  {row.target ? (
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
-                      <KeyRound className="h-3 w-3" /> {row.target}
+      <div className="grid gap-6">
+        {[...days.entries()].map(([label, list]) => (
+          <Card key={label}>
+            <CardTitle>{label}</CardTitle>
+            <ol className="tree [--tree-elbow:1.45rem]">
+              {list.map((row, i) => {
+                const actor = ACTOR[row.actor] ?? ACTOR.system!;
+                const alarm = SECURITY.test(row.action) && row.action.includes("reuse");
+                const Icon = alarm ? ShieldAlert : actor.icon;
+                return (
+                  <li key={`${row.ts}-${i}`} className="py-2">
+                    <div className="flex items-start gap-3.5">
+                      <span
+                        className={cx(
+                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.8rem]",
+                          alarm ? "bg-stop-soft text-stop" : actor.tone,
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 pt-0.5">
+                        <div className="text-[0.98rem] font-normal break-words">
+                          {describe(row)}
+                        </div>
+                        <div className="num mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-ink-3">
+                          <span>
+                            {actor.label} · {new Date(row.ts).toLocaleTimeString("uz-UZ")}
+                            {row.ip ? ` · ${row.ip}` : ""}
+                          </span>
+                          {row.target ? (
+                            <span className="flex min-w-0 items-center gap-1">
+                              <KeyRound className="h-3.5 w-3.5 shrink-0 text-ink-4" />
+                              <span className="truncate">{row.target}</span>
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ol>
-        </Card>
-      ))}
-    </section>
+                  </li>
+                );
+              })}
+            </ol>
+          </Card>
+        ))}
+      </div>
+    </>
   );
 }

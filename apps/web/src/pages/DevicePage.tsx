@@ -1,6 +1,8 @@
+import { Check, Monitor, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, post } from "../api";
+import { Button, Card, IconWell, LinkButton, Notice, PageTitle, cx, inputClass } from "../ui";
 
 interface Pending {
   user_code: string;
@@ -13,7 +15,7 @@ export function DevicePage() {
   const initial = new URLSearchParams(window.location.search).get("code") ?? "";
   const [code, setCode] = useState(initial);
   const [pending, setPending] = useState<Pending | null>(null);
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const lookup = async (value: string) => {
@@ -34,46 +36,90 @@ export function DevicePage() {
       user_code: pending.user_code,
       approve,
     });
-    if (res.ok) setResult(approve ? "Qurilma ulandi. Panelga qayting." : "Rad etildi.");
+    if (res.ok)
+      setResult(
+        approve
+          ? { ok: true, text: "Qurilma ulandi. Panelga qayting." }
+          : { ok: false, text: "Rad etildi." },
+      );
     else setError(res.error.message ?? res.error.hint);
   };
 
-  if (result !== null) return <section className="card">{result}</section>;
-
   return (
-    <section className="card">
-      <h2>Qurilmani ulash</h2>
-      <form
-        onSubmit={(e: FormEvent) => {
-          e.preventDefault();
-          void lookup(code);
-        }}
-      >
-        <label htmlFor="code">Panelda ko‘rsatilgan kod</label>
-        <input
-          id="code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="ABC123"
-          className="code"
-          maxLength={9}
-        />
-        <button type="submit">Tekshirish</button>
-      </form>
-      {pending !== null ? (
-        <div className="confirm">
-          <p>
-            <b>{pending.device_name}</b> ({pending.os}) akkauntingizga ulanmoqchi.
-          </p>
-          <div className="row">
-            <button onClick={() => decide(true)}>Ruxsat berish</button>
-            <button className="secondary" onClick={() => decide(false)}>
-              Rad etish
-            </button>
+    <>
+      <PageTitle title="Qurilmani" muted="ulash" />
+      <Card className="max-w-[40rem]">
+        {result !== null ? (
+          <div className="grid gap-6">
+            <Notice ok={result.ok}>{result.text}</Notice>
+            <div>
+              <LinkButton href="/">Qurilmalarga qaytish</LinkButton>
+            </div>
           </div>
-        </div>
-      ) : null}
-      {error ? <p className="error">{error}</p> : null}
-    </section>
+        ) : (
+          <>
+            <p className="max-w-[48ch] text-[1.05rem] leading-relaxed text-ink-2">
+              After Effects'dagi AE Studio paneli ko'rsatgan 6 belgili kodni kiriting.
+            </p>
+            <form
+              className="mt-8 flex flex-col gap-3 sm:flex-row"
+              onSubmit={(e: FormEvent) => {
+                e.preventDefault();
+                void lookup(code);
+              }}
+            >
+              <label htmlFor="code" className="sr-only">
+                Panelda ko'rsatilgan kod
+              </label>
+              <input
+                id="code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="ABC123"
+                maxLength={9}
+                autoComplete="one-time-code"
+                spellCheck={false}
+                className={cx(
+                  inputClass,
+                  "h-16 text-center font-mono text-[1.75rem] font-light tracking-[0.35em] uppercase",
+                )}
+              />
+              <Button type="submit" className="sm:h-16 sm:px-7" disabled={code.trim() === ""}>
+                Tekshirish
+              </Button>
+            </form>
+
+            {pending !== null ? (
+              <div className="mt-8 grid gap-6 rounded-[1.5rem] bg-white p-6 shadow-raise">
+                <div className="flex items-center gap-4">
+                  <IconWell icon={Monitor} />
+                  <div className="min-w-0">
+                    <div className="truncate text-[1.25rem] font-normal tracking-[-0.02em]">
+                      {pending.device_name}
+                    </div>
+                    <div className="text-[0.95rem] text-ink-3">
+                      {pending.os} · akkauntingizga ulanmoqchi
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={() => void decide(true)}>
+                    <Check /> Ruxsat berish
+                  </Button>
+                  <Button variant="secondary" onClick={() => void decide(false)}>
+                    <X /> Rad etish
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+            {error ? (
+              <div className="mt-5">
+                <Notice ok={false}>{error}</Notice>
+              </div>
+            ) : null}
+          </>
+        )}
+      </Card>
+    </>
   );
 }

@@ -1,6 +1,21 @@
+import { AudioLines, ExternalLink, Palette, RefreshCw, Send, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../api";
+import {
+  Button,
+  Card,
+  CardTitle,
+  Field,
+  Figure,
+  IconWell,
+  Label,
+  Notice,
+  PageTitle,
+  Pill,
+  Spinner,
+  inputClass,
+} from "../ui";
 
 interface ElevenAccount {
   configured: boolean;
@@ -64,62 +79,98 @@ function ElevenLabsSettings() {
       : null;
 
   return (
-    <section className="card">
-      <h2>ElevenLabs</h2>
-      <p className="muted small">
+    <Card id="elevenlabs" className="scroll-mt-6">
+      <CardTitle aside={<IconWell icon={AudioLines} />}>ElevenLabs</CardTitle>
+      <p className="max-w-[60ch] text-[0.98rem] leading-relaxed text-ink-3">
         Ovoz (TTS), musiqa, SFX, subtitr va dublyaj uchun. Kalit serverda AES-256 bilan shifrlangan
         holda saqlanadi va qaytarib ko'rsatilmaydi. Kalitni{" "}
-        <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noreferrer">
-          elevenlabs.io → API keys
+        <a
+          className="inline-flex items-center gap-1 text-ink underline"
+          href="https://elevenlabs.io/app/settings/api-keys"
+          target="_blank"
+          rel="noreferrer"
+        >
+          elevenlabs.io → API keys <ExternalLink className="h-3.5 w-3.5" />
         </a>{" "}
         bo'limidan oling.
       </p>
-      {account === null ? <p>Yuklanmoqda…</p> : null}
-      {account?.configured ? (
-        <div className="kv">
+
+      {account === null ? (
+        <div className="py-8">
+          <Spinner />
+        </div>
+      ) : account.configured ? (
+        <div className="mt-8 grid gap-8 sm:grid-cols-[auto_1fr] sm:items-end">
           <div>
-            Kalit: <code>{account.masked}</code>
-            {account.error !== null ? (
-              <span className="error"> · xato: {account.error}</span>
+            <Label>Qolgan belgilar</Label>
+            <div className="mt-3">
+              <Figure value={number(account.remaining)} />
+            </div>
+          </div>
+          <div className="grid gap-3 sm:pb-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Pill tone={account.error === null ? "go" : "stop"} dot={account.error === null}>
+                {account.tier ?? "—"}
+                {account.status ? ` · ${account.status}` : ""}
+              </Pill>
+              <span className="num text-[0.95rem] text-ink-3">
+                {number(account.character_count)} / {number(account.character_limit)}
+                {used !== null ? ` ishlatilgan (${used}%)` : ""}
+              </span>
+            </div>
+            {used !== null ? (
+              <div className="h-1 max-w-sm overflow-hidden rounded-full bg-well" aria-hidden="true">
+                <div
+                  className="h-full rounded-full bg-ink"
+                  style={{ width: `${Math.min(100, used)}%` }}
+                />
+              </div>
+            ) : null}
+            <div className="text-sm text-ink-3">
+              Kalit: <code>{account.masked}</code>
+              {account.next_reset !== null
+                ? ` · yangilanish: ${new Date(account.next_reset).toLocaleString("uz-UZ")}`
+                : ""}
+            </div>
+            {account.error !== null ? <Notice ok={false}>{account.error}</Notice> : null}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-8">
+          <Pill>Kalit kiritilmagan</Pill>
+        </div>
+      )}
+
+      <form onSubmit={(e) => void save(e)} className="mt-8 grid gap-3">
+        <Field
+          label={account?.configured ? "Yangi kalit bilan almashtirish" : "API kalit"}
+          htmlFor="el-key"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              id="el-key"
+              type="password"
+              autoComplete="off"
+              placeholder="sk_…"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              minLength={10}
+              required
+              className={inputClass}
+            />
+            <Button type="submit" disabled={busy || key.trim().length < 10}>
+              {busy ? "Tekshirilmoqda…" : "Saqlash"}
+            </Button>
+            {account?.configured ? (
+              <Button variant="danger" onClick={() => void remove()}>
+                <Trash2 /> O'chirish
+              </Button>
             ) : null}
           </div>
-          <div>
-            Tarif: <b>{account.tier ?? "—"}</b> ({account.status ?? "—"})
-          </div>
-          <div>
-            Belgilar: {number(account.character_count)} / {number(account.character_limit)}
-            {used !== null ? ` (${used}%)` : ""} · qoldi: <b>{number(account.remaining)}</b>
-          </div>
-          {account.next_reset !== null ? (
-            <div className="muted small">
-              Yangilanish: {new Date(account.next_reset).toLocaleString("uz-UZ")}
-            </div>
-          ) : null}
-        </div>
-      ) : account !== null ? (
-        <p className="muted">Kalit kiritilmagan.</p>
-      ) : null}
-      <form onSubmit={save} className="row">
-        <input
-          type="password"
-          autoComplete="off"
-          placeholder={account?.configured ? "Yangi kalit bilan almashtirish" : "sk_…"}
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-          minLength={10}
-          required
-        />
-        <button type="submit" disabled={busy || key.trim().length < 10}>
-          {busy ? "Tekshirilmoqda…" : "Saqlash"}
-        </button>
-        {account?.configured ? (
-          <button type="button" className="secondary" onClick={remove}>
-            O'chirish
-          </button>
-        ) : null}
+        </Field>
+        {message !== null ? <Notice ok={message.ok}>{message.text}</Notice> : null}
       </form>
-      {message !== null ? <p className={message.ok ? "muted" : "error"}>{message.text}</p> : null}
-    </section>
+    </Card>
   );
 }
 
@@ -158,49 +209,76 @@ function TelegramSettings() {
     await load();
   };
 
-  if (status === null) return null;
   return (
-    <section className="card">
-      <h2>Telegram</h2>
-      {!status.enabled ? (
-        <p className="muted">Serverda Telegram bot sozlanmagan (TELEGRAM_BOT_TOKEN).</p>
+    <Card id="telegram" className="scroll-mt-6">
+      <CardTitle aside={<IconWell icon={Send} />}>Telegram</CardTitle>
+      {status === null ? (
+        <Spinner />
+      ) : !status.enabled ? (
+        <p className="text-[0.98rem] text-ink-3">
+          Serverda Telegram bot sozlanmagan (<code>TELEGRAM_BOT_TOKEN</code>).
+        </p>
       ) : status.linked ? (
-        <>
-          <p>
-            ✅ Ulangan: <b>{status.chat}</b> — render tugaganda, job to'xtaganda va batch yakunida
-            xabar keladi.
+        <div className="grid gap-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <Pill tone="go" dot>
+              Ulangan
+            </Pill>
+            <span className="text-[1.05rem] font-normal">{status.chat}</span>
+          </div>
+          <p className="max-w-[60ch] text-[0.98rem] leading-relaxed text-ink-3">
+            Render tugaganda, job to'xtaganda va batch yakunida xabar keladi.
           </p>
-          <button className="link" onClick={() => void unlink()}>
-            Uzish
-          </button>
-        </>
+          <div>
+            <Button size="sm" variant="danger" className="-ml-3.5" onClick={() => void unlink()}>
+              Uzish
+            </Button>
+          </div>
+        </div>
       ) : (
-        <>
-          <p className="muted">Xabarnomalar uchun Telegram'ni ulang.</p>
-          <button onClick={() => void getCode()}>Ulash kodini olish</button>
+        <div className="grid gap-5">
+          <p className="text-[0.98rem] text-ink-3">Xabarnomalar uchun Telegram'ni ulang.</p>
+          <div>
+            <Button onClick={() => void getCode()}>Ulash kodini olish</Button>
+          </div>
           {code !== null ? (
-            <p>
-              {code.link !== null ? (
-                <>
-                  <a href={code.link} target="_blank" rel="noreferrer">
-                    @{status.bot_username}
-                  </a>{" "}
-                  ni oching va Start bosing, yoki botga yuboring:{" "}
-                </>
-              ) : (
-                "Botga yuboring: "
-              )}
-              <code>/start {code.code}</code> (15 daqiqa amal qiladi). Keyin{" "}
-              <button className="link" onClick={() => void load()}>
-                yangilang
-              </button>
-              .
-            </p>
+            <div className="grid gap-3 rounded-[1.25rem] bg-well/70 p-5">
+              <div className="text-[0.98rem] leading-relaxed text-ink-2">
+                {code.link !== null ? (
+                  <>
+                    <a
+                      className="text-ink underline"
+                      href={code.link}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      @{status.bot_username}
+                    </a>{" "}
+                    ni oching va Start bosing, yoki botga yuboring:
+                  </>
+                ) : (
+                  "Botga yuboring:"
+                )}
+              </div>
+              <div className="num font-mono text-[1.4rem] font-light tracking-[0.04em]">
+                /start {code.code}
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-ink-3">
+                Kod 15 daqiqa amal qiladi.
+                <Button size="sm" variant="secondary" onClick={() => void load()}>
+                  <RefreshCw /> Holatni yangilash
+                </Button>
+              </div>
+            </div>
           ) : null}
-        </>
+        </div>
       )}
-      {error !== null ? <p className="error-text">{error}</p> : null}
-    </section>
+      {error !== null ? (
+        <div className="mt-4">
+          <Notice ok={false}>{error}</Notice>
+        </div>
+      ) : null}
+    </Card>
   );
 }
 
@@ -244,48 +322,78 @@ function BrandSettings() {
   };
 
   return (
-    <section className="card">
-      <h2>Brand kit</h2>
+    <Card id="brand" className="scroll-mt-6">
+      <CardTitle aside={<IconWell icon={Palette} />}>Brand kit</CardTitle>
       {brands.length === 0 ? (
-        <p className="muted">
-          Hali brand yo'q. "default" slug'li brand barcha videolarga qo'llanadi.
+        <p className="text-[0.98rem] text-ink-3">
+          Hali brand yo'q. <code>default</code> slug'li brand barcha videolarga qo'llanadi.
         </p>
       ) : null}
-      <ul className="list">
+      <ul className="grid gap-1">
         {brands.map((b) => (
-          <li key={b.slug}>
-            <b>{b.name}</b> ({b.slug}) · {b.fonts.heading.family} / {b.fonts.body.family}{" "}
-            {Object.values(b.colors).map((c) => (
-              <span key={c} className="swatch" style={{ background: c }} title={c} />
-            ))}{" "}
-            <button className="link" onClick={() => setText(JSON.stringify(b, null, 2))}>
-              Tahrirlash
-            </button>
+          <li
+            key={b.slug}
+            className="-mx-3 flex flex-wrap items-center justify-between gap-3 rounded-[1rem] px-3 py-3"
+          >
+            <div className="min-w-0">
+              <div className="text-[1.05rem] font-normal">
+                {b.name} <span className="text-ink-3">({b.slug})</span>
+              </div>
+              <div className="text-sm text-ink-3">
+                {b.fonts.heading.family} / {b.fonts.body.family}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex -space-x-1.5">
+                {Object.entries(b.colors).map(([name, c]) => (
+                  <span
+                    key={name}
+                    title={`${name}: ${c}`}
+                    className="h-7 w-7 rounded-full shadow-[0_0_0_2px_#f8f8f8,0_2px_4px_rgb(0_0_0/0.12)]"
+                    style={{ background: c }}
+                  />
+                ))}
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setText(JSON.stringify(b, null, 2))}
+              >
+                Tahrirlash
+              </Button>
+            </div>
           </li>
         ))}
       </ul>
-      <form onSubmit={(e) => void save(e)}>
-        <textarea
-          rows={8}
-          value={text}
-          placeholder='{"slug":"default","name":"Brend","colors":{"primary":"#1E40AF"},"fonts":{"heading":{"family":"Montserrat-Bold"},"body":{"family":"Inter-Regular"}}}'
-          onChange={(e) => setText(e.target.value)}
-        />
-        <button type="submit">Saqlash</button>
+      <form onSubmit={(e) => void save(e)} className="mt-6 grid gap-3">
+        <Field label="Brand JSON" htmlFor="brand-json">
+          <textarea
+            id="brand-json"
+            rows={8}
+            value={text}
+            placeholder='{"slug":"default","name":"Brend","colors":{"primary":"#1E40AF"},"fonts":{"heading":{"family":"Montserrat-Bold"},"body":{"family":"Inter-Regular"}}}'
+            onChange={(e) => setText(e.target.value)}
+            className={`${inputClass} font-mono text-[0.85rem] leading-relaxed`}
+          />
+        </Field>
+        <div>
+          <Button type="submit">Saqlash</Button>
+        </div>
+        {message !== null ? <Notice ok={message.ok}>{message.text}</Notice> : null}
       </form>
-      {message !== null ? (
-        <p className={message.ok ? "muted" : "error-text"}>{message.text}</p>
-      ) : null}
-    </section>
+    </Card>
   );
 }
 
 export function SettingsPage() {
   return (
     <>
-      <ElevenLabsSettings />
-      <TelegramSettings />
-      <BrandSettings />
+      <PageTitle title="Sozlamalar" muted="va kalitlar" />
+      <div className="grid gap-6">
+        <ElevenLabsSettings />
+        <TelegramSettings />
+        <BrandSettings />
+      </div>
     </>
   );
 }

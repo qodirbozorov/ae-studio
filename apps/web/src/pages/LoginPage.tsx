@@ -1,5 +1,7 @@
+import { ExternalLink, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api, post } from "../api";
+import { Button, Logo, Notice, Pill } from "../ui";
 
 interface Start {
   link: string;
@@ -51,34 +53,57 @@ export function LoginPage({ next }: { next: string }) {
   };
 
   return (
-    <main className="page narrow">
-      <h1>AE Studio</h1>
-      <section className="card">
-        {state === "waiting" && start !== null ? (
-          <>
-            <p>
-              Telegram'da <b>@{start.bot}</b> ochildi — <b>Start</b> tugmasini bosing. Shu sahifa
-              o'zi kabinetga kiradi.
-            </p>
-            <p className="muted">
-              Ochilmadimi?{" "}
-              <a href={start.link} target="_blank" rel="noreferrer">
-                Botni ochish
-              </a>{" "}
-              (havola 10 daqiqa amal qiladi).
-            </p>
-          </>
-        ) : (
-          <>
-            <p>Kirish va ro'yxatdan o'tish Telegram orqali — parol va email kerak emas.</p>
-            {state === "expired" ? <p className="error">Havola eskirdi, qaytadan bosing.</p> : null}
-            <button type="button" onClick={() => void begin()}>
-              Telegram orqali kirish
-            </button>
-          </>
-        )}
-        {error !== null ? <p className="error">{error}</p> : null}
-      </section>
+    <main className="flex min-h-dvh items-center justify-center p-3 sm:p-6">
+      <div className="w-full max-w-[34rem] rounded-[2rem] bg-shell px-7 py-10 sm:rounded-shell sm:px-12 sm:py-14">
+        <Logo className="h-[4.5rem] w-[4.5rem]" />
+        <h1 className="mt-10 text-[2.5rem] leading-[1.05] font-light tracking-[-0.035em] sm:text-[3.25rem]">
+          AE Studio <span className="text-ink-4">kabineti</span>
+        </h1>
+
+        <div className="surface mt-10 p-7 sm:p-9">
+          {state === "waiting" && start !== null ? (
+            <div className="grid gap-5">
+              <Pill tone="wait" dot>
+                Telegram kutilmoqda
+              </Pill>
+              <p className="text-[1.05rem] leading-relaxed text-ink-2">
+                Telegram'da <span className="font-normal text-ink">@{start.bot}</span> ochildi —{" "}
+                <span className="font-normal text-ink">Start</span> tugmasini bosing. Shu sahifa
+                o'zi kabinetga kiradi.
+              </p>
+              <p className="text-[0.95rem] text-ink-3">
+                Ochilmadimi?{" "}
+                <a
+                  className="inline-flex items-center gap-1 text-ink underline"
+                  href={start.link}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Botni ochish <ExternalLink className="h-3.5 w-3.5" />
+                </a>{" "}
+                · havola 10 daqiqa amal qiladi.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-6">
+              <p className="text-[1.05rem] leading-relaxed text-ink-2">
+                Kirish va ro'yxatdan o'tish Telegram orqali — parol va email kerak emas.
+              </p>
+              {state === "expired" ? (
+                <Notice ok={false}>Havola eskirdi, qaytadan bosing.</Notice>
+              ) : null}
+              <Button className="w-full sm:w-fit" onClick={() => void begin()}>
+                <Send /> Telegram orqali kirish
+              </Button>
+            </div>
+          )}
+          {error !== null ? (
+            <div className="mt-5">
+              <Notice ok={false}>{error}</Notice>
+            </div>
+          ) : null}
+        </div>
+      </div>
     </main>
   );
 }

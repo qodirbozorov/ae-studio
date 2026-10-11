@@ -1,93 +1,122 @@
 @import "tailwindcss";
-@plugin "flowbite-react/plugin/tailwindcss";
-@source "../node_modules/flowbite-react/dist";
 
-@layer base {
-  body {
-    @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
-    font-family:
-      Inter,
-      system-ui,
-      -apple-system,
-      "Segoe UI",
-      sans-serif;
-  }
-  code {
-    @apply rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-800;
+/* Kabinet dizayn tokenlari: yumshoq kulrang maydon, oq kartalar, Inter yengil og'irliklarda (faqat light). */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+
+  --color-ground: #e3e3e3;
+  --color-shell: #f1f1f1;
+  --color-well: #e9e9e9;
+  --color-ink: #1d1d1f;
+  --color-ink-2: #5c5c5c;
+  --color-ink-3: #737373;
+  --color-ink-4: #8c8c8c;
+  --color-line: #d9d9d9;
+  --color-hair: #e6e6e6;
+
+  --color-peach: #fdc6a8;
+  --color-peach-ink: #4a2a17;
+  --color-peach-soft: #fdf1ea;
+  --color-mint: #c4ead3;
+  --color-mint-ink: #17402a;
+  --color-mint-soft: #eef9f2;
+  --color-mint-line: #bfe3cc;
+  --color-go: #2f9a5f;
+  --color-stop: #c23a32;
+  --color-stop-soft: #fcecea;
+  --color-stop-line: #f2cdc9;
+
+  --radius-shell: 2.75rem;
+  --radius-card: 2.5rem;
+  --radius-pill: 1rem;
+
+  --shadow-card:
+    0 1px 0 0 rgb(255 255 255 / 0.9) inset, 0 24px 48px -28px rgb(0 0 0 / 0.14),
+    0 2px 6px -2px rgb(0 0 0 / 0.04);
+  --shadow-raise: 0 6px 16px -8px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.05);
+  --shadow-logo: 0 10px 18px -8px rgb(0 0 0 / 0.35);
+
+  --animate-breathe: breathe 2.4s ease-in-out infinite;
+  @keyframes breathe {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
   }
 }
 
-/* Eski sahifalar (Login, Sozlamalar, Tarix …) uchun klasslar — yangi uslubda. */
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-ground font-sans text-ink antialiased;
+    font-weight: 300;
+  }
+  ::selection {
+    background: #1d1d1f;
+    color: #f1f1f1;
+  }
+  :focus-visible {
+    outline: 2px solid #1d1d1f;
+    outline-offset: 3px;
+    border-radius: 0.75rem;
+  }
+  a {
+    @apply underline-offset-4;
+  }
+  code {
+    @apply rounded-lg bg-well px-1.5 py-0.5 font-mono text-[0.8em] font-normal text-ink-2;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #cfcfcf transparent;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: #8c8c8c;
+  }
+}
+
 @layer components {
-  .legacy h2 {
-    @apply mb-3 text-base font-semibold;
+  /* Katta "overview" kartasi: yumshoq oq yuzadan kulrangga o'tish, faqat soya (chiziqsiz). */
+  .surface {
+    border-radius: var(--radius-card);
+    background: linear-gradient(150deg, #fdfdfd 0%, #f8f8f8 55%, #f3f3f3 100%);
+    box-shadow: var(--shadow-card);
   }
-  .legacy a {
-    @apply text-blue-600 hover:underline dark:text-blue-400;
+
+  /* Daraxt chiziqlari: nav ostki bandlari, audit va faollik lentalari (signature). */
+  .tree > li {
+    position: relative;
+    padding-left: 1.75rem;
   }
-  .legacy input,
-  .legacy select,
-  .legacy textarea {
-    @apply w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-gray-700 dark:bg-gray-900;
+  .tree > li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: var(--tree-elbow, 1.4rem);
+    width: 1.1rem;
+    border-left: 1.5px solid var(--color-line);
+    border-bottom: 1.5px solid var(--color-line);
+    border-bottom-left-radius: 0.85rem;
   }
-  .legacy button {
-    @apply cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50;
+  .tree > li:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-left: 1.5px solid var(--color-line);
   }
-  .legacy button.secondary {
-    @apply border border-gray-300 bg-white text-gray-800 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800;
-  }
-  .legacy button.link {
-    @apply bg-transparent p-0 text-blue-600 hover:bg-transparent hover:underline dark:text-blue-400;
-  }
-  .legacy form {
-    @apply flex flex-col gap-3;
-  }
-  .page {
-    @apply mx-auto max-w-6xl px-4 py-6;
-  }
-  .narrow {
-    @apply max-w-md;
-  }
-  .card {
-    @apply mb-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900;
-  }
-  .code {
-    @apply text-center font-mono text-2xl tracking-[0.3em];
-  }
-  .row {
-    @apply flex flex-wrap items-center gap-2;
-  }
-  .devices,
-  .list {
-    @apply m-0 list-none divide-y divide-gray-100 p-0 dark:divide-gray-800;
-  }
-  .devices li,
-  .list li {
-    @apply flex items-center justify-between gap-3 py-3;
-  }
-  .revoked {
-    @apply opacity-50;
-  }
-  .muted {
-    @apply text-gray-500 dark:text-gray-400;
-  }
-  .small {
-    @apply text-xs;
-  }
-  .error,
-  .error-text {
-    @apply text-sm text-red-600 dark:text-red-400;
-  }
-  .kv {
-    @apply my-2 grid gap-1 text-sm;
-  }
-  .swatch {
-    @apply mr-0.5 inline-block h-3 w-3 rounded-sm border border-black/20 align-middle;
-  }
-  .report {
-    @apply max-h-96 overflow-auto rounded-lg bg-gray-100 p-3 font-mono text-xs whitespace-pre-wrap dark:bg-gray-800;
-  }
-  .confirm {
-    @apply flex gap-2;
+
+  .num {
+    font-variant-numeric: tabular-nums;
   }
 }

@@ -27,3 +27,11 @@ apps/panel/release/
 
 # Foydalanuvchi reliz arxivi
 apps/panel/release.zip
+
+# Claude / agent skill'lari (lokal)
+.agents/
+.claude/
+skills-lock.json
+
+# Impeccable: vaqtinchalik skrinshotlar
+**/.impeccable/review/
