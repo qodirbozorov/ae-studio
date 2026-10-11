@@ -88,7 +88,7 @@ export function describeLog(entry: LogEntry): LogView {
       code,
     };
   }
-  const clean = text.replace(/^[☀-➿\u{1F300}-\u{1FAFF}️]+\s*/u, "");
+  const clean = text.replace(/^(?:\p{Extended_Pictographic}|\u{FE0F}|\u{200D})+\s*/u, "");
   const kind: LogKind =
     entry.level === "error"
       ? "error"
