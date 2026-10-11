@@ -114,10 +114,13 @@ const SCENES_FOLDER = "Scenes";
 class OpList {
   readonly ops: OpEnvelope[] = [];
   private readonly ids = new Set<string>();
+  /** Takrorlangan op_id'lar (masalan layer id "bg" sahna fon qatlami bilan to'qnashsa) — DB unique buziladi. */
+  readonly dups: string[] = [];
   has(opId: string): boolean {
     return this.ids.has(opId);
   }
   add<N extends AeOpName>(op: N, opId: string, params: OpParamsMap[N], sceneId?: string): string {
+    if (this.ids.has(opId)) this.dups.push(opId);
     const extra = sceneId === undefined ? {} : { scene_id: sceneId };
     this.ops.push(makeOp(op, opId, this.ops.length, params, extra) as OpEnvelope);
     this.ids.add(opId);
@@ -585,6 +588,12 @@ export function compile(spec: VideoSpec, ctx: CompileContext): Result<CompileOut
   const finalScripts = hookScripts("after_build", undefined, {});
   if (!finalScripts.ok) return finalScripts;
   list.add("project.save", "aes.save", save);
+  if (list.dups.length > 0) {
+    return fail(
+      "SPEC_INVALID",
+      `id to'qnashuvi: ${[...new Set(list.dups)].join(", ")} — layer/script id'ni o'zgartiring ("bg", "tpl" band: sahna foni va shablon)`,
+    );
+  }
 
   return ok({
     ops: list.ops,

@@ -244,7 +244,8 @@ export class TelegramService {
   private async send(chatId: string, text: string): Promise<boolean> {
     const res = await this.api("sendMessage", {
       chat_id: chatId,
-      text,
+      // Telegram chegarasi 4096 belgi (uzun xato matni, masalan SQL, xabarni butunlay yo'qotmasin).
+      text: text.length > 4000 ? `${text.slice(0, 4000)}…` : text,
       disable_web_page_preview: true,
     });
     if (!res.ok) this.log.warn({ err: res.error }, "telegram xabar yuborilmadi");
