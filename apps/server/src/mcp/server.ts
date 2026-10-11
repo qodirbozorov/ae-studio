@@ -27,7 +27,7 @@ Loop (follow in order, every stage has a gate):
 4. spec_schema (once) → plan_write. On SPEC_INVALID fix exactly the reported JSON Pointer paths; use plan_patch for small edits.
 5. preflight → fix missing[] → build_start (dry_run first for long videos).
 6. Poll job_status every 5-10 s until state is VERIFY, BLOCKED or DONE. Do not start a second job: one active job per device.
-7. VERIFY: the user reviews the result in the After Effects timeline first — tell them which .aep and composition to open (aep_path from job_status) and ask for feedback. Use contact_sheet only when the user asks you to look or for one quick sanity check (a single call, small max_px); frames_capture only for one specific frame. Then verify_patch with the user's corrections (max 3 patches, then ask), or verify_approve when the user is satisfied.
+7. VERIFY: the user reviews the result in the After Effects timeline first — tell them which .aep and composition to open (aep_path from job_status) and ask for feedback. Use contact_sheet only when the user asks you to look or for one quick sanity check (a single call, small max_px); frames_capture only for one specific frame. Then verify_patch with the user's corrections (max 3 patches, then ask), or verify_approve when the user is satisfied. The user can also approve with the «Tasdiqlash» button in the AE panel or web cabinet: when the user comes back, call job_status first. Any tool result may carry a "notices" array (e.g. the user approved in the panel) — tell the user about it in the chat. An approved job (DONE, outcome success) can still be fixed: verify_patch on that same job reopens it.
 8. verify_approve does NOT render: the job finishes (DONE) and the .aep stays in the user's AE. Rendering is heavy for the user's computer: never render on your own — only when the user explicitly asks (verify_approve with render: true + user_confirmed: true, or render_start with user_confirmed: true for a finished job). report_get summarizes the job.
 
 Professional layers (any visual layer: media, text, shape, solid, null, adjustment): keyframes {path: [{t, v, ease}]} with ease tokens enter|exit|move|soft|pop or cubic-bezier [x1,y1,x2,y2]; transform (AE units: px, %, degrees); effects[] by alias (gaussian_blur, drop_shadow, glow, gradient_ramp, four_color_gradient for mesh gradients, bezier_warp / wave_warp / turbulent_displace / bulge for deformation …) or any installed matchName — ae_effects lists them, fx_params shows exact param names/indices before you set unfamiliar ones; masks[] (rect, ellipse, path, svg_d); matte {source, type}; blend; parent; three_d. Shape layers: contents[] with rect/ellipse/star/polygon/path (svg_d + fit for icons)/group, fill/stroke (dashes, gradient), trim/round_corners/repeater/merge/offset_paths and contents.<id>.* keyframes. Hybrid scripts (only what the spec cannot do): per layer presets [{name, at}] (presets_list, preset_inspect), expressions {path: "lib:inertial_bounce(0.05,4,8)" or raw}, text_anim {by, preset, stagger}; spec scripts[] {id, lib | code, hook, args} with snippets from scripts_lib_list (counter, text_words, apply_preset …). Scripts work on layers the spec created, are short, and their results go to the job log (a failing script does not stop the job). ae_run_jsx runs raw ExtendScript immediately (no approval), e.g. a whole scene from the ae-extendscript helpers.
@@ -41,9 +41,10 @@ Errors are { ok:false, error:{ code, retryable, hint } }. BLOCKED: read error.hi
 const PER_MINUTE = 120;
 
 /** Handler natijasi → MCP CallToolResult (text JSON + rasmlar). */
-export function toCallResult(output: ToolOutput): CallToolResult {
+export function toCallResult(output: ToolOutput, notices: readonly string[] = []): CallToolResult {
   const { images, ...result } = output;
-  const content: CallToolResult["content"] = [{ type: "text", text: JSON.stringify(result) }];
+  const body = notices.length > 0 ? { ...result, notices } : result;
+  const content: CallToolResult["content"] = [{ type: "text", text: JSON.stringify(body) }];
   for (const image of images ?? []) content.push(image);
   return result.ok ? { content } : { content, isError: true };
 }
@@ -55,6 +56,8 @@ export interface McpServerOptions {
   context: ToolContext;
   /** Har tool chaqiruvi (audit, Claude indikatori). */
   onCall?: (name: string, ok: boolean) => void;
+  /** Claude hali ko'rmagan voqealar (masalan foydalanuvchi panelda tasdiqladi) — javobga qo'shiladi. */
+  notices?: () => Promise<string[]>;
 }
 
 export function createMcpServer(options: McpServerOptions): Server {
@@ -105,7 +108,8 @@ export function createMcpServer(options: McpServerOptions): Server {
       } as { ok: false; error: AesError };
     }
     options.onCall?.(tool.name, output.ok);
-    return toCallResult(output);
+    const notices = (await options.notices?.().catch(() => [])) ?? [];
+    return toCallResult(output, notices);
   });
 
   server.setRequestHandler(ListPromptsRequestSchema, async () => ({

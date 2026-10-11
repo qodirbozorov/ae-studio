@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, CircleX, FileText, Film, Layers } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { ApproveButton } from "../approve";
 import { Button, Card, CardTitle, Count, Empty, Loading, Meta, PageTitle, StateBadge } from "../ui";
 
 interface HistoryJob {
@@ -33,6 +34,11 @@ export function JobsPage() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   const [report, setReport] = useState<string | null>(null);
+
+  const reload = async () => {
+    const res = await api<HistoryJob[]>("/api/jobs");
+    setJobs(res.ok ? res.data : []);
+  };
 
   useEffect(() => {
     void api<HistoryJob[]>("/api/jobs").then((res) => setJobs(res.ok ? res.data : []));
@@ -104,8 +110,11 @@ export function JobsPage() {
                       {job.batch_id !== null ? " · batch" : ""}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <StateBadge state={job.state} outcome={job.outcome} />
+                    {job.state === "VERIFY" ? (
+                      <ApproveButton jobId={job.id} size="sm" onDone={() => void reload()} />
+                    ) : null}
                     <Button
                       size="sm"
                       variant="ghost"

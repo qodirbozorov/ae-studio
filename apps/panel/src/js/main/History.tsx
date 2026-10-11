@@ -1,4 +1,13 @@
-import { CircleCheck, CircleStop, CircleX, Clock, Film } from "lucide-react";
+import {
+  Clapperboard,
+  CircleCheck,
+  CircleStop,
+  CircleX,
+  Clock,
+  FileText,
+  Film,
+  RefreshCw,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Agent, HistoryJob } from "../../agent";
@@ -54,6 +63,7 @@ export function History({ agent, connected }: { agent: Agent; connected: boolean
       <h2>Tarix</h2>
       <div className="buttons">
         <button disabled={!connected || loading} onClick={refresh}>
+          <RefreshCw size={15} className={loading ? "spin" : undefined} />
           {loading ? "Yuklanmoqda…" : "Yangilash"}
         </button>
       </div>
@@ -82,16 +92,16 @@ export function History({ agent, connected }: { agent: Agent; connected: boolean
                 </div>
               ) : null}
               <div className="buttons">
-                <button className="link-button" onClick={() => void showReport(job.id)}>
-                  {open?.id === job.id ? "Yopish" : "Hisobot"}
+                <button className="ghost" onClick={() => void showReport(job.id)}>
+                  <FileText size={14} /> {open?.id === job.id ? "Yopish" : "Hisobot"}
                 </button>
                 {job.state === "DONE" && job.aep_path !== null ? (
                   <button
-                    className="link-button"
+                    className="ghost"
                     disabled={!connected}
                     onClick={() => void rerender(job.id)}
                   >
-                    Qayta render
+                    <Clapperboard size={14} /> Qayta render
                   </button>
                 ) : null}
               </div>

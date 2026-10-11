@@ -111,10 +111,11 @@ const NEXT_STEP: Partial<Record<JobState, string>> = {
     "Panel uzilgan: foydalanuvchi After Effects'da AE Studio panelini ochishi kerak, ulanganda job o'zi davom etadi.",
   BLOCKED:
     "error.hint ni o'qing. Sabab tuzatilgach job_resume; SPEC_*/ASSET_* bo'lsa verify_patch (yoki plan_patch + yangi build); boshqa holatda foydalanuvchidan so'rang.",
-  VERIFY: "frames_capture bilan kadrlarni ko'ring, keyin verify_approve yoki verify_patch.",
+  VERIFY:
+    "Foydalanuvchi AE'da ko'rib chiqadi: fikrini so'rang. U panel/web'dagi «Tasdiqlash» tugmasini ham bosishi mumkin — shuning uchun javob qaytganda avval job_status. Keyin verify_approve yoki verify_patch.",
   RENDER: "Render ketmoqda: 10–20 s dan keyin job_status.",
   REPORT: "Hisobot yozilmoqda: biroz kutib report_get.",
-  DONE: "report_get bilan hisobotni oling va foydalanuvchiga ko'rsating.",
+  DONE: "report_get bilan hisobotni oling va foydalanuvchiga ko'rsating. Tasdiqlangan job'ni tuzatish kerak bo'lsa — shu job_id bilan verify_patch (job qayta ochiladi, oldingi .aep saqlanadi).",
 };
 
 export async function jobView(ctx: ToolContext, job: JobRow, logLimit: number) {

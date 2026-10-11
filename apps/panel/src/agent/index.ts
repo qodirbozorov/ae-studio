@@ -73,7 +73,7 @@ export interface Pairing {
 }
 
 /** Live ekrani tugmalari (P2.12). */
-export type PanelJobAction = "pause" | "resume" | "cancel" | "undo";
+export type PanelJobAction = "pause" | "resume" | "cancel" | "undo" | "approve";
 
 /** Tarix ekrani (P3.08): shu qurilmadagi job. */
 export interface HistoryJob {

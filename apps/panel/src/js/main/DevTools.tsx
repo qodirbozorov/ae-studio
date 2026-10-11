@@ -1,3 +1,4 @@
+import { Activity, SquarePlus, Type } from "lucide-react";
 import { makeOp } from "@aes/shared";
 import type { Agent } from "../../agent";
 
@@ -13,7 +14,7 @@ export function DevTools({ agent }: { agent: Agent }) {
       <h2>Sinov</h2>
       <div className="buttons">
         <button onClick={() => run(makeOp("ping", `dev.ping.${Date.now()}`, seq++, {}))}>
-          Ping
+          <Activity size={15} /> Ping
         </button>
         <button
           onClick={() =>
@@ -29,7 +30,7 @@ export function DevTools({ agent }: { agent: Agent }) {
             )
           }
         >
-          Comp yaratish
+          <SquarePlus size={15} /> Comp yaratish
         </button>
         <button
           onClick={() =>
@@ -44,7 +45,7 @@ export function DevTools({ agent }: { agent: Agent }) {
             )
           }
         >
-          Matn qo'shish
+          <Type size={15} /> Matn qo'shish
         </button>
       </div>
       <p className="hint">

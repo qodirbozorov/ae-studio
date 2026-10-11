@@ -26,6 +26,7 @@ import {
 import type {
   AeOpName,
   AesError,
+  ApprovalSource,
   OpResultData,
   JobAction,
   JobOutcome,
@@ -36,7 +37,7 @@ import type {
   Result,
   VideoSpec,
 } from "@aes/shared";
-import { and, asc, desc, eq, inArray, max, ne, notInArray } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, max, ne, notInArray, sql } from "drizzle-orm";
 import type { FastifyBaseLogger } from "fastify";
 import { applyScan } from "../assets/routes";
 import type { AppContext } from "../context";
@@ -329,11 +330,13 @@ export class JobEngine {
     jobId: string,
     action: JobAction,
     /** `render: false` — tasdiq render'siz (Claude: foydalanuvchi ruxsatisiz render yo'q). */
-    input: { spec?: unknown; render?: boolean } = {},
+    input: { spec?: unknown; render?: boolean; by?: ApprovalSource } = {},
   ): Promise<Result<JobRow>> {
     const job = await this.get(jobId);
     if (job === null) return fail("SYS_NOT_FOUND", "Job topilmadi");
-    if (!actionAllowed(action, job.state, job.paused)) {
+    // Tasdiqlangan (DONE, success) job tuzatish uchun qayta ochiladi: tarix, hisobot va .aep saqlanadi.
+    const reopen = action === "patch" && job.state === "DONE" && job.outcome === "success";
+    if (!reopen && !actionAllowed(action, job.state, job.paused)) {
       return fail(
         "JOB_BAD_ACTION",
         `${action}: job ${job.state}${job.paused ? " (pauza)" : ""} holatida`,
@@ -358,18 +361,24 @@ export class JobEngine {
         // Render og'ir (AE band, ping'lar kechikadi): faqat aniq so'ralganda. Aks holda natija
         // foydalanuvchining AE timeline'ida qoladi, job REPORT → DONE.
         const render = input.render !== false;
+        const by: ApprovalSource = input.by ?? { actor: "claude", via: "mcp" };
         updated = await this.transition(job, {
           state: render ? "RENDER" : "REPORT",
           prevState: null,
         });
         if (updated !== null) {
+          const who =
+            by.actor === "user"
+              ? ` — foydalanuvchi ${by.via === "panel" ? "AE panelidan" : "web kabinetdan"}`
+              : "";
           await this.event(
             job,
             "info",
             "verify.approved",
             render
-              ? "VERIFY tasdiqlandi"
-              : "VERIFY tasdiqlandi (render'siz: natija AE timeline'ida; render faqat foydalanuvchi ruxsati bilan)",
+              ? `VERIFY tasdiqlandi${who}`
+              : `VERIFY tasdiqlandi${who} (render'siz: natija AE timeline'ida; render faqat foydalanuvchi ruxsati bilan)`,
+            { data: { by: by.actor, via: by.via, render } },
           );
         }
         break;
@@ -416,6 +425,15 @@ export class JobEngine {
       return fail("LOOP_PATCH_LIMIT", `${MAX_PATCHES} ta patch ishlatildi`);
     }
     if (spec === undefined) return fail("SYS_BAD_REQUEST", "patch uchun spec kerak");
+    const reopening = job.state === "DONE";
+    if (reopening && job.deviceId !== null) {
+      const busy = await this.activeJob(job.deviceId);
+      if (busy !== null && busy.id !== job.id) {
+        return fail("JOB_ACTIVE", "Qurilmada boshqa job ishlayapti; u tugagach qayta urining", {
+          job_id: busy.id,
+        });
+      }
+    }
     const plan = await this.addPlan(job.projectId, spec, "claude");
     if (!plan.ok) return plan;
     // Allaqachon qurilgan versiya ustiga yozilmaydi: biror op bajarilgan bo'lsa yangi vNNN
@@ -433,8 +451,17 @@ export class JobEngine {
       patchCount: job.patchCount + 1,
       aepVersion: built === undefined ? job.aepVersion : await this.nextAepVersion(job.projectId),
       error: null,
+      ...(reopening ? { outcome: null } : {}),
     });
     if (updated === null) return fail("JOB_BAD_ACTION", "Job holati shu payt o'zgardi");
+    if (reopening) {
+      await this.event(
+        job,
+        "info",
+        "job.reopened",
+        "Tasdiqlangan job tuzatish uchun qayta ochildi (oldingi .aep va hisobot saqlanadi)",
+      );
+    }
     await this.event(job, "info", "job.patched", `Patch: plan v${plan.data.version}`, {
       data: { plan_version: plan.data.version, patch_count: updated.patchCount },
     });
@@ -656,6 +683,51 @@ export class JobEngine {
     if (this.listeners.size === 0) return;
     const progress = await this.progress(job.id, sceneId);
     for (const listener of this.listeners) listener.update?.(job, progress);
+  }
+
+  /**
+   * Foydalanuvchi panel/web'dan bergan tasdiqlar — Claude hali ko'rmaganlari (oxirgi 3 kun).
+   * MCP'ning keyingi istalgan javobiga `notices` sifatida qo'shiladi va "ko'rildi" deb belgilanadi:
+   * remote MCP serverdan chatga o'zi xabar yubora olmaydi.
+   */
+  async takeClaudeNotices(userId: string): Promise<string[]> {
+    const since = new Date(this.ctx.now().getTime() - 3 * 86_400_000);
+    const rows = await this.ctx.db
+      .select({
+        id: jobEvents.id,
+        jobId: jobEvents.jobId,
+        ts: jobEvents.ts,
+        data: jobEvents.data,
+        project: projects.name,
+      })
+      .from(jobEvents)
+      .innerJoin(jobs, eq(jobs.id, jobEvents.jobId))
+      .innerJoin(projects, eq(projects.id, jobs.projectId))
+      .where(
+        and(
+          eq(projects.userId, userId),
+          eq(jobEvents.type, "verify.approved"),
+          gt(jobEvents.ts, since),
+          sql`${jobEvents.data}->>'by' = 'user'`,
+          isNull(sql`${jobEvents.data}->>'claude_seen'`),
+        ),
+      )
+      .orderBy(asc(jobEvents.id))
+      .limit(10);
+    const notices: string[] = [];
+    for (const row of rows) {
+      const data = (row.data ?? {}) as Record<string, unknown>;
+      await this.ctx.db
+        .update(jobEvents)
+        .set({ data: { ...data, claude_seen: true } })
+        .where(eq(jobEvents.id, row.id));
+      const via = data.via === "panel" ? "AE panelidagi" : "web kabinetdagi";
+      notices.push(
+        `Foydalanuvchi "${row.project}" job'ini (job_id ${row.jobId}) ${via} «Tasdiqlash» tugmasi bilan tasdiqladi: job DONE, render qilinmadi. ` +
+          `Buni foydalanuvchiga ayting. Tuzatish so'ralsa — shu job_id bilan verify_patch (job qayta ochiladi, oldingi .aep saqlanadi); render faqat so'ralsa render_start.`,
+      );
+    }
+    return notices;
   }
 
   /** Tashqi modullar (MCP VERIFY, render) uchun job log'iga yozuv. */

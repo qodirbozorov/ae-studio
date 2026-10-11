@@ -5,6 +5,8 @@ import {
   CircleX,
   Info,
   Loader,
+  Maximize2,
+  Minimize2,
   Trash2,
   TriangleAlert,
 } from "lucide-react";
@@ -100,6 +102,7 @@ export function LiveLog({
           </button>
         </div>
         <button className="ghost" onClick={() => setTall(!tall)} title="Balandlik">
+          {tall ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           {tall ? "Kichik" : "Katta"}
         </button>
         <button

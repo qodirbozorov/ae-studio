@@ -1,4 +1,14 @@
-import { CircleCheck, CircleX, Clock, Loader, Play, SkipForward } from "lucide-react";
+import {
+  CircleCheck,
+  CircleX,
+  Clock,
+  Loader,
+  Play,
+  RefreshCw,
+  RotateCcw,
+  SkipForward,
+  X,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Agent } from "../../agent";
@@ -85,34 +95,29 @@ export function Audio({ agent, connected }: { agent: Agent; connected: boolean }
               <div className="buttons">
                 {path !== null ? (
                   <button
-                    className="link-button"
+                    className="ghost"
                     onClick={() => setPlaying(playing === task.id ? null : task.id)}
                   >
-                    {playing === task.id ? (
-                      "Yopish"
-                    ) : (
-                      <span className="icon-text">
-                        <Play size={13} /> Eshitish
-                      </span>
-                    )}
+                    {playing === task.id ? <X size={14} /> : <Play size={14} />}
+                    {playing === task.id ? "Yopish" : "Eshitish"}
                   </button>
                 ) : null}
                 {task.status === "done" && task.kind !== "stt" && task.kind !== "align" ? (
                   <button
-                    className="link-button"
+                    className="ghost"
                     disabled={!connected}
                     onClick={() => void act(task.id, "regenerate")}
                   >
-                    Qayta generatsiya
+                    <RefreshCw size={14} /> Qayta generatsiya
                   </button>
                 ) : null}
                 {task.status === "failed" ? (
                   <button
-                    className="link-button"
+                    className="ghost"
                     disabled={!connected}
                     onClick={() => void act(task.id, "retry")}
                   >
-                    Qayta urinish
+                    <RotateCcw size={14} /> Qayta urinish
                   </button>
                 ) : null}
               </div>

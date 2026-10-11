@@ -16,7 +16,12 @@ import type { JobEngine, JobRow } from "./engine";
 
 const planSchema = z.strictObject({ spec: z.unknown() });
 const createSchema = z.strictObject({ plan_version: z.number().int().min(1).optional() });
-const actionSchema = z.strictObject({ action: z.enum(JOB_ACTIONS), spec: z.unknown().optional() });
+const actionSchema = z.strictObject({
+  action: z.enum(JOB_ACTIONS),
+  spec: z.unknown().optional(),
+  /** approve: web tugmasi `false` yuboradi (render faqat aniq so'ralganda). */
+  render: z.boolean().optional(),
+});
 const uuid = z.uuid();
 
 export async function presentJob(engine: JobEngine, row: JobRow) {
@@ -192,7 +197,11 @@ export function registerJobRoutes(app: FastifyInstance, ctx: AppContext, engine:
     if (job === null) return notFound(reply, "Job");
     const body = actionSchema.safeParse(request.body);
     if (!body.success) return reply.code(400).send(fail("SYS_BAD_REQUEST", "action noto'g'ri"));
-    const result = await engine.act(job.id, body.data.action, { spec: body.data.spec });
+    const result = await engine.act(job.id, body.data.action, {
+      spec: body.data.spec,
+      render: body.data.render,
+      by: { actor: "user", via: "web" },
+    });
     if (!result.ok) return reply.code(status(result)).send(result);
     return ok(await presentJob(engine, result.data));
   });
@@ -286,7 +295,11 @@ export function registerJobRoutes(app: FastifyInstance, ctx: AppContext, engine:
     if (job === null || job.deviceId !== request.device!.deviceId) return notFound(reply, "Job");
     const body = z.strictObject({ action: z.enum(PANEL_JOB_ACTIONS) }).safeParse(request.body);
     if (!body.success) return reply.code(400).send(fail("SYS_BAD_REQUEST", "action noto'g'ri"));
-    const result = await engine.act(job.id, body.data.action);
+    // Panel tasdig'i hech qachon render qilmaydi (og'ir; render alohida so'raladi).
+    const result = await engine.act(job.id, body.data.action, {
+      render: false,
+      by: { actor: "user", via: "panel" },
+    });
     if (!result.ok) return reply.code(status(result)).send(result);
     return ok(await presentJob(engine, result.data));
   });

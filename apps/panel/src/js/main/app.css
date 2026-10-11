@@ -990,3 +990,72 @@ audio {
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------- ish papkasi: loyiha qatorlari */
+
+.project-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  height: auto;
+  padding: 8px 10px;
+  color: var(--ink-2);
+  text-align: left;
+  white-space: normal;
+  background: transparent;
+  border-radius: var(--r-control);
+}
+
+.project-row svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+button.project-row:hover {
+  color: var(--ink);
+  background: var(--well);
+}
+
+.project-row.current {
+  margin-top: 2px;
+  padding-left: 0;
+  color: var(--ink);
+}
+
+.project-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.project-text b {
+  overflow: hidden;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent.projects {
+  margin: 10px -10px 0;
+}
+
+.recent.projects li {
+  padding: 0;
+}
+
+/* ---------------------------------------------------------------- VERIFY: tasdiqlash bloki */
+
+.verify-box {
+  margin: 2px 0 12px;
+  padding: 12px 12px 12px;
+  background: var(--well);
+  border-radius: 14px;
+}
+
+.verify-box .hint {
+  margin: 0;
+  color: var(--ink-2);
+}

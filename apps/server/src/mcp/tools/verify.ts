@@ -325,7 +325,7 @@ export const verifyTools = [
     name: "verify_patch",
     title: "Patch and rebuild",
     description:
-      "Fixes the video during VERIFY (or a BLOCKED job): give either a full corrected spec or an RFC 6902 JSON patch against the job's current plan. Saves a new plan version and rebuilds into a NEW .aep version (the previous file is kept). Max 3 patches per job; after that LOOP_PATCH_LIMIT → ask the user.",
+      "Fixes the video during VERIFY, a BLOCKED job, or an already approved job (DONE with outcome success — e.g. the user approved it with the panel/web button and then asked for changes; the job is reopened). Give either a full corrected spec or an RFC 6902 JSON patch against the job's current plan. Saves a new plan version and rebuilds into a NEW .aep version (the previous file and report are kept). Max 3 patches per job; after that LOOP_PATCH_LIMIT → ask the user.",
     input: z
       .object({
         job_id: uuidArg("job_id"),

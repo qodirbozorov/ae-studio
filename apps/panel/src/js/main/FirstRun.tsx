@@ -1,4 +1,4 @@
-import { Circle, CircleCheck, CircleDot, CircleAlert } from "lucide-react";
+import { Check, Circle, CircleAlert, CircleCheck, CircleDot } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Agent } from "../../agent";
 import { ONBOARDING_STEPS, environmentItems } from "../../agent/onboarding";
@@ -6,7 +6,7 @@ import type { EnvironmentItem, OnboardingStep } from "../../agent/onboarding";
 
 const HINT: Record<Exclude<OnboardingStep, "done">, string> = {
   connect:
-    "Server manzilini kiriting va «Ulash» bosing: brauzerda kabinet ochiladi, kodni tasdiqlang.",
+    "«Kirish» tugmasini bosing: brauzerda kabinet ochiladi, panel ko'rsatgan kodni tasdiqlang.",
   folder:
     "Videolar uchun ish papkasini tanlang: ichida source/, audio/, out/ papkalari yaratiladi.",
   env: "Panel ffmpeg va aerender'ni tekshirdi. Hammasi joyida bo'lsa «Tayyor» bosing.",
@@ -80,7 +80,7 @@ export function FirstRun({ agent, onDone }: { agent: Agent; onDone: () => void }
                 onDone();
               }}
             >
-              Tayyor — Claude'da birinchi videoni so'rang
+              <Check size={15} /> Tayyor — Claude'da birinchi videoni so'rang
             </button>
           </div>
           <p className="muted">

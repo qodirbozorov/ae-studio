@@ -1,4 +1,4 @@
-import { Pause, Play, Square, Undo2 } from "lucide-react";
+import { CircleCheck, Pause, Play, Square, Undo2 } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 import { JOB_FLOW } from "@aes/shared";
 import type { Agent, PanelJobAction } from "../../agent";
@@ -106,6 +106,31 @@ export function Live({ agent }: { agent: Agent }) {
             <div className="progress-bar" style={{ width: `${percent}%` }} />
           </div>
         </>
+      ) : null}
+      {job.state === "VERIFY" ? (
+        <div className="verify-box">
+          <p className="hint">
+            Natija tayyor. AE'da ko'rib chiqing: hammasi joyida bo'lsa tasdiqlang, tuzatish kerak
+            bo'lsa Claude'ga yozing (tasdiqdan keyin ham tuzatish mumkin).
+          </p>
+          <div className="buttons">
+            <button
+              className="primary"
+              disabled={busy !== null}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Natija tasdiqlansinmi? Job yakunlanadi (render qilinmaydi). Claude bu haqda keyingi javobida xabar oladi.",
+                  )
+                ) {
+                  run("approve");
+                }
+              }}
+            >
+              <CircleCheck size={15} /> {busy === "approve" ? "Tasdiqlanmoqda…" : "Tasdiqlash"}
+            </button>
+          </div>
+        </div>
       ) : null}
       {!done ? (
         <div className="buttons">

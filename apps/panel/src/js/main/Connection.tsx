@@ -1,17 +1,8 @@
-import { ExternalLink, LogOut } from "lucide-react";
+import { ExternalLink, LogIn, LogOut, RefreshCw, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Agent, ConnectionStatus, DeviceCode, PanelProfile } from "../../agent";
 import { openUrl } from "../lib/cep";
-
-const SERVER_KEY = "aes.server_url";
-
-function savedServer(): string {
-  try {
-    return localStorage.getItem(SERVER_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
+import { SERVER_URL } from "../lib/server";
 
 function initials(name: string): string {
   return name
@@ -105,7 +96,6 @@ type Stage =
 
 /** "Ulanish" ekrani (§11.1.1): device kod (§4.2) yoki saqlangan hisob. */
 export function Connection({ agent, status }: { agent: Agent; status: ConnectionStatus }) {
-  const [server, setServer] = useState(savedServer);
   const [stage, setStage] = useState<Stage>(() =>
     agent.account() === null ? { kind: "form" } : { kind: "account" },
   );
@@ -133,14 +123,9 @@ export function Connection({ agent, status }: { agent: Agent; status: Connection
   }, [status, agent]);
 
   const start = () => {
-    try {
-      localStorage.setItem(SERVER_KEY, server);
-    } catch {
-      // saqlab bo'lmasa ham davom etamiz
-    }
     let pairing: ReturnType<Agent["pair"]>;
     try {
-      pairing = agent.pair(server);
+      pairing = agent.pair(SERVER_URL);
     } catch (error) {
       setStage({ kind: "form", error: error instanceof Error ? error.message : String(error) });
       return;
@@ -182,12 +167,10 @@ export function Connection({ agent, status }: { agent: Agent; status: Connection
         <div>
           <span className="conn-dot" /> {statusText(status)} — <b>{host}</b>
         </div>
-        <p className="hint">
-          Internet va server manzilini tekshiring. Panel o'zi ham qayta urinadi.
-        </p>
+        <p className="hint">Internetni tekshiring. Panel o'zi ham qayta urinadi.</p>
         <div className="buttons">
           <button className="primary" onClick={() => agent.connectSaved()}>
-            Qayta ulanish
+            <RefreshCw size={15} /> Qayta ulanish
           </button>
           <button
             onClick={() => {
@@ -195,7 +178,7 @@ export function Connection({ agent, status }: { agent: Agent; status: Connection
               setStage({ kind: "form" });
             }}
           >
-            Boshqa serverga
+            <LogOut size={15} /> Chiqish
           </button>
         </div>
       </section>
@@ -205,12 +188,12 @@ export function Connection({ agent, status }: { agent: Agent; status: Connection
   if (stage.kind === "code") {
     return (
       <section className="dev">
-        <h2>Ulanish</h2>
-        <p className="hint">Web kabinetda shu kodni tasdiqlang:</p>
+        <h2>Kirish</h2>
+        <p className="hint">Brauzerda kabinet ochildi — shu kodni tasdiqlang:</p>
         <div className="user-code">{stage.code.user_code}</div>
         <div className="buttons">
           <button onClick={() => openUrl(stage.code.verification_uri_complete)}>
-            Brauzerda ochish
+            <ExternalLink size={15} /> Brauzerda ochish
           </button>
           <button
             onClick={() => {
@@ -218,7 +201,7 @@ export function Connection({ agent, status }: { agent: Agent; status: Connection
               setStage({ kind: "form" });
             }}
           >
-            Bekor qilish
+            <X size={15} /> Bekor qilish
           </button>
         </div>
         <p className="hint">
@@ -230,20 +213,17 @@ export function Connection({ agent, status }: { agent: Agent; status: Connection
 
   return (
     <section className="dev">
-      <h2>Ulanish</h2>
-      <div className="form">
-        <input
-          value={server}
-          onChange={(e) => setServer(e.target.value)}
-          placeholder="https://<app>.up.railway.app"
-        />
-        <div className="buttons">
-          <button onClick={start} disabled={server.trim() === ""}>
-            Kod olish
-          </button>
-        </div>
-        {stage.error ? <p className="hint error-text">{stage.error}</p> : null}
+      <h2>Kirish</h2>
+      <p className="hint">
+        AE Studio kabinetiga ulaning: brauzerda kabinet ochiladi, Telegram orqali kirib, panel
+        ko'rsatgan kodni tasdiqlaysiz.
+      </p>
+      <div className="buttons">
+        <button className="primary" onClick={start}>
+          <LogIn size={15} /> Kirish
+        </button>
       </div>
+      {stage.error ? <p className="hint error-text">{stage.error}</p> : null}
     </section>
   );
 }

@@ -1,3 +1,4 @@
+import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Agent } from "../../agent";
 import { aspectSize, sketchItems, slotPayload, validateSlots } from "../../agent/templates";
@@ -284,7 +285,7 @@ export function Templates({ agent, connected }: { agent: Agent; connected: boole
           ) : null}
           <div className="buttons">
             <button type="submit" disabled={!connected || project === null || busy}>
-              {busy ? "Yuborilmoqda…" : "Videoni yaratish"}
+              <Sparkles size={15} /> {busy ? "Yuborilmoqda…" : "Videoni yaratish"}
             </button>
           </div>
         </form>

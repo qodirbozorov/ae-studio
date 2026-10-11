@@ -50,6 +50,12 @@ export const JOB_ACTIONS = [
   "undo",
 ] as const;
 
-/** Panel (Live ekrani) bajara oladigan amallar. */
-export const PANEL_JOB_ACTIONS = ["pause", "resume", "cancel", "undo"] as const;
+/** Panel (Live ekrani) bajara oladigan amallar. `approve` — VERIFY'da foydalanuvchi tasdig'i (render'siz). */
+export const PANEL_JOB_ACTIONS = ["pause", "resume", "cancel", "undo", "approve"] as const;
+
+/** Tasdiqni kim va qayerdan berdi (job_events.data, Claude'ga bildirishnoma uchun). */
+export interface ApprovalSource {
+  actor: "user" | "claude";
+  via: "panel" | "web" | "mcp";
+}
 export type JobAction = (typeof JOB_ACTIONS)[number];

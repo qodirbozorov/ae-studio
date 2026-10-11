@@ -47,6 +47,7 @@ export function registerMcpRoutes(
       prompts: PROMPTS,
       limiter,
       context: { app: ctx, engine, userId: auth.userId, clientId: auth.clientId, log: request.log },
+      notices: () => engine.takeClaudeNotices(auth.userId),
       onCall: (tool, ok) =>
         hooks.onCall?.(
           auth.userId,

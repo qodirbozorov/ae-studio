@@ -481,13 +481,6 @@ describe("Live (P2.12): job_events → WS → panel", () => {
     expect(active.json().data).toMatchObject({ id, state: "VERIFY" });
     const history = await t.app.inject({ url: `/api/agent/jobs/${id}/events`, headers: auth });
     expect(history.json().data.length).toBeGreaterThan(10);
-    const approve = await t.app.inject({
-      method: "POST",
-      url: `/api/agent/jobs/${id}/actions`,
-      headers: auth,
-      payload: { action: "approve" },
-    });
-    expect(approve.statusCode).toBe(400);
     const cancel = await t.app.inject({
       method: "POST",
       url: `/api/agent/jobs/${id}/actions`,
@@ -496,6 +489,54 @@ describe("Live (P2.12): job_events → WS → panel", () => {
     });
     expect(cancel.json()).toMatchObject({ ok: true });
     expect(await job(id)).toMatchObject({ state: "DONE", outcome: "cancelled" });
+  });
+
+  it("panel «Tasdiqlash»: render'siz DONE, Claude'ga bir martalik bildirishnoma, patch bilan qayta ochiladi", async () => {
+    agent.connect();
+    await addPlan();
+    const id = await startJob();
+    expect(await job(id)).toMatchObject({ state: "VERIFY" });
+    const auth = { authorization: `Bearer ${await deviceToken()}` };
+    const approve = await t.app.inject({
+      method: "POST",
+      url: `/api/agent/jobs/${id}/actions`,
+      headers: auth,
+      payload: { action: "approve" },
+    });
+    expect(approve.json()).toMatchObject({ ok: true });
+    expect(await job(id)).toMatchObject({ state: "DONE", outcome: "success" });
+    expect(await states(id)).not.toContain("RENDER");
+
+    const [user] = await t.db.db.select().from(users).where(eq(users.email, "jobs@x.uz"));
+    const notices = await t.app.jobs.takeClaudeNotices(user!.id);
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toContain(id);
+    expect(notices[0]).toContain("AE panelidagi");
+    expect(await t.app.jobs.takeClaudeNotices(user!.id)).toEqual([]);
+
+    // Tasdiqdan keyin tuzatish: job qayta ochiladi, yangi plan va .aep versiyasi bilan VERIFY'ga qaytadi.
+    const changed = structuredClone(THREE_SCENES);
+    changed.scenes[0]!.dur = 4;
+    const patched = await act(id, "patch", { spec: changed });
+    expect(patched.body.ok).toBe(true);
+    expect(await job(id)).toMatchObject({
+      state: "VERIFY",
+      outcome: null,
+      plan_version: 2,
+      patch_count: 1,
+    });
+    const types = (await api("GET", `/api/jobs/${id}/events`)).body.data.map(
+      (e: { type: string }) => e.type,
+    );
+    expect(types).toContain("job.reopened");
+
+    // Web tugmasi: render'siz tasdiq.
+    const web = await act(id, "approve", { render: false });
+    expect(web.body.ok).toBe(true);
+    expect(await job(id)).toMatchObject({ state: "DONE", outcome: "success" });
+    const second = await t.app.jobs.takeClaudeNotices(user!.id);
+    expect(second).toHaveLength(1);
+    expect(second[0]).toContain("web kabinetdagi");
   });
 
   it("Undo last: pauzada oxirgi opni AE'da bekor qiladi, resume uni qayta bajaradi", async () => {

@@ -1,6 +1,7 @@
 import { ArrowLeft, Cpu, FileVideo, Folder, Monitor } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { ApproveButton } from "../approve";
 import type { DeviceActivity } from "../api";
 import {
   Card,
@@ -101,7 +102,10 @@ export function DeviceActivityPage({ id }: { id: string }) {
                   <div className="truncate text-[1rem] font-normal">{j.project}</div>
                   <div className="text-sm text-ink-3">{ago(j.created_at)}</div>
                 </div>
-                <StateBadge state={j.state} outcome={j.outcome} />
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <StateBadge state={j.state} outcome={j.outcome} />
+                  {j.state === "VERIFY" ? <ApproveButton jobId={j.id} size="sm" /> : null}
+                </div>
               </li>
             ))}
           </ul>

@@ -1,6 +1,7 @@
 import { Activity, Clock, Cpu, Folder, Monitor, Plus, Trash2, Clapperboard } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, post } from "../api";
+import { ApproveButton } from "../approve";
 import type { Device } from "../api";
 import {
   Button,
@@ -20,7 +21,15 @@ import {
   cx,
 } from "../ui";
 
-function DeviceCard({ d, onRevoke }: { d: Device; onRevoke: (d: Device) => void }) {
+function DeviceCard({
+  d,
+  onRevoke,
+  onChanged,
+}: {
+  d: Device;
+  onRevoke: (d: Device) => void;
+  onChanged: () => void;
+}) {
   const job = d.job;
   const running = job !== null && job.state !== "DONE";
   return (
@@ -65,6 +74,17 @@ function DeviceCard({ d, onRevoke }: { d: Device; onRevoke: (d: Device) => void 
             className="h-full rounded-full bg-ink transition-[width] duration-500 ease-out"
             style={{ width: `${Math.max(2, Math.min(100, job.progress))}%` }}
           />
+        </div>
+      ) : null}
+      {job?.state === "VERIFY" ? (
+        <div className="mt-6 grid gap-3 rounded-[1.25rem] bg-white p-5 shadow-raise">
+          <p className="text-[0.95rem] leading-relaxed text-ink-2">
+            Natija tayyor. After Effects'da ko'rib chiqing: hammasi joyida bo'lsa tasdiqlang,
+            tuzatish kerak bo'lsa Claude'ga yozing.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <ApproveButton jobId={job.id} size="sm" onDone={onChanged} />
+          </div>
         </div>
       ) : null}
 
@@ -145,7 +165,12 @@ export function DevicesPage() {
       ) : null}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {devices?.map((d) => (
-          <DeviceCard key={d.id} d={d} onRevoke={(x) => void revoke(x)} />
+          <DeviceCard
+            key={d.id}
+            d={d}
+            onRevoke={(x) => void revoke(x)}
+            onChanged={() => void load()}
+          />
         ))}
       </div>
     </>

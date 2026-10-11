@@ -1,3 +1,4 @@
+import { Folder, FolderCheck, FolderOpen, ScanSearch } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Agent, PanelSettings, ProjectInfo } from "../../agent";
 
@@ -34,9 +35,13 @@ export function Workspace({ agent, connected }: { agent: Agent; connected: boole
     <section className="dev">
       <h2>Ish papkasi</h2>
       {current !== null ? (
-        <p className="hint">
-          <b>{current.name}</b> — {current.root_path}
-        </p>
+        <div className="project-row current">
+          <FolderCheck size={16} className="ok-icon" />
+          <div className="project-text">
+            <b>{current.name}</b>
+            <span className="path">{current.root_path}</span>
+          </div>
+        </div>
       ) : (
         <p className="hint">
           Papka tanlanmagan: AE oplari fayllarni faqat shu papka ichidan oladi.
@@ -44,7 +49,7 @@ export function Workspace({ agent, connected }: { agent: Agent; connected: boole
       )}
       <div className="buttons">
         <button disabled={!connected} onClick={() => void open(chooseFolder())}>
-          Papka tanlash
+          <FolderOpen size={15} /> Papka tanlash
         </button>
         <button
           disabled={!connected || current === null || scanning}
@@ -57,20 +62,29 @@ export function Workspace({ agent, connected }: { agent: Agent; connected: boole
               .finally(() => setScanning(false));
           }}
         >
+          <ScanSearch size={15} className={scanning ? "spin" : undefined} />
           {scanning ? "Skanerlanmoqda…" : "Skanerlash"}
         </button>
       </div>
       {recent.length > 0 ? (
-        <ul className="recent">
+        <ul className="recent projects">
           {recent
             .filter((p) => p.id !== current?.id)
             .slice(0, 5)
             .map((p) => (
               <li key={p.id}>
-                <button className="link-button" onClick={() => void open(p.root_path)}>
-                  {p.name}
+                <button
+                  className="project-row"
+                  disabled={!connected}
+                  title={`Ochish: ${p.root_path}`}
+                  onClick={() => void open(p.root_path)}
+                >
+                  <Folder size={16} />
+                  <span className="project-text">
+                    <b>{p.name}</b>
+                    <span className="path">{p.root_path}</span>
+                  </span>
                 </button>
-                <span className="hint"> {p.root_path}</span>
               </li>
             ))}
         </ul>
