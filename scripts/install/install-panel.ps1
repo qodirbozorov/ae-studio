@@ -40,7 +40,10 @@ if (-not $Manual -and (Test-Path $upia)) {
 
 $target = Join-Path $ExtensionsDir $Id
 if (Test-Path $target) {
-  $backup = "$target.old-$(Get-Date -Format yyyyMMddHHmmss)"
+  # Zaxira extensions papkasidan TASHQARIDA: aks holda CEP bir xil ID'li eski nusxani yuklashi mumkin.
+  $backups = Join-Path (Split-Path $ExtensionsDir -Parent) "aestudio-backups"
+  New-Item -ItemType Directory -Force -Path $backups | Out-Null
+  $backup = Join-Path $backups "$Id.old-$(Get-Date -Format yyyyMMddHHmmss)"
   Move-Item $target $backup
   Write-Host "Eski versiya saqlandi: $backup"
 }

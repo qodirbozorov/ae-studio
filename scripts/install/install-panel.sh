@@ -33,7 +33,10 @@ fi
 
 TARGET="$EXT_DIR/$ID"
 if [ -d "$TARGET" ]; then
-  BACKUP="$TARGET.old-$(date +%Y%m%d%H%M%S)"
+  # Zaxira extensions papkasidan TASHQARIDA: aks holda CEP bir xil ID'li eski nusxani yuklashi mumkin.
+  BACKUPS="$(dirname "$EXT_DIR")/aestudio-backups"
+  mkdir -p "$BACKUPS"
+  BACKUP="$BACKUPS/$(basename "$TARGET").old-$(date +%Y%m%d%H%M%S)"
   mv "$TARGET" "$BACKUP"
   echo "Eski versiya saqlandi: $BACKUP"
 fi
