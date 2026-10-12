@@ -1,4 +1,4 @@
-/** P4.08: el_voice_change, el_dub, el_voice_design (+ saqlash), el_voice_clone (faqat rozilik bilan). */
+/** P4.08: voice_change, audio_dub, voice_design (+ saqlash), voice_clone (faqat rozilik bilan). */
 import { fail, ok } from "@aes/shared";
 import { z } from "zod";
 import { cloneVoice, createDesignedVoice } from "../../eleven/voice";
@@ -14,7 +14,8 @@ const sourceArgs = {
 
 export const elevenTransformTools = [
   defineTool({
-    name: "el_voice_change",
+    name: "voice_change",
+    aliases: ["el_voice_change"],
     title: "Change voice",
     description:
       "Speech-to-speech: re-voices a project recording with another voice, keeping timing and emotion.",
@@ -51,10 +52,11 @@ export const elevenTransformTools = [
   }),
 
   defineTool({
-    name: "el_dub",
+    name: "audio_dub",
+    aliases: ["el_dub"],
     title: "Dub",
     description:
-      "Dubs a project video/audio into another language (asynchronous on ElevenLabs, polled up to 30 min). Returns the dubbed audio in audio/. Use wait_s=0 and poll audio_tasks_status for long media.",
+      "Dubs a project video/audio into another language (asynchronous, polled up to 30 min). Returns the dubbed audio in audio/. Use wait_s=0 and poll audio_tasks_status for long media.",
     input: z.object({
       ...sourceArgs,
       target_lang: z.string().regex(/^[a-z]{2,3}$/),
@@ -93,10 +95,11 @@ export const elevenTransformTools = [
   }),
 
   defineTool({
-    name: "el_voice_design",
+    name: "voice_design",
+    aliases: ["el_voice_design"],
     title: "Design a voice",
     description:
-      "Creates voice previews from a description (listen in the panel's Audio screen / audio/). To keep one, call again with save:{generated_voice_id, name} → returns voice_id for el_tts.",
+      "Creates voice previews from a description (listen in the panel's Audio screen / audio/). To keep one, call again with save:{generated_voice_id, name} → returns voice_id for voice_tts.",
     input: z.object({
       description: z.string().min(20).max(1000),
       text: z
@@ -149,7 +152,8 @@ export const elevenTransformTools = [
   }),
 
   defineTool({
-    name: "el_voice_clone",
+    name: "voice_clone",
+    aliases: ["el_voice_clone"],
     title: "Clone a voice (consent required)",
     description:
       "Instant voice clone from project recordings. ONLY with the voice owner's explicit permission: consent must be true (confirm with the user first). Returns voice_id. Logged in the security journal.",

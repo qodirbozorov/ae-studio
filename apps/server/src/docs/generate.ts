@@ -29,7 +29,7 @@ const GROUPS: [RegExp, string][] = [
   [/^(env_check|devices_list|ae_info)$/, "Muhit"],
   [/^(project_|plan_|spec_)/, "Loyiha va plan"],
   [/^assets?_/, "Fayllar"],
-  [/^(el_|audio_|transcript_|music_)/, "Audio"],
+  [/^(el_|audio_|transcript_|music_|voice_|voices_|sfx_|balance_)/, "Audio"],
   [/^(preflight|build_start|job_)/, "Qurish"],
   [/^(frames_|verify_|contact_sheet)/, "Tekshirish"],
   [
@@ -139,7 +139,7 @@ const PREFIXES: [string, string][] = [
   ["SPEC_", "Spec (reja)"],
   ["ASSET_", "Fayllar"],
   ["AE_", "After Effects"],
-  ["EL_", "ElevenLabs"],
+  ["EL_", "Audio xizmati"],
   ["BILLING_", "Balans va hisob"],
   ["RENDER_", "Render"],
   ["JOB_", "Job boshqaruvi"],

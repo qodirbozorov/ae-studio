@@ -237,6 +237,12 @@ export const buildTools = [
       project_id: uuidArg("project_id"),
       plan_version: z.number().int().min(1).optional(),
       dry_run: z.boolean().default(false),
+      pro_confirmed: z
+        .boolean()
+        .optional()
+        .describe(
+          "The user accepted the price of pro audio (music generation / pro isolation) in this chat",
+        ),
     }),
     annotations: {
       readOnlyHint: false,
@@ -310,6 +316,7 @@ export const buildTools = [
       const created = await ctx.engine.create({
         projectId: project.data.id,
         ...(input.plan_version === undefined ? {} : { planVersion: input.plan_version }),
+        ...(input.pro_confirmed === true ? { proConfirmed: true } : {}),
       });
       if (!created.ok) return created;
       return ok(await jobView(ctx, created.data, 5));
@@ -337,8 +344,8 @@ export const buildTools = [
     name: "job_resume",
     title: "Resume job",
     description:
-      "Continues a BLOCKED job from where it stopped (after the cause is fixed) or un-pauses a paused job. Already built parts are reused, nothing is duplicated.",
-    input: jobArg,
+      "Continues a BLOCKED job from where it stopped (after the cause is fixed) or un-pauses a paused job. Already built parts are reused, nothing is duplicated. After BILLING_CONFIRM_REQUIRED pass pro_confirmed: true once the user accepted the price.",
+    input: jobArg.extend({ pro_confirmed: z.boolean().optional() }),
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -351,6 +358,7 @@ export const buildTools = [
       if (job.data.state === "WAITING_AGENT") {
         return fail("ENV_AGENT_OFFLINE", "Job panelni kutyapti: ulanishi bilan o'zi davom etadi");
       }
+      if (input.pro_confirmed === true) await ctx.engine.confirmPro(job.data.id);
       const action = job.data.paused ? "resume" : "retry";
       const res = await ctx.engine.act(job.data.id, action);
       if (!res.ok) return res;

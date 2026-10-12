@@ -67,6 +67,11 @@ beforeEach(async () => {
   });
   const cookie = await login(t, "br@x.uz");
   const [user] = await t.db.db.select().from(users).where(eq(users.email, "br@x.uz"));
+  // Pro audio (musiqa generatsiyasi, pro isolation) — bu testlarda foydalanuvchi panelda yoqqan (P8.08).
+  await t.db.db
+    .update(users)
+    .set({ prefs: { pro_music: true, pro_isolation: true } })
+    .where(eq(users.id, user!.id));
   const [device] = await t.db.db
     .insert(devices)
     .values({ userId: user!.id, name: "PC", os: "win" })

@@ -126,3 +126,23 @@ export async function direct<T>(
     throw error;
   }
 }
+
+/**
+ * Pro audio (tashqi xizmatda musiqa generatsiyasi, pro isolation, P8.08): foydalanuvchi panelda Pro'ni
+ * yoqqan yoki chatda narxni tasdiqlagan bo'lishi kerak. Aks holda narx bilan `BILLING_CONFIRM_REQUIRED`.
+ */
+export async function requirePro(
+  ctx: ToolContext,
+  kind: "music" | "isolate",
+  confirmed: boolean | undefined,
+  priceUsd: number,
+): Promise<Result<void>> {
+  if (confirmed === true) return ok(undefined);
+  const prefs = await ctx.engine.userPrefs(ctx.userId);
+  if ((kind === "music" ? prefs.pro_music : prefs.pro_isolation) === true) return ok(undefined);
+  return fail(
+    "BILLING_CONFIRM_REQUIRED",
+    `${kind === "music" ? "Musiqa generatsiyasi" : "Pro ovoz tozalash"} ≈ ${priceUsd.toFixed(2)} $: foydalanuvchi roziligi kerak`,
+    { price_usd: Math.round(priceUsd * 10_000) / 10_000, ask_user: true },
+  );
+}

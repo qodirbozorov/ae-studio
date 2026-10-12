@@ -53,21 +53,22 @@ ixtiyoriy `message` va `details`. Job BLOCKED bo'lsa sabab tuzatilgach `job_resu
 | `AE_MODAL_SUSPECTED` | ha | After Effects javob bermayapti — ehtimol ochiq dialog oynasi bor. AE'dagi dialogni yoping va qayta urining. |
 | `AE_NOT_FOUND` | yo'q | Havola qilingan comp/layer/element AE loyihasida topilmadi. Oldingi op bajarilganini tekshiring. |
 
-## ElevenLabs
+## Audio xizmati
 
 | Kod | Qayta urinish | Nima qilish kerak |
 |---|---|---|
-| `EL_AUTH` | yo'q | ElevenLabs kaliti yaroqsiz. Web kabinetda kalitni yangilang. |
-| `EL_QUOTA` | yo'q | ElevenLabs kvotasi yetmaydi. Tarifni oshiring yoki vazifalarni qisqartiring (ask_user). |
-| `EL_RATE_LIMIT` | ha | ElevenLabs so'rovlar chegarasi. Biroz kutib qayta urinadi. |
-| `EL_TIMEOUT` | ha | ElevenLabs javob bermadi. Qayta urinadi. |
-| `EL_BAD_PARAMS` | yo'q | ElevenLabs parametrlari noto'g'ri. details ni tekshirib vazifani tuzating. |
+| `EL_AUTH` | yo'q | Audio xizmati sozlanmagan yoki kaliti yaroqsiz (administrator). Hozircha audio'siz quring va foydalanuvchiga ayting. |
+| `EL_QUOTA` | yo'q | Audio xizmati kvotasi vaqtincha yetmaydi. Vazifalarni qisqartiring yoki keyinroq urinib ko'ring (ask_user). |
+| `EL_RATE_LIMIT` | ha | Audio xizmati so'rovlar chegarasi. Biroz kutib qayta urinadi. |
+| `EL_TIMEOUT` | ha | Audio xizmati javob bermadi. Qayta urinadi. |
+| `EL_BAD_PARAMS` | yo'q | Audio parametrlari noto'g'ri. details ni tekshirib vazifani tuzating. |
 
 ## Balans va hisob
 
 | Kod | Qayta urinish | Nima qilish kerak |
 |---|---|---|
 | `BILLING_NOT_ACTIVATED` | yo'q | Hisob faollashtirilmagan: ishlatishni boshlash uchun boshlang'ich to'lov kerak. Foydalanuvchiga ayting (ask_user). |
+| `BILLING_CONFIRM_REQUIRED` | yo'q | Pro audio (musiqa generatsiyasi yoki pro ovoz tozalash) qimmatroq: foydalanuvchiga narxni ayting va rozilik oling, so'ng job_resume pro_confirmed: true (yoki kutubxona musiqasi / standart tozalashga o'ting). Foydalanuvchi panelda Pro tugmasini yoqib qo'yishi ham mumkin (ask_user). |
 | `BILLING_BALANCE_LOW` | yo'q | Balans yetmaydi. Foydalanuvchiga taxminiy narxni ayting va balansni to'ldirishni so'rang; to'ldirilgach job_resume (ask_user). |
 
 ## Render

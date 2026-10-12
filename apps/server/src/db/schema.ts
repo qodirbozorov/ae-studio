@@ -23,6 +23,11 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+export interface UserPrefs {
+  pro_music?: boolean;
+  pro_isolation?: boolean;
+}
+
 const id = () => uuid("id").primaryKey().defaultRandom();
 const tstz = (name: string) => timestamp(name, { withTimezone: true });
 const createdAt = () => tstz("created_at").notNull().defaultNow();
@@ -79,6 +84,8 @@ export const users = pgTable("users", {
   balanceMicros: bigint("balance_micros", { mode: "number" }).notNull().default(0),
   /** Boshlang'ich to'lov (activation) kiritilgan payt; null — hali faollashtirilmagan. */
   activatedAt: tstz("activated_at"),
+  /** Foydalanuvchi sozlamalari (P8.08–P8.09): `pro_music`, `pro_isolation` — tasdiqsiz pro. */
+  prefs: jsonb("prefs").$type<UserPrefs>().notNull().default({}),
   createdAt: createdAt(),
 });
 
@@ -263,6 +270,8 @@ export const jobs = pgTable(
     paused: boolean("paused").notNull().default(false),
     /** Claude'siz rejim (panel Shablonlar, batch): VERIFY avtomatik tasdiqlanadi. */
     autoApprove: boolean("auto_approve").notNull().default(false),
+    /** Foydalanuvchi pro audio narxini chatda tasdiqladi (build_start / job_resume `pro_confirmed`). */
+    proConfirmed: boolean("pro_confirmed").notNull().default(false),
     /** Batch qatori bo'lsa (P5.07). */
     batchId: uuid("batch_id").references(() => batches.id, { onDelete: "set null" }),
     error: jsonb("error"),

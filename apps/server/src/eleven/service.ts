@@ -68,13 +68,26 @@ export class ElevenService {
   }
 
   /** User'ning klienti; kalit yo'q bo'lsa EL_AUTH. User bo'yicha rate limit. */
+  /**
+   * Kalit: markaziy (`ELEVENLABS_API_KEY`, admin hisobi) — bo'lmasa foydalanuvchi kabinetda kiritgan eski
+   * kalit (o'tish davri).
+   */
+  private async keyFor(userId: string): Promise<string | null> {
+    const { ELEVENLABS_API_KEY, ELEVENLABS_DEFAULT_KEY } = this.ctx.env;
+    return (
+      ELEVENLABS_API_KEY ??
+      ELEVENLABS_DEFAULT_KEY ??
+      (await readSecret(this.ctx, userId, "elevenlabs"))
+    );
+  }
+
   async client(userId: string): Promise<Result<ElevenClient>> {
-    const key = await readSecret(this.ctx, userId, "elevenlabs");
+    const key = await this.keyFor(userId);
     if (key === null) {
-      return fail("EL_AUTH", "ElevenLabs kaliti kiritilmagan: kabinet → Sozlamalar → ElevenLabs");
+      return fail("EL_AUTH", "Audio xizmati sozlanmagan (administrator: ELEVENLABS_API_KEY)");
     }
     if (!this.limiter.take(userId)) {
-      return fail("EL_RATE_LIMIT", `Daqiqasiga ${CALLS_PER_MINUTE} ta ElevenLabs chaqiruvi`);
+      return fail("EL_RATE_LIMIT", `Daqiqasiga ${CALLS_PER_MINUTE} ta audio so'rov`);
     }
     return ok(this.build(key));
   }
@@ -85,8 +98,8 @@ export class ElevenService {
     if (!fresh && cached !== undefined && nowMs - cached.at < SUBSCRIPTION_TTL_MS) {
       return ok(cached.value);
     }
-    const key = await readSecret(this.ctx, userId, "elevenlabs");
-    if (key === null) return fail("EL_AUTH", "ElevenLabs kaliti kiritilmagan");
+    const key = await this.keyFor(userId);
+    if (key === null) return fail("EL_AUTH", "Audio xizmati sozlanmagan");
     try {
       const value = await this.build(key).json<Subscription>("GET", "/v1/user/subscription", {
         timeoutMs: 15_000,

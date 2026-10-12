@@ -28,7 +28,7 @@ const ACTION: Record<string, string> = {
 
 /** Claude vositalari: guruh bo'yicha tushunarli nom. */
 function toolLabel(tool: string): string {
-  if (tool.startsWith("el_") || tool.startsWith("audio_") || tool.startsWith("transcript_"))
+  if (/^(el_|audio_|transcript_|voice_|voices_|sfx_|music_|balance_)/.test(tool))
     return `Audio: ${tool}`;
   if (tool.startsWith("plan_") || tool === "spec_schema" || tool === "preflight")
     return `Reja: ${tool}`;

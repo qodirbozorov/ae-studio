@@ -66,6 +66,18 @@ function tierOf(params: Record<string, unknown>): AudioTier {
   return params.tier === "basic" ? "basic" : "pro";
 }
 
+/** Pro audio (tasdiq kerak): tashqi xizmatda musiqa generatsiyasi va pro isolation (P8.08). */
+export function isProAudio(item: { kind: AudioKind; params: Record<string, unknown> }): boolean {
+  if (item.params.tier === "basic" || typeof item.params.library_track === "string") return false;
+  return item.kind === "music" || item.kind === "isolate";
+}
+
+/** Kutubxona uchun meta (nom/kategoriya/izoh) va bizning `tier` tashqi API'ga yuborilmaydi. */
+function externalMusicParams(params: Record<string, unknown>): MusicParams {
+  const { title: _t, category: _c, description: _d, tier: _tier, ...rest } = params;
+  return rest as unknown as MusicParams;
+}
+
 /** Kutubxona treki (P8.06): tashqi xizmatsiz, storage'dan. */
 function isLibraryMusic(task: Pick<AudioTaskRow, "kind" | "params">): boolean {
   return (
@@ -600,7 +612,7 @@ export class AudioService {
           plan?.sections?.reduce((a, s) => a + s.duration_ms, 0) ??
           (params.music_length_ms as number | undefined);
         return {
-          audio: await music(client, params as unknown as MusicParams),
+          audio: await music(client, externalMusicParams(params)),
           result: null,
           durationS: typeof ms === "number" ? ms / 1000 : null,
         };

@@ -73,11 +73,15 @@ export const ERROR_DEFS = {
   // EL_ — ElevenLabs
   EL_AUTH: {
     retryable: false,
-    hint: "ElevenLabs kaliti yaroqsiz. Web kabinetda kalitni yangilang.",
+    hint: "Audio xizmati sozlanmagan yoki kaliti yaroqsiz (administrator). Hozircha audio'siz quring va foydalanuvchiga ayting.",
   },
   BILLING_NOT_ACTIVATED: {
     retryable: false,
     hint: "Hisob faollashtirilmagan: ishlatishni boshlash uchun boshlang'ich to'lov kerak. Foydalanuvchiga ayting (ask_user).",
+  },
+  BILLING_CONFIRM_REQUIRED: {
+    retryable: false,
+    hint: "Pro audio (musiqa generatsiyasi yoki pro ovoz tozalash) qimmatroq: foydalanuvchiga narxni ayting va rozilik oling, so'ng job_resume pro_confirmed: true (yoki kutubxona musiqasi / standart tozalashga o'ting). Foydalanuvchi panelda Pro tugmasini yoqib qo'yishi ham mumkin (ask_user).",
   },
   BILLING_BALANCE_LOW: {
     retryable: false,
@@ -85,19 +89,19 @@ export const ERROR_DEFS = {
   },
   EL_QUOTA: {
     retryable: false,
-    hint: "ElevenLabs kvotasi yetmaydi. Tarifni oshiring yoki vazifalarni qisqartiring (ask_user).",
+    hint: "Audio xizmati kvotasi vaqtincha yetmaydi. Vazifalarni qisqartiring yoki keyinroq urinib ko'ring (ask_user).",
   },
   EL_RATE_LIMIT: {
     retryable: true,
-    hint: "ElevenLabs so'rovlar chegarasi. Biroz kutib qayta urinadi.",
+    hint: "Audio xizmati so'rovlar chegarasi. Biroz kutib qayta urinadi.",
   },
   EL_TIMEOUT: {
     retryable: true,
-    hint: "ElevenLabs javob bermadi. Qayta urinadi.",
+    hint: "Audio xizmati javob bermadi. Qayta urinadi.",
   },
   EL_BAD_PARAMS: {
     retryable: false,
-    hint: "ElevenLabs parametrlari noto'g'ri. details ni tekshirib vazifani tuzating.",
+    hint: "Audio parametrlari noto'g'ri. details ni tekshirib vazifani tuzating.",
   },
 
   // AE_ — After Effects / ExtendScript

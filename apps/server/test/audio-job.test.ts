@@ -68,6 +68,11 @@ beforeEach(async () => {
   });
   cookie = await login(t, "aj@x.uz");
   const [user] = await t.db.db.select().from(users).where(eq(users.email, "aj@x.uz"));
+  // Pro audio (musiqa generatsiyasi, pro isolation) — bu testlarda foydalanuvchi panelda yoqqan (P8.08).
+  await t.db.db
+    .update(users)
+    .set({ prefs: { pro_music: true, pro_isolation: true } })
+    .where(eq(users.id, user!.id));
   const [device] = await t.db.db
     .insert(devices)
     .values({ userId: user!.id, name: "PC", os: "win" })
@@ -106,6 +111,24 @@ async function runJob(spec: unknown = SPEC) {
 }
 
 describe("AUDIO holati", () => {
+  it("Pro o'chiq: musiqa generatsiyasi tasdiq so'raydi (narx bilan), job_resume pro_confirmed bilan davom etadi", async () => {
+    await t.db.db.update(users).set({ prefs: {} });
+    const { id, status } = await runJob();
+    expect(status.state).toBe("BLOCKED");
+    expect(status.error).toMatchObject({
+      code: "BILLING_CONFIRM_REQUIRED",
+      details: { items: ["Fon musiqa"], ask_user: true },
+    });
+    expect(status.error.details.price_usd).toBeGreaterThan(0);
+    expect(el.generationCalls()).toHaveLength(0);
+    const resumed = await s.call("job_resume", { job_id: id, pro_confirmed: true });
+    expect(resumed.result.ok).toBe(true);
+    await t.app.jobs.idle();
+    await t.app.audio.idle();
+    const after = (await s.call("job_status", { job_id: id })).result.data;
+    expect(after.state, JSON.stringify(after.error)).toBe("VERIFY");
+  });
+
   it("voiceover → timing → musiqa video uzunligida → ducking, SFX, subtitr; fayllar panelda", async () => {
     const { id, status } = await runJob();
     expect(status.state, JSON.stringify(status.error)).toBe("VERIFY");

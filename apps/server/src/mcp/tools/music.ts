@@ -34,7 +34,7 @@ export const musicTools = [
           ? {
               hint:
                 result.total_visible === 0
-                  ? "Kutubxona hali bo'sh: foydalanuvchi roziligi bilan el_music (generatsiya) yoki asset musiqa."
+                  ? "Kutubxona hali bo'sh: foydalanuvchi roziligi bilan music_generate (generatsiya) yoki asset musiqa."
                   : "Mos trek topilmadi: boshqa so'zlar yoki kategoriya bilan qidiring; bo'lmasa generatsiya (narxini ayting).",
             }
           : {}),

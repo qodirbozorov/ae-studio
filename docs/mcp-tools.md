@@ -138,55 +138,55 @@ Status of audio tasks (TTS, music, SFX, STT, dubbing …): queued → running �
 | `project_id` | uuid |  |  |
 | `limit` | integer |  | default `30`, ≥ 1, ≤ 100 |
 
-### `el_tts` — Text to speech
+### `voice_tts` — Text to speech
 
-Generates speech with ElevenLabs (with per-character timestamps for subtitles and TTS-first timing). Default model eleven_v4 (the only family that supports Uzbek). The file is stored on the server and downloaded into the project's audio/ folder. Same parameters → cached, no credits.
+Generates speech (with per-character timestamps for subtitles and TTS-first timing). Default model eleven_v4 (the only family that supports Uzbek). The file is stored on the server and downloaded into the project's audio/ folder. Same parameters → cached (half price).
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
 | `text` | string | ha | ≤ 10000 belgi |
-| `voice_id` | string | ha | From el_voices · ≤ 64 belgi |
+| `voice_id` | string | ha | From voices_list · ≤ 64 belgi |
 | `model_id` | string |  | ≤ 64 belgi |
 | `language` | string |  | ISO 639-1/3, e.g. uz |
 | `voice_settings` | object |  |  |
-| `pronunciation` | string[] |  | Dictionary slugs from el_pronunciation |
+| `pronunciation` | string[] |  | Dictionary slugs from voice_pronunciation |
 | `project_id` | uuid |  | Project whose audio/ folder receives the file (optional for pure generation) |
 | `label` | string |  | ≤ 200 belgi |
 | `fresh` | boolean |  | Bypass cache (regenerate) |
 | `wait_s` | integer |  | Seconds to wait for the result (0 = return task_id immediately; poll audio_tasks_status) · default `30`, ≥ 0, ≤ 55 |
 
-### `el_voices` — List voices · faqat o'qish
+### `voices_list` — List voices · faqat o'qish
 
-Lists ElevenLabs voices available to the user (premade, cloned, designed). Use voice_id in el_tts / spec voiceover.
+Lists voices available to the user (premade, cloned, designed). Use voice_id in voice_tts / spec voiceover.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
 | `search` | string |  | ≤ 100 belgi |
 
-### `el_models` — List models · faqat o'qish
+### `voice_models` — List models · faqat o'qish
 
-Lists ElevenLabs models with supported languages. For Uzbek TTS use eleven_v4 / eleven_v4_turbo; STT: scribe_v2.
+Lists TTS/STT models with supported languages. For Uzbek TTS use eleven_v4 / eleven_v4_turbo; STT: scribe_v2.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
 | `language` | string |  |  |
 
-### `el_pronunciation` — Pronunciation dictionary
+### `voice_pronunciation` — Pronunciation dictionary
 
-Creates or replaces a pronunciation dictionary (brand names, Uzbek words) under a slug; reference it in spec voiceover.pronunciation or el_tts. Without rules → lists saved dictionaries.
+Creates or replaces a pronunciation dictionary (brand names, Uzbek words) under a slug; reference it in spec voiceover.pronunciation or voice_tts. Without rules → lists saved dictionaries.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
 | `slug` | string |  |  |
 | `rules` | object[] |  |  |
 
-### `el_usage` — ElevenLabs usage · faqat o'qish
+### `balance_get` — Balance · faqat o'qish
 
-ElevenLabs plan, used and remaining characters/credits, reset date.
+The user's balance in USD (prepaid; charged per use), whether the account is activated, Pro toggles (pro_music, pro_isolation) and the latest charges. Prices: audio_estimate.
 
 Parametrsiz.
 
-### `el_estimate` — Estimate price · faqat o'qish
+### `audio_estimate` — Estimate price · faqat o'qish
 
 Approximate price in USD (charged to the user's balance) for a plan's audio (project_id + optional plan_version) or for given items; cached items cost half. Compared to the balance: if it does not fit → ask_user: true (tell the user the price and ask before spending).
 
@@ -196,7 +196,7 @@ Approximate price in USD (charged to the user's balance) for a plan's audio (pro
 | `plan_version` | integer |  | ≥ 1, ≤ 9007199254740991 |
 | `items` | object[] |  |  |
 
-### `el_dialogue` — Dialogue
+### `voice_dialogue` — Dialogue
 
 Multi-voice dialogue (Text to Dialogue, default model eleven_v3) as one audio file.
 
@@ -210,9 +210,9 @@ Multi-voice dialogue (Text to Dialogue, default model eleven_v3) as one audio fi
 | `fresh` | boolean |  |  |
 | `wait_s` | integer |  | Seconds to wait for the result (0 = return task_id immediately; poll audio_tasks_status) · default `30`, ≥ 0, ≤ 55 |
 
-### `el_sfx` — Sound effect
+### `sfx_generate` — Sound effect
 
-Generates a sound effect from a description (0.5–30 s; without duration ElevenLabs picks one). Use for transitions, accents, ambience.
+Generates a sound effect from a description (0.5–30 s; without duration the service picks one). Use for transitions, accents, ambience.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
@@ -225,12 +225,16 @@ Generates a sound effect from a description (0.5–30 s; without duration Eleven
 | `fresh` | boolean |  |  |
 | `wait_s` | integer |  | Seconds to wait for the result (0 = return task_id immediately; poll audio_tasks_status) · default `30`, ≥ 0, ≤ 55 |
 
-### `el_music` — Music
+### `music_generate` — Music
 
-Generates music: either prompt (+ exact duration_s 3–600, instrumental) or a composition_plan from el_music_plan (sections with exact durations). Not both.
+Generates NEW music (premium, ~10× the library price): first try music_search — use this only when no library track fits. Needs the user's consent: tell them the price (audio_estimate) and pass user_confirmed: true, unless they turned on Pro music in the panel. Either prompt (+ exact duration_s 3–600, instrumental) or a composition_plan from music_plan (sections with exact durations), not both. Give the track a short title, a category (e.g. corporate, chill, electronic, cinematic) and a one-line description (mood, genre, instruments, tempo) — it is saved to the music library for review.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
+| `title` | string | ha | ≤ 120 belgi |
+| `category` | string | ha | ≤ 60 belgi |
+| `description` | string |  | ≤ 400 belgi |
+| `user_confirmed` | boolean |  | The user accepted the price in this chat |
 | `prompt` | string |  | ≤ 2000 belgi |
 | `duration_s` | number |  | ≥ 3, ≤ 600 |
 | `instrumental` | boolean |  | default `true` |
@@ -240,18 +244,18 @@ Generates music: either prompt (+ exact duration_s 3–600, instrumental) or a c
 | `fresh` | boolean |  |  |
 | `wait_s` | integer |  | Seconds to wait for the result (0 = return task_id immediately; poll audio_tasks_status) · default `30`, ≥ 0, ≤ 55 |
 
-### `el_music_plan` — Music composition plan · faqat o'qish
+### `music_plan` — Music composition plan · faqat o'qish
 
-Creates a music composition plan (global styles + sections with exact durations) from a prompt. Edit it if needed and pass to el_music.composition_plan.
+Creates a music composition plan (global styles + sections with exact durations) from a prompt. Edit it if needed and pass to music_generate.composition_plan.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
 | `prompt` | string | ha | ≤ 2000 belgi |
 | `duration_s` | number |  | ≥ 3, ≤ 600 |
 
-### `el_stt` — Transcribe (Scribe)
+### `audio_transcribe` — Transcribe (Scribe)
 
-Transcribes a project video/audio with ElevenLabs Scribe (scribe_v2): word timestamps, speakers (diarize), audio events. The panel extracts the audio locally; then read words with transcript_get. Uzbek accuracy tier: Good.
+Transcribes a project video/audio (scribe_v2): word timestamps, speakers (diarize), audio events. The panel extracts the audio locally; then read words with transcript_get. Uzbek accuracy tier: Good.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
@@ -262,7 +266,7 @@ Transcribes a project video/audio with ElevenLabs Scribe (scribe_v2): word times
 | `diarize` | boolean |  | default `false` |
 | `num_speakers` | integer |  | ≥ 1, ≤ 32 |
 
-### `el_align` — Forced alignment
+### `audio_align` — Forced alignment
 
 Aligns a known text to a project audio/video → exact word timings (for subtitles of a recorded voice).
 
@@ -273,7 +277,7 @@ Aligns a known text to a project audio/video → exact word timings (for subtitl
 | `wait_s` | integer |  | Seconds to wait for the result (0 = return task_id immediately; poll audio_tasks_status) · default `30`, ≥ 0, ≤ 55 |
 | `text` | string | ha | ≤ 10000 belgi |
 
-### `el_isolate` — Isolate voice
+### `audio_isolate` — Isolate voice
 
 Removes background noise from a project video/audio, leaving clean speech (new WAV in audio/). quality "standard" (default) runs on our server and is cheap; "pro" uses the premium external service (stronger, also separates speech from music; ~10× the price) — use pro only if the user asked for it or confirmed the price.
 
@@ -283,10 +287,11 @@ Removes background noise from a project video/audio, leaving clean speech (new W
 | `key` | string | ha | Audio or video asset key from assets_list · ≤ 128 belgi |
 | `wait_s` | integer |  | Seconds to wait for the result (0 = return task_id immediately; poll audio_tasks_status) · default `30`, ≥ 0, ≤ 55 |
 | `quality` | `standard` \\| `pro` |  | default `"standard"` |
+| `user_confirmed` | boolean |  | quality pro: the user accepted the price in this chat |
 
 ### `transcript_get` — Get transcript · faqat o'qish
 
-Full transcript of an el_stt / el_align task: text and words with start/end (and speaker). Edited version if transcript_edit was used.
+Full transcript of an audio_transcribe / audio_align task: text and words with start/end (and speaker). Edited version if transcript_edit was used.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
@@ -302,7 +307,7 @@ Fixes transcript words without changing timings (Uzbek spelling, names): either 
 | `words` | object[] |  |  |
 | `text` | string |  | ≤ 20000 belgi |
 
-### `el_voice_change` — Change voice
+### `voice_change` — Change voice
 
 Speech-to-speech: re-voices a project recording with another voice, keeping timing and emotion.
 
@@ -314,9 +319,9 @@ Speech-to-speech: re-voices a project recording with another voice, keeping timi
 | `remove_background_noise` | boolean |  | default `false` |
 | `wait_s` | integer |  | Seconds to wait for the result (0 = return task_id immediately; poll audio_tasks_status) · default `30`, ≥ 0, ≤ 55 |
 
-### `el_dub` — Dub
+### `audio_dub` — Dub
 
-Dubs a project video/audio into another language (asynchronous on ElevenLabs, polled up to 30 min). Returns the dubbed audio in audio/. Use wait_s=0 and poll audio_tasks_status for long media.
+Dubs a project video/audio into another language (asynchronous, polled up to 30 min). Returns the dubbed audio in audio/. Use wait_s=0 and poll audio_tasks_status for long media.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
@@ -327,9 +332,9 @@ Dubs a project video/audio into another language (asynchronous on ElevenLabs, po
 | `num_speakers` | integer |  | ≥ 0, ≤ 32 |
 | `wait_s` | integer |  | Seconds to wait for the result (0 = return task_id immediately; poll audio_tasks_status) · default `30`, ≥ 0, ≤ 55 |
 
-### `el_voice_design` — Design a voice
+### `voice_design` — Design a voice
 
-Creates voice previews from a description (listen in the panel's Audio screen / audio/). To keep one, call again with save:{generated_voice_id, name} → returns voice_id for el_tts.
+Creates voice previews from a description (listen in the panel's Audio screen / audio/). To keep one, call again with save:{generated_voice_id, name} → returns voice_id for voice_tts.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
@@ -339,7 +344,7 @@ Creates voice previews from a description (listen in the panel's Audio screen / 
 | `project_id` | uuid |  |  |
 | `wait_s` | integer |  | Seconds to wait for the result (0 = return task_id immediately; poll audio_tasks_status) · default `30`, ≥ 0, ≤ 55 |
 
-### `el_voice_clone` — Clone a voice (consent required)
+### `voice_clone` — Clone a voice (consent required)
 
 Instant voice clone from project recordings. ONLY with the voice owner's explicit permission: consent must be true (confirm with the user first). Returns voice_id. Logged in the security journal.
 
@@ -382,6 +387,7 @@ Starts a job that builds the plan in After Effects (CHECK → PLAN → INGEST �
 | `project_id` | uuid | ha |  |
 | `plan_version` | integer |  | ≥ 1, ≤ 9007199254740991 |
 | `dry_run` | boolean |  | default `false` |
+| `pro_confirmed` | boolean |  | The user accepted the price of pro audio (music generation / pro isolation) in this chat |
 
 ### `job_status` — Job status · faqat o'qish
 
@@ -394,11 +400,12 @@ Job state, progress (done/total ops, %), current error, patch count, .aep path, 
 
 ### `job_resume` — Resume job
 
-Continues a BLOCKED job from where it stopped (after the cause is fixed) or un-pauses a paused job. Already built parts are reused, nothing is duplicated.
+Continues a BLOCKED job from where it stopped (after the cause is fixed) or un-pauses a paused job. Already built parts are reused, nothing is duplicated. After BILLING_CONFIRM_REQUIRED pass pro_confirmed: true once the user accepted the price.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
 | `job_id` | uuid | ha |  |
+| `pro_confirmed` | boolean |  |  |
 
 ### `job_cancel` — Cancel job
 
@@ -681,5 +688,5 @@ Final report of a job as markdown: what was built, file paths (.aep, rendered MP
 
 - **/new-reel** — Brief va fayllardan After Effects'da qisqa video: reja → qurish → kadrlarni tekshirish → render → hisobot (hozircha audio'siz). Argumentlar: `brief` (majburiy) — Video nima haqida, kim uchun, qanday uslubda; `folder` — Ish papkasi (absolyut yo'l), ixtiyoriy; `format` — 9:16 (default), 1:1 yoki 16:9; `duration` — Taxminiy davomiylik, soniya.
 - **/subtitle-video** — Mavjud video: (toza ovoz) → transkript (Scribe) → tahrir → subtitrli video. Argumentlar: `video` — Video asset kaliti yoki fayl nomi; `language` — Til kodi (default uz); `style` — karaoke_bold (default), bold_pop yoki minimal.
-- **/dub-video** — Videoni boshqa tilga dublyaj qilish (ElevenLabs Dubbing) va AE'da yig'ish. Argumentlar: `video` — Video asset kaliti; `target_lang` (majburiy) — Maqsad tili (masalan en, ru).
+- **/dub-video** — Videoni boshqa tilga dublyaj qilish va AE'da yig'ish. Argumentlar: `video` — Video asset kaliti; `target_lang` (majburiy) — Maqsad tili (masalan en, ru).
 - **/from-template** — Tayyor shablonni (hook, lower third, CTA …) slotlarini to'ldirib video qilish. Argumentlar: `template` — Shablon slug'i (bo'sh — ro'yxatdan tanlanadi); `content` — Matnlar va fayllar haqida qisqacha; `format` — 9:16, 1:1 yoki 16:9.

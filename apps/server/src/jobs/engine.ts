@@ -41,7 +41,7 @@ import type {
 import { and, asc, desc, eq, gt, inArray, isNull, max, ne, notInArray, sql } from "drizzle-orm";
 import type { FastifyBaseLogger } from "fastify";
 import { applyScan } from "../assets/routes";
-import { quoteTask } from "../audio/service";
+import { isProAudio, quoteTask } from "../audio/service";
 import type { AppContext } from "../context";
 import {
   assets,
@@ -53,7 +53,9 @@ import {
   pronunciationDicts,
   renders,
   reports,
+  users,
 } from "../db/schema";
+import type { UserPrefs } from "../db/schema";
 import { cacheFlags } from "../audio/cache-status";
 import { estimateCredits } from "../audio/estimate";
 import { extractInput } from "../audio/inputs";
@@ -266,6 +268,8 @@ export class JobEngine {
     /** VERIFY avtomatik tasdiqlanadi (Claude'siz rejim). */
     autoApprove?: boolean;
     batchId?: string;
+    /** Foydalanuvchi pro audio narxini tasdiqlagan (P8.08). */
+    proConfirmed?: boolean;
   }): Promise<Result<JobRow>> {
     const project = await this.project(input.projectId);
     if (project === null) return fail("SYS_NOT_FOUND", "Loyiha topilmadi");
@@ -295,6 +299,7 @@ export class JobEngine {
           planVersion: plan.version,
           state: "CHECK",
           autoApprove: input.autoApprove === true,
+          proConfirmed: input.proConfirmed === true,
           batchId: input.batchId ?? null,
           createdAt: this.ctx.now(),
           updatedAt: this.ctx.now(),
@@ -743,6 +748,20 @@ export class JobEngine {
     return notices;
   }
 
+  /** Foydalanuvchi sozlamalari (pro toggle'lar). */
+  async userPrefs(userId: string): Promise<UserPrefs> {
+    const [row] = await this.ctx.db
+      .select({ prefs: users.prefs })
+      .from(users)
+      .where(eq(users.id, userId));
+    return row?.prefs ?? {};
+  }
+
+  /** Pro audio narxi chatda tasdiqlandi: job keyingi AUDIO'da pro'ni bajaradi. */
+  async confirmPro(jobId: string): Promise<void> {
+    await this.ctx.db.update(jobs).set({ proConfirmed: true }).where(eq(jobs.id, jobId));
+  }
+
   /** Tashqi modullar (MCP VERIFY, render) uchun job log'iga yozuv. */
   async note(
     jobId: string,
@@ -886,18 +905,18 @@ export class JobEngine {
           kind: "block",
           error: makeError(
             "EL_AUTH",
-            "ElevenLabs kaliti kiritilmagan: kabinet → Sozlamalar → ElevenLabs",
+            "Audio xizmati sozlanmagan (administrator: ELEVENLABS_API_KEY)",
           ),
         };
       }
       if (account.error !== null) {
         return {
           kind: "block",
-          error: makeError(account.error as "EL_AUTH", "ElevenLabs hisobi tekshirilmadi"),
+          error: makeError(account.error as "EL_AUTH", "Audio xizmati hisobi tekshirilmadi"),
         };
       }
       if (account.remaining === 0) {
-        return { kind: "block", error: makeError("EL_QUOTA", "ElevenLabs kvotasi tugagan") };
+        return { kind: "block", error: makeError("EL_QUOTA", "Audio xizmati kvotasi tugagan") };
       }
     }
     const folder = await this.ensureFolder(job, "CHECK");
@@ -1482,7 +1501,7 @@ export class JobEngine {
     const brand = brandResult.ok ? brandResult.data : undefined;
     const items = planAudioTasks(spec.data, { videoDuration: null, dictionaries, brand });
     if (items.length === 0) {
-      await this.event(job, "info", "audio.skipped", "AUDIO: spec'da ElevenLabs vazifasi yo'q");
+      await this.event(job, "info", "audio.skipped", "AUDIO: spec'da audio vazifasi yo'q");
       if (spec.data.audio !== undefined) {
         await this.event(job, "info", "audio.ready", "AUDIO: tayyor fayllar ishlatiladi", {
           data: { plan_version: job.planVersion, compile: {} },
@@ -1539,6 +1558,46 @@ export class JobEngine {
           error: makeError(
             "SPEC_UNKNOWN_ASSET",
             `/audio/music/track: kutubxonada ${trackId} yo'q — music_search bilan toping`,
+          ),
+        };
+      }
+    }
+    // Pro audio (tashqi xizmatda musiqa generatsiyasi, pro isolation): foydalanuvchi sozlamasi yoki tasdig'i.
+    const pro = items.filter(isProAudio);
+    if (pro.length > 0 && !job.proConfirmed) {
+      const prefs = await this.userPrefs(project.userId);
+      const missing = pro.filter((item) =>
+        item.kind === "music" ? prefs.pro_music !== true : prefs.pro_isolation !== true,
+      );
+      if (missing.length > 0) {
+        const proPrice = missing.reduce(
+          (sum, item) =>
+            sum +
+            quoteTask(
+              item.kind,
+              item.params,
+              [
+                {
+                  name: "",
+                  storage_key: "",
+                  sha256: "",
+                  duration_s: inputSeconds(item.inputAsset),
+                },
+              ],
+              null,
+            ).priceUsd,
+          0,
+        );
+        return {
+          kind: "block",
+          error: makeError(
+            "BILLING_CONFIRM_REQUIRED",
+            `Pro audio (${missing.map((item) => item.label).join(", ")}) ≈ ${proPrice.toFixed(2)} $`,
+            {
+              items: missing.map((item) => item.label),
+              price_usd: Math.round(proPrice * 10_000) / 10_000,
+              ask_user: true,
+            },
           ),
         };
       }

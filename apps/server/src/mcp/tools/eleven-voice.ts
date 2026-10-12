@@ -1,5 +1,5 @@
 /**
- * P4.05: el_tts (so'z vaqtlari bilan), el_voices, el_models, el_pronunciation, el_usage, el_estimate.
+ * P4.05: voice_tts (so'z vaqtlari bilan), voices_list, voice_models, voice_pronunciation, balance_get, audio_estimate.
  */
 import { AUDIO_KINDS, fail, ok, parseSpec } from "@aes/shared";
 import { and, eq } from "drizzle-orm";
@@ -107,13 +107,14 @@ export async function estimateWithQuota(
 
 export const elevenVoiceTools = [
   defineTool({
-    name: "el_tts",
+    name: "voice_tts",
+    aliases: ["el_tts"],
     title: "Text to speech",
     description:
-      "Generates speech with ElevenLabs (with per-character timestamps for subtitles and TTS-first timing). Default model eleven_v4 (the only family that supports Uzbek). The file is stored on the server and downloaded into the project's audio/ folder. Same parameters → cached, no credits.",
+      "Generates speech (with per-character timestamps for subtitles and TTS-first timing). Default model eleven_v4 (the only family that supports Uzbek). The file is stored on the server and downloaded into the project's audio/ folder. Same parameters → cached (half price).",
     input: z.object({
       text: z.string().min(1).max(10_000),
-      voice_id: z.string().min(1).max(64).describe("From el_voices"),
+      voice_id: z.string().min(1).max(64).describe("From voices_list"),
       model_id: z.string().max(64).optional(),
       language: z
         .string()
@@ -125,7 +126,7 @@ export const elevenVoiceTools = [
         .array(z.string().max(64))
         .max(10)
         .optional()
-        .describe("Dictionary slugs from el_pronunciation"),
+        .describe("Dictionary slugs from voice_pronunciation"),
       project_id: projectArg.optional(),
       label: z.string().max(200).optional(),
       fresh: z.boolean().optional().describe("Bypass cache (regenerate)"),
@@ -170,10 +171,11 @@ export const elevenVoiceTools = [
   }),
 
   defineTool({
-    name: "el_voices",
+    name: "voices_list",
+    aliases: ["el_voices"],
     title: "List voices",
     description:
-      "Lists ElevenLabs voices available to the user (premade, cloned, designed). Use voice_id in el_tts / spec voiceover.",
+      "Lists voices available to the user (premade, cloned, designed). Use voice_id in voice_tts / spec voiceover.",
     input: z.object({ search: z.string().max(100).optional() }),
     annotations: { readOnlyHint: true, openWorldHint: true },
     async handler(ctx, input) {
@@ -193,10 +195,11 @@ export const elevenVoiceTools = [
   }),
 
   defineTool({
-    name: "el_models",
+    name: "voice_models",
+    aliases: ["el_models"],
     title: "List models",
     description:
-      "Lists ElevenLabs models with supported languages. For Uzbek TTS use eleven_v4 / eleven_v4_turbo; STT: scribe_v2.",
+      "Lists TTS/STT models with supported languages. For Uzbek TTS use eleven_v4 / eleven_v4_turbo; STT: scribe_v2.",
     input: z.object({
       language: z
         .string()
@@ -224,10 +227,11 @@ export const elevenVoiceTools = [
   }),
 
   defineTool({
-    name: "el_pronunciation",
+    name: "voice_pronunciation",
+    aliases: ["el_pronunciation"],
     title: "Pronunciation dictionary",
     description:
-      "Creates or replaces a pronunciation dictionary (brand names, Uzbek words) under a slug; reference it in spec voiceover.pronunciation or el_tts. Without rules → lists saved dictionaries.",
+      "Creates or replaces a pronunciation dictionary (brand names, Uzbek words) under a slug; reference it in spec voiceover.pronunciation or voice_tts. Without rules → lists saved dictionaries.",
     input: z.object({
       slug: z
         .string()
@@ -298,22 +302,36 @@ export const elevenVoiceTools = [
   }),
 
   defineTool({
-    name: "el_usage",
-    title: "ElevenLabs usage",
-    description: "ElevenLabs plan, used and remaining characters/credits, reset date.",
+    name: "balance_get",
+    aliases: ["el_usage"],
+    title: "Balance",
+    description:
+      "The user's balance in USD (prepaid; charged per use), whether the account is activated, Pro toggles (pro_music, pro_isolation) and the latest charges. Prices: audio_estimate.",
     input: z.object({}),
-    annotations: { readOnlyHint: true, openWorldHint: true },
+    annotations: { readOnlyHint: true, openWorldHint: false },
     async handler(ctx) {
-      const account = await ctx.app.eleven.account(ctx.userId);
-      if (!account.configured) {
-        return fail("EL_AUTH", "ElevenLabs kaliti kiritilmagan: kabinet → Sozlamalar → ElevenLabs");
-      }
-      return ok(account);
+      const account = await ctx.app.billing.account(ctx.userId);
+      const prefs = await ctx.engine.userPrefs(ctx.userId);
+      const history = await ctx.app.billing.history(ctx.userId, 10);
+      return ok({
+        balance_usd: Math.round(account.balance_usd * 100) / 100,
+        activated: account.activated,
+        activation_usd: account.activation_usd,
+        pro_music: prefs.pro_music === true,
+        pro_isolation: prefs.pro_isolation === true,
+        recent: history.map((row) => ({
+          item: row.item,
+          amount_usd: Math.round((row.amountMicros / 1_000_000) * 10_000) / 10_000,
+          cached: row.cached,
+          at: row.createdAt,
+        })),
+      });
     },
   }),
 
   defineTool({
-    name: "el_estimate",
+    name: "audio_estimate",
+    aliases: ["el_estimate"],
     title: "Estimate price",
     description:
       "Approximate price in USD (charged to the user's balance) for a plan's audio (project_id + optional plan_version) or for given items; cached items cost half. Compared to the balance: if it does not fit → ask_user: true (tell the user the price and ask before spending).",

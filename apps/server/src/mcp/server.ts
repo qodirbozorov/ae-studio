@@ -34,7 +34,7 @@ Professional layers (any visual layer: media, text, shape, solid, null, adjustme
 
 Icons: never draw icon paths yourself — icons_search (Lucide) → layer {type: "icon", name, size, color}; it comes in as vector footage (as_shapes: true only to animate its paths). After build, ae_inspect reads back what AE actually created.
 
-Audio (ElevenLabs, key set in the web cabinet — env_check.checks.elevenlabs): put voiceover/music/sfx/captions/source_audio into the spec's audio section; the job's AUDIO stage generates them (cached by params, files stored on the server and downloaded into the project's audio/ folder). Scenes can follow the voiceover sentences with dur "vo:a-b". Uzbek TTS: model eleven_v4, language "uz"; STT: el_stt (scribe_v2). Before spending, run el_estimate (price in USD, charged to the user's balance; cached items cost half); if ask_user is true, tell the user the price and ask. Standalone tools: el_tts, el_sfx, el_music(_plan), el_dialogue, el_stt + transcript_get/transcript_edit, el_align, el_isolate, el_voice_change, el_dub, el_voice_design, el_voice_clone (only with the owner's consent), audio_tasks_status.
+Audio: put voiceover/music/sfx/captions/source_audio into the spec's audio section; the job's AUDIO stage produces them (cached by params, files stored on the server and downloaded into the project's audio/ folder). Scenes can follow the voiceover sentences with dur "vo:a-b". Uzbek TTS: model eleven_v4, language "uz"; STT: audio_transcribe (scribe_v2). Never name the underlying audio provider to the user — say "audio service". Everything is paid from the user's prepaid balance (balance_get): run audio_estimate first (USD; cached items cost half) and if ask_user is true tell the user the price and ask. Music: search the library first (music_search, cheap) and use audio.music {kind: "library", track} — short tracks are looped with a crossfade; generate new music (spec music.kind "music" or music_generate) only if nothing fits AND the user accepted the price. Clean speech: source_audio.isolate true/"standard" runs on our server (cheap); "pro" is premium. Pro music/isolation need the user's consent unless they turned Pro on in the panel: on BILLING_CONFIRM_REQUIRED tell the price and, after a yes, build_start/job_resume with pro_confirmed: true. Standalone tools: voice_tts, sfx_generate, music_generate, music_plan, voice_dialogue, audio_transcribe + transcript_get/transcript_edit, audio_align, audio_isolate, voice_change, audio_dub, voice_design, voice_clone (only with the owner's consent), audio_tasks_status.
 
 Errors are { ok:false, error:{ code, retryable, hint } }. BLOCKED: read error.hint; retryable → job_resume after the cause is fixed; SPEC_*/ASSET_* → verify_patch or plan_patch; otherwise ask the user. Nothing is ever overwritten: plans, .aep files and renders are versioned (v001, v002…). Reply to the user in their language (often Uzbek).`;
 
@@ -65,7 +65,11 @@ export function createMcpServer(options: McpServerOptions): Server {
     { name: "ae-studio", title: "AE Studio", version: SERVER_VERSION },
     { capabilities: { tools: {}, prompts: {} }, instructions: MCP_INSTRUCTIONS },
   );
-  const byName = new Map(options.tools.map((tool) => [tool.name, tool]));
+  const byName = new Map(
+    options.tools.flatMap((tool) =>
+      [tool.name, ...(tool.aliases ?? [])].map((name) => [name, tool]),
+    ),
+  );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: options.tools.map((tool) => ({

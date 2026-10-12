@@ -96,14 +96,18 @@ const setKey = () =>
   });
 
 describe("P4.05: TTS, ovozlar, modellar, talaffuz, hisob, narx", () => {
-  it("kalitsiz → EL_AUTH; el_usage", async () => {
-    expect((await s.call("el_usage")).result.error.code).toBe("EL_AUTH");
+  it("kalitsiz → EL_AUTH; balance_get (eski nom el_usage — alias) foydalanuvchi balansini beradi", async () => {
+    expect((await s.call("voices_list")).result.error.code).toBe("EL_AUTH");
     expect((await s.call("el_voices")).result.error.code).toBe("EL_AUTH");
-    await setKey();
-    expect((await s.call("el_usage")).result.data).toMatchObject({
-      tier: "creator",
-      remaining: 99_000,
+    const balance = (await s.call("el_usage")).result.data;
+    expect(balance).toMatchObject({
+      balance_usd: 0,
+      activated: false,
+      pro_music: false,
+      pro_isolation: false,
     });
+    // Tashqi xizmat hisobi (tarif, kreditlar) foydalanuvchiga ko'rsatilmaydi.
+    expect(JSON.stringify(balance)).not.toMatch(/tier|credit|remaining/);
   });
 
   it("el_tts: natija va so'z vaqtlari, loyihaga yetkaziladi; qayta — kesh", async () => {
@@ -219,12 +223,26 @@ describe("P4.06: dialogue, SFX, music, music plan", () => {
     expect(sfx.result.data.task).toMatchObject({ kind: "sfx", duration_s: 1.2 });
     const plan = await s.call("el_music_plan", { prompt: "calm piano", duration_s: 20 });
     expect(plan.result.data.plan.sections).toHaveLength(2);
+    const meta = { title: "Calm piano", category: "corporate" };
+    const unconfirmed = await s.call("music_generate", {
+      ...meta,
+      composition_plan: plan.result.data.plan,
+    });
+    expect(unconfirmed.result.error).toMatchObject({
+      code: "BILLING_CONFIRM_REQUIRED",
+      details: { ask_user: true },
+    });
+    expect(unconfirmed.result.error.details.price_usd).toBeGreaterThan(0);
     const music = await s.call("el_music", {
+      ...meta,
+      user_confirmed: true,
       composition_plan: plan.result.data.plan,
       project_id: projectId,
     });
     expect(music.result.data.task).toMatchObject({ kind: "music", duration_s: 20 });
-    const simple = await s.call("el_music", {
+    const simple = await s.call("music_generate", {
+      ...meta,
+      user_confirmed: true,
       prompt: "upbeat",
       duration_s: 12,
       instrumental: true,
@@ -234,7 +252,15 @@ describe("P4.06: dialogue, SFX, music, music plan", () => {
       music_length_ms: 12_000,
       force_instrumental: true,
     });
-    const both = await s.call("el_music", { prompt: "x", composition_plan: plan.result.data.plan });
+    // Kutubxona meta'si tashqi API'ga yuborilmaydi.
+    expect(el.calls.at(-1)!.json).not.toHaveProperty("title");
+    expect(el.calls.at(-1)!.json).not.toHaveProperty("category");
+    const both = await s.call("el_music", {
+      ...meta,
+      user_confirmed: true,
+      prompt: "x",
+      composition_plan: plan.result.data.plan,
+    });
     expect(both.result.error.code).toBe("SYS_BAD_REQUEST");
   });
 });
@@ -352,8 +378,6 @@ describe("P4.07–P4.08: kirish audiosi talab qiladigan toollar", () => {
     });
     expect(clone.result.data).toMatchObject({ voice_id: "cloned_1" });
     const audit = await t.app.inject({ url: "/api/audit", headers: { cookie } });
-    expect(audit.json().data.map((r: { action: string }) => r.action)).toContain(
-      "mcp.el_voice_clone",
-    );
+    expect(audit.json().data.map((r: { action: string }) => r.action)).toContain("mcp.voice_clone");
   });
 });

@@ -40,14 +40,14 @@ export function newReelPrompt(args: Record<string, string>): GetPromptResult {
     `1. env_check — ready bo'lmasa, issues[] dagi hint'larni foydalanuvchiga ayt va to'xta.`,
     `2. Loyiha → assets_scan → assets_list. Asosiy fayllarni asset_preview bilan ko'r (videodan 3–4 kadr). Faqat status=ok fayllardan foydalan.`,
     `3. spec_schema ni o'qi. Sahnalarni rejalashtir: hook (1–3 s, kuchli birinchi kadr) → asosiy fikrlar → CTA. Har sahnada 1 ta asosiy media + qisqa matn (≤ 6–8 so'z), o'qilishi oson joylashuv, mos anim va transition_out.`,
-    `4. Audio (env_check'da elevenlabs.ok bo'lsa): voiceover matnini gaplarga bo'lib yoz va sahnalarni gaplarga bog'la (dur: "vo:0-1", "vo:1-3" — TTS-first timing). Ovoz: el_voices (o'zbekcha uchun model eleven_v4, language "uz"); brend so'zlar uchun el_pronunciation. Musiqa: audio.music (length "match_video", duck_under "voiceover"). Aksentlar: audio.sfx (at: "hook.end"). Subtitr: audio.captions (from "voiceover", style karaoke_bold | bold_pop | minimal).`,
-    `5. Rejani foydalanuvchiga 3–6 qatorda ko'rsat (sahnalar, matnlar, ovoz, musiqa) va tasdiq so'ra. Keyin plan_write va el_estimate: ask_user bo'lsa narxni aytib ruxsat so'ra.`,
+    `4. Audio (env_check'da elevenlabs.ok bo'lsa): voiceover matnini gaplarga bo'lib yoz va sahnalarni gaplarga bog'la (dur: "vo:0-1", "vo:1-3" — TTS-first timing). Ovoz: voices_list (o'zbekcha uchun model eleven_v4, language "uz"); brend so'zlar uchun voice_pronunciation. Musiqa: audio.music (length "match_video", duck_under "voiceover"). Aksentlar: audio.sfx (at: "hook.end"). Subtitr: audio.captions (from "voiceover", style karaoke_bold | bold_pop | minimal).`,
+    `5. Rejani foydalanuvchiga 3–6 qatorda ko'rsat (sahnalar, matnlar, ovoz, musiqa) va tasdiq so'ra. Keyin plan_write va audio_estimate: ask_user bo'lsa narxni aytib ruxsat so'ra.`,
     `6. preflight — missing[] bo'sh va ready=true bo'lguncha tuzat (plan_patch). Keyin build_start (audio AUDIO bosqichida generatsiya qilinadi, keshdan qayta ishlatiladi).`,
     `7. job_status ni 5–10 s oralig'ida tekshir (VERIFY, BLOCKED yoki DONE gacha). Progressni qisqa ayt.`,
     `8. VERIFY: foydalanuvchiga AE'da qaysi .aep va comp'ni ochib timeline'da ko'rishini ayt va fikrini so'ra — uning tekshiruvi ustuvor. contact_sheet (bitta kadr uchun frames_capture) faqat foydalanuvchi so'rasa yoki bitta tezkor tekshiruv uchun (bir marta). Tuzatishlar bo'lsa verify_patch (aniq sabab bilan, ko'pi bilan 3 marta). Foydalanuvchi rozi bo'lsa verify_approve — render'siz.`,
     `9. Render kompyuterni band qiladi: faqat foydalanuvchi aniq so'rasa (verify_approve render: true + user_confirmed: true yoki render_start). report_get bilan yakuniy hisobotni ko'rsat.`,
     ``,
-    `ElevenLabs kaliti bo'lmasa audio'siz qur va foydalanuvchiga kabinet → Sozlamalar → ElevenLabs ni eslat. Hech narsa o'chirilmaydi: plan, .aep va audio versiyalanadi. Foydalanuvchi bilan uning tilida (odatda o'zbekcha) gaplash.`,
+    `Musiqa: avval music_search (kutubxona, arzon); generatsiya va pro ovoz tozalash faqat narxini aytib rozilik olgandan keyin. Balans yetmasa (BILLING_*) foydalanuvchiga ayting. Hech narsa o'chirilmaydi: plan, .aep va audio versiyalanadi. Foydalanuvchi bilan uning tilida (odatda o'zbekcha) gaplash.`,
   ];
   return {
     description: "AE Studio: yangi reel (ovoz, musiqa, subtitr bilan)",
@@ -60,13 +60,13 @@ export function subtitlePrompt(args: Record<string, string>): GetPromptResult {
   const language = (args.language ?? "uz").trim();
   const style = (args.style ?? "karaoke_bold").trim();
   const steps = [
-    `Mavjud videoga subtitr qo'sh (AE Studio, ElevenLabs Scribe).`,
+    `Mavjud videoga subtitr qo'sh (AE Studio, transkripsiya).`,
     ``,
     `Video: ${video === "" ? "(assets_list dan so'ra/tanla)" : video} · til: ${language} · stil: ${style}.`,
     ``,
     `1. env_check (elevenlabs.ok bo'lishi shart) → loyiha → assets_scan → assets_list.`,
-    `2. Ovoz shovqinli bo'lsa avval el_isolate (toza ovoz).`,
-    `3. el_stt (language "${language}", diarize kerak bo'lsa) → transcript_get. Matnni o'qib, imlo va nomlarni transcript_edit bilan tuzat (vaqtlar o'zgarmaydi). O'zbekcha transkriptni foydalanuvchiga ko'rsatib tasdiqlat.`,
+    `2. Ovoz shovqinli bo'lsa avval audio_isolate (toza ovoz).`,
+    `3. audio_transcribe (language "${language}", diarize kerak bo'lsa) → transcript_get. Matnni o'qib, imlo va nomlarni transcript_edit bilan tuzat (vaqtlar o'zgarmaydi). O'zbekcha transkriptni foydalanuvchiga ko'rsatib tasdiqlat.`,
     `4. Spec: bitta sahna (dur = video davomiyligi), media layer asset:<video> (fit cover), audio.source_audio {asset, transcribe: true, isolate: <2-qadamga qarab>}, audio.captions {from: "source_audio", method: "stt", style: "${style}"}.`,
     `5. plan_write → preflight → build_start → job_status → foydalanuvchi AE timeline'ida subtitrni ko'radi (o'qiladimi, ekrandan chiqmaydimi) → verify_patch yoki verify_approve (render'siz; render faqat foydalanuvchi so'rasa) → report_get.`,
   ];
@@ -77,14 +77,14 @@ export function dubPrompt(args: Record<string, string>): GetPromptResult {
   const video = (args.video ?? "").trim();
   const target = (args.target_lang ?? "en").trim();
   const steps = [
-    `Videoni boshqa tilga dublyaj qil (ElevenLabs Dubbing).`,
+    `Videoni boshqa tilga dublyaj qil.`,
     ``,
     `Video: ${video === "" ? "(assets_list dan tanla)" : video} · maqsad tili: ${target}.`,
     ``,
     `1. env_check (elevenlabs.ok) → loyiha → assets_scan → assets_list.`,
-    `2. el_estimate items [{kind: "dub", input_seconds: <video davomiyligi>}] — ask_user bo'lsa narxni aytib ruxsat ol.`,
-    `3. el_dub (target_lang "${target}", wait_s 0) → audio_tasks_status bilan kuzat (uzun video bir necha daqiqa).`,
-    `4. Tayyor dublyaj fayli audio/ papkasida (assets_scan qilsang asset bo'lib chiqadi). Spec: sahna — asl video (ovozsiz), audio.voiceover {kind: "asset", asset: asset:<dublyaj>}; xohlasa subtitr uchun el_stt dublyaj faylidan → audio.captions.`,
+    `2. audio_estimate items [{kind: "dub", input_seconds: <video davomiyligi>}] — ask_user bo'lsa narxni aytib ruxsat ol.`,
+    `3. audio_dub (target_lang "${target}", wait_s 0) → audio_tasks_status bilan kuzat (uzun video bir necha daqiqa).`,
+    `4. Tayyor dublyaj fayli audio/ papkasida (assets_scan qilsang asset bo'lib chiqadi). Spec: sahna — asl video (ovozsiz), audio.voiceover {kind: "asset", asset: asset:<dublyaj>}; xohlasa subtitr uchun audio_transcribe dublyaj faylidan → audio.captions.`,
     `5. plan_write → preflight → build_start → VERIFY (foydalanuvchi AE'da ko'radi) → verify_approve (render faqat foydalanuvchi so'rasa) → report_get.`,
   ];
   return { description: "AE Studio: dublyaj", messages: [text(steps.join("\n"))] };
@@ -150,7 +150,7 @@ export const PROMPTS: PromptDef[] = [
   {
     name: "dub-video",
     title: "Dublyaj",
-    description: "Videoni boshqa tilga dublyaj qilish (ElevenLabs Dubbing) va AE'da yig'ish.",
+    description: "Videoni boshqa tilga dublyaj qilish va AE'da yig'ish.",
     arguments: [
       { name: "video", description: "Video asset kaliti" },
       { name: "target_lang", description: "Maqsad tili (masalan en, ru)", required: true },

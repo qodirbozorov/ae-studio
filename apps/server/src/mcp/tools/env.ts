@@ -62,7 +62,7 @@ export const envTools = [
         error: account.error,
         hint: account.configured
           ? null
-          : "Audio (ovoz, musiqa, SFX, subtitr) uchun kabinetda ElevenLabs kalitini kiriting",
+          : "Audio xizmati sozlanmagan (administrator): audio'siz quring yoki foydalanuvchiga ayting",
       };
       return ok({
         ready: issues.length === 0,

@@ -50,7 +50,7 @@ function detailText(payload: unknown): string {
 
 /** HTTP holati va javob matni → tasniflangan xato. */
 export function mapElevenError(status: number, payload: unknown): AesError {
-  const message = `ElevenLabs ${status}: ${detailText(payload)}`.slice(0, 600);
+  const message = `Audio xizmati ${status}: ${detailText(payload)}`.slice(0, 600);
   const lower = message.toLowerCase();
   if (status === 401) return makeError("EL_AUTH", message);
   if (status === 402 || lower.includes("quota") || lower.includes("credits")) {
@@ -91,7 +91,7 @@ export class ElevenClient {
 
   /** So'rov (retry bilan) → Response (2xx). */
   private async send(method: string, path: string, options: RequestOptions): Promise<Response> {
-    let lastError: AesError = makeError("EL_TIMEOUT", "ElevenLabs javob bermadi");
+    let lastError: AesError = makeError("EL_TIMEOUT", "Audio xizmati javob bermadi");
     for (let attempt = 0; attempt <= this.retries; attempt++) {
       if (attempt > 0) await this.sleep(500 * 2 ** (attempt - 1));
       const headers: Record<string, string> = { "xi-api-key": this.apiKey };
@@ -113,7 +113,7 @@ export class ElevenClient {
       } catch (error) {
         lastError = makeError(
           "EL_TIMEOUT",
-          `ElevenLabs: ${error instanceof Error ? error.message : String(error)}`,
+          `Audio xizmati: ${error instanceof Error ? error.message : String(error)}`,
         );
         continue;
       }

@@ -34,6 +34,8 @@ export const envSchema = z
     S3_ACCESS_KEY: optionalString,
     S3_SECRET_KEY: optionalString,
     /** Faqat dev uchun. */
+    /** Markaziy audio xizmati kaliti (Faza 8: foydalanuvchilar kalit kiritmaydi; xarajat — admin hisobida). */
+    ELEVENLABS_API_KEY: optionalString,
     ELEVENLABS_DEFAULT_KEY: optionalString,
     /** ElevenLabs API manzili (default https://api.elevenlabs.io; testlarda soxta server). */
     ELEVENLABS_BASE_URL: z.url().optional(),

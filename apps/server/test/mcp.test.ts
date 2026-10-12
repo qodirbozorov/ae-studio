@@ -190,10 +190,10 @@ describe("audio promptlari (P4.13)", () => {
       bodies.push(got.messages[0].content.text as string);
     }
     expect(bodies[0]).toContain("vo:0-1");
-    expect(bodies[0]).toContain("el_estimate");
+    expect(bodies[0]).toContain("audio_estimate");
     expect(bodies[1]).toContain("transcript_edit");
     expect(bodies[1]).toContain("bold_pop");
-    expect(bodies[2]).toContain("el_dub");
+    expect(bodies[2]).toContain("audio_dub");
     expect(bodies[2]).toContain("ru");
     for (const body of bodies) {
       const mentioned = [...new Set(body.match(/\b[a-z]+_[a-z_]+\b/g) ?? [])].filter((name) =>

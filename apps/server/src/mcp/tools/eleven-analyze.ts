@@ -1,5 +1,5 @@
-/** P4.07: el_stt (Scribe), el_align, el_isolate, transcript_get, transcript_edit. */
-import { fail, ok } from "@aes/shared";
+/** P4.07: audio_transcribe (Scribe), audio_align, audio_isolate, transcript_get, transcript_edit. */
+import { fail, ok, quoteAudio } from "@aes/shared";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { AudioTaskRow } from "../../audio/service";
@@ -8,7 +8,7 @@ import { audioTasks } from "../../db/schema";
 import { defineTool } from "../registry";
 import type { ToolContext } from "../registry";
 import { uuidArg } from "./common";
-import { inputFromAsset, runTask, waitArg } from "./eleven-common";
+import { inputFromAsset, requirePro, runTask, waitArg } from "./eleven-common";
 
 const sourceArgs = {
   project_id: uuidArg("project_id"),
@@ -27,10 +27,11 @@ async function ownTask(ctx: ToolContext, id: string): Promise<AudioTaskRow | nul
 
 export const elevenAnalyzeTools = [
   defineTool({
-    name: "el_stt",
+    name: "audio_transcribe",
+    aliases: ["el_stt"],
     title: "Transcribe (Scribe)",
     description:
-      "Transcribes a project video/audio with ElevenLabs Scribe (scribe_v2): word timestamps, speakers (diarize), audio events. The panel extracts the audio locally; then read words with transcript_get. Uzbek accuracy tier: Good.",
+      "Transcribes a project video/audio (scribe_v2): word timestamps, speakers (diarize), audio events. The panel extracts the audio locally; then read words with transcript_get. Uzbek accuracy tier: Good.",
     input: z.object({
       ...sourceArgs,
       language: z
@@ -69,7 +70,8 @@ export const elevenAnalyzeTools = [
   }),
 
   defineTool({
-    name: "el_align",
+    name: "audio_align",
+    aliases: ["el_align"],
     title: "Forced alignment",
     description:
       "Aligns a known text to a project audio/video → exact word timings (for subtitles of a recorded voice).",
@@ -98,13 +100,18 @@ export const elevenAnalyzeTools = [
   }),
 
   defineTool({
-    name: "el_isolate",
+    name: "audio_isolate",
+    aliases: ["el_isolate"],
     title: "Isolate voice",
     description:
       'Removes background noise from a project video/audio, leaving clean speech (new WAV in audio/). quality "standard" (default) runs on our server and is cheap; "pro" uses the premium external service (stronger, also separates speech from music; ~10× the price) — use pro only if the user asked for it or confirmed the price.',
     input: z.object({
       ...sourceArgs,
       quality: z.enum(["standard", "pro"]).default("standard"),
+      user_confirmed: z
+        .boolean()
+        .optional()
+        .describe("quality pro: the user accepted the price in this chat"),
     }),
     annotations: {
       readOnlyHint: false,
@@ -114,6 +121,16 @@ export const elevenAnalyzeTools = [
     },
     async handler(ctx, input) {
       const basic = input.quality === "standard";
+      if (!basic) {
+        // Kirish uzunligi oldindan noma'lum: daqiqasiga narx (pro) ma'lumot uchun.
+        const allowed = await requirePro(
+          ctx,
+          "isolate",
+          input.user_confirmed,
+          quoteAudio("isolate", {}, 60).priceUsd,
+        );
+        if (!allowed.ok) return allowed;
+      }
       const audio = await inputFromAsset(
         ctx,
         input.project_id,
@@ -140,7 +157,7 @@ export const elevenAnalyzeTools = [
     name: "transcript_get",
     title: "Get transcript",
     description:
-      "Full transcript of an el_stt / el_align task: text and words with start/end (and speaker). Edited version if transcript_edit was used.",
+      "Full transcript of an audio_transcribe / audio_align task: text and words with start/end (and speaker). Edited version if transcript_edit was used.",
     input: z.object({ task_id: uuidArg("task_id") }),
     annotations: { readOnlyHint: true, openWorldHint: false },
     async handler(ctx, input) {

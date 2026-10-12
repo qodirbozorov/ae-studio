@@ -1,5 +1,5 @@
 /**
- * Spec `audio` → ElevenLabs vazifalari ro'yxati (§7.1, P4.09): narx bahosi (`el_estimate`, dry_run) va AUDIO holati.
+ * Spec `audio` → ElevenLabs vazifalari ro'yxati (§7.1, P4.09): narx bahosi (`audio_estimate`, dry_run) va AUDIO holati.
  * Tartib muhim: avval voiceover (TTS-first timing), keyin musiqa (video uzunligiga), SFX, manba audio.
  */
 import type { AudioKind, Brand, VideoSpec } from "@aes/shared";

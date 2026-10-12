@@ -35,6 +35,8 @@ export interface ToolAnnotations {
 
 export interface ToolDef<S extends z.ZodType = z.ZodType> {
   name: string;
+  /** Eski nomlar (bir reliz moslik uchun; `tools/list` da ko'rinmaydi). */
+  aliases?: string[];
   title: string;
   description: string;
   input: S;
