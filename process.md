@@ -12,7 +12,7 @@
 
 - **Faza:** 7 — Professional qatlamlar · yakunlandi (6/6)
 - **Oxirgi bajarilgan:** Render siyosati + log tuzatishlari, panel 0.2.1 (2026-10-10)
-- **Keyingi todo:** 👤 Faza 8–9 rejasini ko'rib chiqish (ae-studio-phases.md §7d–7e, ochiq savollar M1–M5) → keyin P8.01
+- **Keyingi todo:** P8.01 — sarf ledger'i (Faza 8 rejasi tasdiqlandi, M1–M5 yopildi)
 - **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)

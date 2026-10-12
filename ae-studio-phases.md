@@ -234,7 +234,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 
 **Shartli (kerak bo'lsa keyin):** matn v2 (box, runs, text animator, counter) · 3D/kamera/yorug'lik · o'tishlar v2 · `ae_run_jsx` (opt-in) · `preview_render` · presetlar kutubxonasi · plan boshqaruvi (`plan_scene_put`, `plan_diff`) · `vo_timings` · 👤 haqiqiy AE'da tezlik o'lchovi. Bitta loyihaga xos qismlar (promo KPI, phone/chat komponentlari) olib tashlandi.
 
-## 7d. Faza 8 — Ovoz engine'i: sarf hisobi, isolation, musiqa kutubxonasi · reja 2026-10-12 (👤 ko'rib chiqilmoqda)
+## 7d. Faza 8 — Ovoz engine'i: sarf hisobi, isolation, musiqa kutubxonasi · reja 2026-10-12 (tasdiqlandi)
 
 **Maqsad:** har audio amali foydalanuvchi hisobiga to'g'ri yoziladi; oddiy variantlar (DeepFilterNet3, kutubxona) sukut bo'yicha, ElevenLabs "pro" faqat ruxsat bilan. Foydalanuvchi ko'radigan joyda "ElevenLabs" so'zi yo'q. Ovoz vazifalari alohida, masshtablanadigan worker'da.
 
@@ -245,12 +245,15 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 | Pro musiqa · Pro isolation · Transkripsiya (ElevenLabs) | tannarx × 1,2 × 2 | 0,36 $/daq · 0,288 $/daq · ≈ 0,009 $/daq |
 | TTS (faqat ElevenLabs, bepul model yo'q) | **tannarxda**, ustamasiz | 0,10 $ / 0,05 $ (Flash) / 1000 belgi |
 | Isolation — DeepFilterNet3 (server) | pro isolation'dan 10× arzon | 0,0288 $/daq |
-| Kutubxona musiqasi | pro musiqadan 10× arzon (taxmin — tasdiqlanmagan) | 0,036 $/daq |
+| Kutubxona musiqasi | pro musiqadan 10× arzon, videodagi uzunlik bo'yicha (M5) | 0,036 $/daq |
+| Keshdan qayta olingan audio | mijoz narxining yarmi (M1) | — |
 | Timeline (montaj) | job uchun bir marta, yakuniy davomiylik bo'yicha; patch va qayta build bepul | 0,01 $/daq |
 
 **Qoidalar:**
 - Pro musiqa / Pro isolation — panel (va web) toggle'lari, serverda saqlanadi; yoqilganda narx eslatmasi. O'chiq bo'lsa oddiy variant; Claude pro'ni zarur deb topsa chatda narx bilan so'raydi (`user_confirmed`) yoki foydalanuvchi toggle'ni yoqadi. TTS uchun toggle yo'q.
 - Musiqa: avval kutubxona, mos trek bo'lmasa generatsiya (pro, tasdiq bilan). Generatsiya qilingan trekka Claude MCP orqali nom + kategoriya + qisqa izoh beradi → "nomzod"; admin tahrirlab saqlagach umumiy kutubxonaga chiqadi.
+- Kirish: ishlatishni boshlash uchun 20 $ boshlang'ich to'lov majburiy (admin qo'lda kiritadi) → balansga yoziladi, keyin pay-as-you-go (M4). Balans to'lovsiz 0 bo'lsa job boshlanmaydi.
+- Kutubxona treki videodan qisqa bo'lsa: kompilyator loop + crossfade (bar chegarasida) va oxirida fade-out qiladi; MCP instructions/`music_search` tavsifi Claude'ga trekni tanlash va silliq ulash qoidasini beradi (M5).
 - Storage: Cloudflare R2 (S3 API; Telegram/Telethon storage rad etildi — FLOOD_WAIT/ban xavfi, presigned URL yo'q, SLA yo'q).
 
 **Todo'lar:**
@@ -279,15 +282,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [ ] **P9.08 — Web · panel · Claude · bot mosligi.** Balans/bloklanish yagona manbadan; bot: kam balans, tasdiq, job yakuni xabarlari; panel: balans; MCP: `BALANCE_LOW` hint'i to'ldirish yo'li bilan.
 - [ ] **P9.09 — Yakun.** Xavfsizlik ko'rigi (IDOR: har so'rov user bo'yicha), docs, deploy.
 
-**❓ Faza 8–9 ochiq savollar:**
-
-| # | Savol | Tavsiya |
-|---|---|---|
-| M1 | Kesh/kutubxonadan qayta ishlatilgan pro audio mijozdan yechiladimi? | Yechilmaydi yoki oddiy narxda |
-| M2 | Musiqa qidiruvi: matn (nom/kategoriya/izoh/teg) yoki embedding? | Avval matn + teglar; embedding kutubxona kattalashganda |
-| M3 | `el_*` nomlari o'zgarganda eski connector'lar uchun alias qoldirilsinmi? | Bitta reliz alias, keyin olib tashlash |
-| M4 | Tarif: obuna (masalan 20 $ → balansga 20 $ + bonus, oylik) yoki faqat balans to'ldirish? | Hozircha faqat balans (admin $ kiritadi), tarif = to'ldirish paketi |
-| M5 | Kutubxona musiqasi narxi: daqiqa bo'yicha yoki trek uchun qat'iy? | Daqiqa bo'yicha (videodagi uzunlik) |
+**Faza 8–9 savollari yopildi (2026-10-12):** M1 kesh — yarim narx · M2 musiqa qidiruvi — avval matn/teg (foydalanuvchiga ko'rinmaydi) · M3 eski `el_*` nomlari — bir reliz yashirin alias · M4 — 20 $ boshlang'ich to'lov majburiy, keyin PAYG · M5 kutubxona — daqiqa bo'yicha, kesh yarim narx, qisqa trek loop + crossfade.
 
 ---
 
