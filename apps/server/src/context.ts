@@ -1,4 +1,5 @@
 import type { BillingService } from "./billing/service";
+import type { TariffService } from "./billing/tariffs";
 import type { MusicLibrary } from "./music/library";
 import type { Db } from "./db/client";
 import type { AudioService } from "./audio/service";
@@ -27,6 +28,8 @@ export interface AppContext {
   audio: AudioService;
   /** Balans va sarf jurnali (P8.01). */
   billing: BillingService;
+  /** To'lov paketlari (P9.03). */
+  tariffs: TariffService;
   /** Musiqa kutubxonasi (P8.06). */
   music: MusicLibrary;
   /** Shablonlar registri (P5.01). */

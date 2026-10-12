@@ -77,7 +77,7 @@ export const ERROR_DEFS = {
   },
   BILLING_NOT_ACTIVATED: {
     retryable: false,
-    hint: "Hisob faollashtirilmagan: ishlatishni boshlash uchun boshlang'ich to'lov kerak. Foydalanuvchiga ayting (ask_user).",
+    hint: "Hisob faollashtirilmagan: ishlatishni boshlash uchun boshlang'ich to'lov kerak. Foydalanuvchiga ayting: to'ldirish — kabinet → Sozlamalar → Balans va Pro (tariflar va to'lov kontakti; details.pay). To'lovdan keyin job_resume (ask_user).",
   },
   BILLING_CONFIRM_REQUIRED: {
     retryable: false,
@@ -85,7 +85,7 @@ export const ERROR_DEFS = {
   },
   BILLING_BALANCE_LOW: {
     retryable: false,
-    hint: "Balans yetmaydi. Foydalanuvchiga taxminiy narxni ayting va balansni to'ldirishni so'rang; to'ldirilgach job_resume (ask_user).",
+    hint: "Balans yetmaydi. Foydalanuvchiga taxminiy narxni ayting va to'ldirishni so'rang: kabinet → Sozlamalar → Balans va Pro (tariflar va to'lov kontakti; details.pay, balance_get.top_up). Arzonroq variant ham taklif qiling (kutubxona musiqasi, standart tozalash). To'ldirilgach job_resume (ask_user).",
   },
   EL_QUOTA: {
     retryable: false,

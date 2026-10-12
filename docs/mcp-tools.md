@@ -182,7 +182,7 @@ Creates or replaces a pronunciation dictionary (brand names, Uzbek words) under 
 
 ### `balance_get` — Balance · faqat o'qish
 
-The user's balance in USD (prepaid; charged per use), whether the account is activated, Pro toggles (pro_music, pro_isolation) and the latest charges. Prices: audio_estimate.
+The user's balance in USD (prepaid; charged per use), whether the account is activated, Pro toggles (pro_music, pro_isolation), the latest charges and how to top up (top_up: packages and payment contact — payment is manual via the admin). Prices: audio_estimate.
 
 Parametrsiz.
 
@@ -358,7 +358,7 @@ Instant voice clone from project recordings. ONLY with the voice owner's explici
 
 ### `music_search` — Search music library · faqat o'qish
 
-Searches the background music library (cheap: ~$0.036 per minute of video; generating new music costs ~10× more and needs the user's confirmation). Query with mood/genre/instruments/tempo words (e.g. "calm piano corporate", "energetic electronic"); optional category and min_seconds. Use the chosen id in the spec: audio.music = {kind: "library", track: id, duck_under: "voiceover"}. A track shorter than the video is looped automatically with a crossfade (crossfade_s, default 2) and fades out at the end (fade_out_s, default 1.5). For a smooth result prefer: a track at least as long as the video, or one marked loopable; steady instrumental beds over tracks with a strong intro/outro; crossfade 2–4 s for ambient/pads, 1–2 s for rhythmic music. Call with no query to see categories.
+Searches the background music library (cheap, priced per minute of video; generating new music costs ~10× more and needs the user's confirmation — audio_estimate gives exact prices). Query with mood/genre/instruments/tempo words (e.g. "calm piano corporate", "energetic electronic"); optional category and min_seconds. Use the chosen id in the spec: audio.music = {kind: "library", track: id, duck_under: "voiceover"}. A track shorter than the video is looped automatically with a crossfade (crossfade_s, default 2) and fades out at the end (fade_out_s, default 1.5). For a smooth result prefer: a track at least as long as the video, or one marked loopable; steady instrumental beds over tracks with a strong intro/outro; crossfade 2–4 s for ambient/pads, 1–2 s for rhythmic music. Call with no query to see categories.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|

@@ -279,7 +279,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P9.05 — Musiqa kutubxonasi (admin).** (Faza 8 bilan birga) Jadval + tinglash; bittalab va ko'p fayl yuklash (drag & drop); nom/kategoriya/izoh tahriri; nomzodlarni ko'rib chiqish → public/hidden; kategoriyalar ro'yxati.
 - [x] **P9.06 — Telegram auth xavfsizligi.** Bot kirish so'rovini tafsilot bilan yuboradi (brauzer, IP, vaqt) + saytdagi kod bilan moslik + [Tasdiqlash]/[Bu men emas]; webhook `secret_token` tekshiruvi; sessiya rotatsiyasi, "barcha qurilmalardan chiqish"; device flow tasdiq sahifasida ham qurilma tafsiloti.
 - [ ] **P9.07 — Ko'p replika.** WS hub: Redis pub/sub (panel qaysi replikaga ulangan bo'lsa ham xabar yetadi); job drive: Postgres advisory lock (bitta job ikki replikada yurmaydi); rate limiter Redis'da; sessiya/OAuth stateless (bor). 🧪 2 replika bilan e2e.
-- [ ] **P9.08 — Web · panel · Claude · bot mosligi.** Balans/bloklanish yagona manbadan; bot: kam balans, tasdiq, job yakuni xabarlari; panel: balans; MCP: `BALANCE_LOW` hint'i to'ldirish yo'li bilan.
+- [x] **P9.08 — Web · panel · Claude · bot mosligi.** Balans/bloklanish yagona manbadan; bot: kam balans, tasdiq, job yakuni xabarlari; panel: balans; MCP: `BALANCE_LOW` hint'i to'ldirish yo'li bilan.
 - [ ] **P9.09 — Yakun.** Xavfsizlik ko'rigi (IDOR: har so'rov user bo'yicha), docs, deploy.
 
 **Faza 8–9 savollari yopildi (2026-10-12):** M1 kesh — yarim narx · M2 musiqa qidiruvi — avval matn/teg (foydalanuvchiga ko'rinmaydi) · M3 eski `el_*` nomlari — bir reliz yashirin alias · M4 — 20 $ boshlang'ich to'lov majburiy, keyin PAYG · M5 kutubxona — daqiqa bo'yicha, kesh yarim narx, qisqa trek loop + crossfade.

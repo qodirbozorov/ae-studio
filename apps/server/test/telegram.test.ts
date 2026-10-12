@@ -219,4 +219,59 @@ describe("Telegram", () => {
     expect(code.statusCode).toBe(400);
     await plain.close();
   });
+
+  it("balans (P9.08): to'ldirish va kam qolgani haqida xabar; to'lov kontakti bilan", async () => {
+    await link();
+    const userId = s.userId;
+    await t.app.billing.saveSettings({ contact: "@aes_admin" }, "test");
+    await t.app.billing.topup(userId, 20, "test");
+    await t.app.telegram.idle();
+    expect(tg.sent.at(-1)!.text).toMatch(/to'ldirildi: \+20\.00 \$[\s\S]*Hisob faol/);
+    await t.app.billing.charge({
+      userId,
+      quote: { item: "tts", quantity: 1, unit: "chars", costUsd: 19.5, priceUsd: 19.5 },
+    });
+    await t.app.telegram.idle();
+    expect(tg.sent.at(-1)!.text).toMatch(/Balans kam qoldi: 0\.50 \$[\s\S]*To'lov: @aes_admin/);
+  });
+});
+
+describe("to'xtagan job xabari (P9.08)", () => {
+  it("tasdiq va balans holatlari tushunarli tilda", async () => {
+    const { blockedText } = await import("../src/telegram/service");
+    const confirm = blockedText(
+      "reel",
+      makeError("BILLING_CONFIRM_REQUIRED", "Pro audio", {
+        items: ["Fon musiqa"],
+        price_usd: 0.36,
+        ask_user: true,
+      }),
+    );
+    expect(confirm).toMatch(/Tasdiq kerak — reel[\s\S]*Fon musiqa ≈ 0\.36 \$[\s\S]*Pro'ni yoqing/);
+    const low = blockedText(
+      "reel",
+      makeError("BILLING_BALANCE_LOW", "Balans 0.10 $, kerak ≈ 0.50 $", { pay: "To'lov: @aes" }),
+    );
+    expect(low).toMatch(/Balans yetmaydi — reel[\s\S]*kerak ≈ 0\.50[\s\S]*To'lov: @aes/);
+    expect(blockedText("reel", makeError("AE_TIMEOUT", "op"))).toMatch(
+      /Job to'xtadi — reel\nAE_TIMEOUT: op/,
+    );
+  });
+
+  it("MCP balance_get: to'ldirish yo'li, kontakt va paketlar", async () => {
+    await t.app.billing.saveSettings({ contact: "@aes_admin" }, "test");
+    await t.app.tariffs.create({
+      name: "Start",
+      description: "",
+      price_usd: 20,
+      credit_usd: 22,
+      active: true,
+      sort: 0,
+    });
+    const res = await s.call("balance_get");
+    expect(res.result.data.top_up).toMatchObject({
+      contact: "@aes_admin",
+      packages: [{ name: "Start", pay_usd: 20, credit_usd: 22 }],
+    });
+  });
 });

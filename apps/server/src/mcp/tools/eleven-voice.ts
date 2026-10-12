@@ -307,13 +307,14 @@ export const elevenVoiceTools = [
     aliases: ["el_usage"],
     title: "Balance",
     description:
-      "The user's balance in USD (prepaid; charged per use), whether the account is activated, Pro toggles (pro_music, pro_isolation) and the latest charges. Prices: audio_estimate.",
+      "The user's balance in USD (prepaid; charged per use), whether the account is activated, Pro toggles (pro_music, pro_isolation), the latest charges and how to top up (top_up: packages and payment contact — payment is manual via the admin). Prices: audio_estimate.",
     input: z.object({}),
     annotations: { readOnlyHint: true, openWorldHint: false },
     async handler(ctx) {
       const account = await ctx.app.billing.account(ctx.userId);
       const prefs = await ctx.engine.userPrefs(ctx.userId);
       const history = await ctx.app.billing.history(ctx.userId, 10);
+      const packages = await ctx.app.tariffs.list(true);
       return ok({
         balance_usd: Math.round(account.balance_usd * 100) / 100,
         activated: account.activated,
@@ -326,6 +327,15 @@ export const elevenVoiceTools = [
           cached: row.cached,
           at: row.createdAt,
         })),
+        top_up: {
+          how: "Kabinet → Sozlamalar → Balans va Pro. To'lov administrator orqali (qo'lda), tushgach balansga yoziladi.",
+          contact: ctx.app.billing.contact,
+          packages: packages.map((row) => ({
+            name: row.name,
+            pay_usd: row.priceMicros / 1_000_000,
+            credit_usd: row.creditMicros / 1_000_000,
+          })),
+        },
       });
     },
   }),

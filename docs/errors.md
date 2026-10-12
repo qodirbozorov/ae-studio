@@ -67,9 +67,9 @@ ixtiyoriy `message` va `details`. Job BLOCKED bo'lsa sabab tuzatilgach `job_resu
 
 | Kod | Qayta urinish | Nima qilish kerak |
 |---|---|---|
-| `BILLING_NOT_ACTIVATED` | yo'q | Hisob faollashtirilmagan: ishlatishni boshlash uchun boshlang'ich to'lov kerak. Foydalanuvchiga ayting (ask_user). |
+| `BILLING_NOT_ACTIVATED` | yo'q | Hisob faollashtirilmagan: ishlatishni boshlash uchun boshlang'ich to'lov kerak. Foydalanuvchiga ayting: to'ldirish — kabinet → Sozlamalar → Balans va Pro (tariflar va to'lov kontakti; details.pay). To'lovdan keyin job_resume (ask_user). |
 | `BILLING_CONFIRM_REQUIRED` | yo'q | Pro audio (musiqa generatsiyasi yoki pro ovoz tozalash) qimmatroq: foydalanuvchiga narxni ayting va rozilik oling, so'ng job_resume pro_confirmed: true (yoki kutubxona musiqasi / standart tozalashga o'ting). Foydalanuvchi panelda Pro tugmasini yoqib qo'yishi ham mumkin (ask_user). |
-| `BILLING_BALANCE_LOW` | yo'q | Balans yetmaydi. Foydalanuvchiga taxminiy narxni ayting va balansni to'ldirishni so'rang; to'ldirilgach job_resume (ask_user). |
+| `BILLING_BALANCE_LOW` | yo'q | Balans yetmaydi. Foydalanuvchiga taxminiy narxni ayting va to'ldirishni so'rang: kabinet → Sozlamalar → Balans va Pro (tariflar va to'lov kontakti; details.pay, balance_get.top_up). Arzonroq variant ham taklif qiling (kutubxona musiqasi, standart tozalash). To'ldirilgach job_resume (ask_user). |
 
 ## Render
 

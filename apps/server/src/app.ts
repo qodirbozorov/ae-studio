@@ -136,6 +136,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   ctx.billing = new BillingService(ctx, undefined, app.log);
   app.decorate("billing", ctx.billing);
   const tariffs = new TariffService(ctx);
+  ctx.tariffs = tariffs;
   app.decorate("tariffs", tariffs);
   ctx.music = new MusicLibrary(ctx);
   app.decorate("music", ctx.music);
@@ -241,6 +242,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.decorate("batches", ctx.batches);
   ctx.telegram = new TelegramService(ctx, app.log, deps.telegramOptions ?? {});
   ctx.telegram.attach(engine, ctx.batches);
+  ctx.telegram.attachBilling(ctx.billing);
   app.decorate("telegram", ctx.telegram);
   const maintenance = new MaintenanceService(ctx, app.log);
   app.decorate("maintenance", maintenance);

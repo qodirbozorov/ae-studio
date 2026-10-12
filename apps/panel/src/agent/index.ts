@@ -99,6 +99,8 @@ export interface PanelBilling {
     isolation_pro_per_min: number;
     isolation_standard_per_min: number;
   };
+  /** To'lov uchun murojaat (admin kiritgan; P9.08). Eski server bermasa — undefined. */
+  contact?: string | null;
 }
 
 export interface PanelProfile {

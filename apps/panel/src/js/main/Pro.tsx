@@ -61,6 +61,12 @@ export function ProSettings({ agent, connected }: { agent: Agent; connected: boo
               {billing.activated ? "Faol" : `${billing.activation_usd} $ to'lov kerak`}
             </span>
           </div>
+          {!billing.activated || billing.balance_usd < 1 ? (
+            <p className="hint">
+              To'ldirish: kabinet → Sozlamalar → Balans va Pro
+              {billing.contact ? ` · to'lov: ${billing.contact}` : ""}.
+            </p>
+          ) : null}
           {(
             [
               {

@@ -18,6 +18,7 @@ import { jobs, projects, telegramLinks } from "../db/schema";
 import type { BatchRow, BatchService } from "../batch/service";
 import { presentBatch } from "../batch/service";
 import type { JobEngine, JobRow } from "../jobs/engine";
+import type { BillingAccount, BillingService } from "../billing/service";
 import { describeAgent, tashkentTime } from "../auth/client-info";
 import {
   LOGIN_CALLBACK_RE,
@@ -151,6 +152,39 @@ export class TelegramService {
     if (this.enabled && this.options.poll !== false && this.webhookSecret === null) {
       this.loop = this.pollLoop();
     }
+  }
+
+  /** Balans hodisalari (P9.08): kam qoldi va to'ldirildi — bog'langan chatga xabar. */
+  attachBilling(billing: BillingService): void {
+    billing.listen({
+      low: (userId, balance) => this.track(this.onLowBalance(userId, balance, billing.contact)),
+      topup: (userId, usd, account) => this.track(this.onTopup(userId, usd, account)),
+    });
+  }
+
+  private async onLowBalance(userId: string, balance: number, contact: string | null) {
+    if (!this.enabled) return;
+    await this.notify(
+      userId,
+      [
+        `💳 Balans kam qoldi: ${balance.toFixed(2)} $`,
+        "Audio va montaj to'xtab qolmasligi uchun to'ldiring: kabinet → Sozlamalar → Balans va Pro.",
+        ...(contact === null ? [] : [`To'lov: ${contact}`]),
+      ].join("\n"),
+    );
+  }
+
+  private async onTopup(userId: string, usd: number, account: BillingAccount) {
+    if (!this.enabled) return;
+    const lines =
+      usd >= 0
+        ? [
+            `✅ Balans to'ldirildi: +${usd.toFixed(2)} $`,
+            `Balans: ${account.balance_usd.toFixed(2)} $`,
+          ]
+        : [`Balans tuzatildi: ${usd.toFixed(2)} $`, `Balans: ${account.balance_usd.toFixed(2)} $`];
+    if (usd >= 0 && account.activated) lines.push("Hisob faol — ishlatishingiz mumkin.");
+    await this.notify(userId, lines.join("\n"));
   }
 
   /** Webhook'ni ro'yxatdan o'tkazadi (server ishga tushganda; idempotent — har replika chaqirsa ham bo'ladi). */
@@ -437,10 +471,7 @@ export class TelegramService {
       return;
     }
     const error = job.error as AesError | null;
-    await this.notify(
-      row.userId,
-      `⚠️ Job to'xtadi — ${row.name}\n${error?.code ?? "?"}: ${error?.message ?? error?.hint ?? ""}`.trim(),
-    );
+    await this.notify(row.userId, blockedText(row.name, error));
   }
 
   private async onBatch(batch: BatchRow): Promise<void> {
@@ -455,5 +486,39 @@ export class TelegramService {
       ),
     ];
     await this.notify(batch.userId, lines.join("\n"));
+  }
+}
+
+/** To'xtagan job xabari (P9.08): to'lov va tasdiq holatlari tushunarli tilda, qolgani — kod va xabar. */
+export function blockedText(project: string, error: AesError | null): string {
+  const details = (error?.details ?? {}) as Record<string, unknown>;
+  switch (error?.code) {
+    case "BILLING_CONFIRM_REQUIRED": {
+      const items = Array.isArray(details.items) ? details.items.join(", ") : "Pro audio";
+      const price =
+        typeof details.price_usd === "number" ? ` ≈ ${details.price_usd.toFixed(2)} $` : "";
+      return [
+        `💳 Tasdiq kerak — ${project}`,
+        `${items}${price}.`,
+        "Claude'ga «roziman» deb yozing yoki panel → Sozlama'da Pro'ni yoqing.",
+      ].join("\n");
+    }
+    case "BILLING_BALANCE_LOW":
+    case "BILLING_NOT_ACTIVATED": {
+      const pay =
+        typeof details.pay === "string"
+          ? details.pay
+          : "Balansni to'ldiring: kabinet → Sozlamalar.";
+      return [
+        `💳 Balans yetmaydi — ${project}`,
+        error.message ?? "",
+        pay,
+        "To'ldirilgach Claude'ga «davom et» deb yozing.",
+      ]
+        .filter((line) => line !== "")
+        .join("\n");
+    }
+    default:
+      return `⚠️ Job to'xtadi — ${project}\n${error?.code ?? "?"}: ${error?.message ?? error?.hint ?? ""}`.trim();
   }
 }
