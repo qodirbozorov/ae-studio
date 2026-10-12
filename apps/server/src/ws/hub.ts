@@ -1,7 +1,12 @@
 /**
  * Panel ulanishlari markazi (§10.2): har qurilma `device_token` bilan `/ws/agent` ga ulanadi (D8 outbound).
  * Heartbeat 10 s; 30 s javobsiz → offline (job'lar uchun WAITING_AGENT, P2.11). Oplar op_id bo'yicha kutiladi.
+ *
+ * Ko'p replika (P9.07): panel istalgan replikaga ulanadi. Replikalar presence'ni (`hub.up/down/state/alive`)
+ * bir-biriga tarqatadi; boshqa replikadagi panelga `send` / `run` / `request` / `kick` cluster orqali uzatiladi
+ * (RPC: `hub.rpc` → egasi bajaradi → `hub.res`). Yakka rejimda (`cluster.shared = false`) hammasi lokal.
  */
+import { randomUUID } from "node:crypto";
 import {
   HEARTBEAT_INTERVAL_MS,
   HEARTBEAT_TIMEOUT_MS,
@@ -23,6 +28,8 @@ import type {
 import { eq } from "drizzle-orm";
 import type { FastifyBaseLogger } from "fastify";
 import type { WebSocket } from "ws";
+import { MemoryCluster } from "../cluster";
+import type { Cluster, ClusterMessage } from "../cluster";
 import type { Db } from "../db/client";
 import { devices } from "../db/schema";
 import type { DeviceIdentity } from "../devices/routes";
@@ -30,6 +37,10 @@ import { SERVER_VERSION } from "../version";
 
 /** Op timeout'iga qo'shiladigan tarmoq zaxirasi. */
 const NETWORK_SLACK_MS = 5_000;
+/** Replikalararo yetkazish uchun qo'shimcha zaxira. */
+const CLUSTER_SLACK_MS = 5_000;
+/** Boshqa replikadagi panel shu muddat "alive" yubormasa — offline hisoblanadi. */
+const REMOTE_TTL_MS = HEARTBEAT_TIMEOUT_MS + 5_000;
 
 interface Pending {
   resolve(result: Result<OpResultData>): void;
@@ -42,6 +53,8 @@ interface Connection {
   lastSeen: number;
   pending: Map<string, Pending>;
   state: AgentState;
+  /** Ulangan payt (devor soati): replikalar orasida qaysi ulanish yangiroq ekanini aniqlash uchun. */
+  since: number;
 }
 
 /** Panel o'zi haqida xabar qilgan oxirgi holat (`hello`, `ae.state`). */
@@ -68,29 +81,71 @@ interface PendingRequest {
   timer: NodeJS.Timeout;
 }
 
+/** Boshqa replikadagi panel. */
+interface RemoteDevice {
+  replica: string;
+  userId: string;
+  state: AgentState;
+  since: number;
+  seenAt: number;
+}
+
+/** Boshqa replikaga yuborilgan RPC (javob kutilmoqda). */
+interface RemoteCall {
+  deviceId: string;
+  resolve(result: Result<unknown>): void;
+  timer: NodeJS.Timeout;
+}
+
 export type PresenceListener = (deviceId: string, online: boolean) => void;
 export type MessageListener = (identity: DeviceIdentity, message: PanelMessage) => void;
+
+const EMPTY_STATE: AgentState = {
+  aeVersion: null,
+  projectRoot: null,
+  projectPath: null,
+  ffmpeg: null,
+  protocol: 1,
+  panelVersion: null,
+};
 
 export class AgentHub {
   private readonly connections = new Map<string, Connection>();
   private readonly presence = new Set<PresenceListener>();
   private readonly messages = new Set<MessageListener>();
   private readonly requests = new Map<string, PendingRequest>();
+  private readonly remote = new Map<string, RemoteDevice>();
+  private readonly calls = new Map<string, RemoteCall>();
   private heartbeat: NodeJS.Timeout | null = null;
+  private sweeper: NodeJS.Timeout | null = null;
+  private readonly cluster: Cluster;
 
   constructor(
     private readonly db: Db,
     private readonly log: FastifyBaseLogger,
     private readonly now: () => Date = () => new Date(),
-  ) {}
+    cluster?: Cluster,
+  ) {
+    this.cluster = cluster ?? new MemoryCluster();
+    if (this.cluster.shared) {
+      this.cluster.onMessage((message) => this.onCluster(message));
+      this.sweeper = setInterval(() => this.sweep(), HEARTBEAT_INTERVAL_MS);
+      this.sweeper.unref();
+    }
+  }
+
+  /** Replika ishga tushdi: boshqalardan ulangan panellar ro'yxatini so'raydi. */
+  announce(): void {
+    if (this.cluster.shared) this.cluster.broadcast({ t: "hub.sync" });
+  }
 
   isOnline(deviceId: string): boolean {
-    return this.connections.has(deviceId);
+    return this.connections.has(deviceId) || this.liveRemote(deviceId) !== null;
   }
 
   /** Ulangan panelning oxirgi holati (offline bo'lsa `null`). */
   state(deviceId: string): AgentState | null {
-    return this.connections.get(deviceId)?.state ?? null;
+    return this.connections.get(deviceId)?.state ?? this.liveRemote(deviceId)?.state ?? null;
   }
 
   onPresence(listener: PresenceListener): () => void {
@@ -114,25 +169,26 @@ export class AgentHub {
       identity,
       lastSeen: this.now().getTime(),
       pending: new Map(),
-      state: {
-        aeVersion: null,
-        projectRoot: null,
-        projectPath: null,
-        ffmpeg: null,
-        protocol: 1,
-        panelVersion: null,
-      },
+      state: { ...EMPTY_STATE },
+      since: Date.now(),
     };
     this.connections.set(identity.deviceId, connection);
+    this.remote.delete(identity.deviceId);
     socket.on("message", (data) => void this.onRaw(connection, data.toString()));
     socket.on("close", () => this.detach(connection));
     socket.on("error", (error) => this.log.warn({ err: error }, "agent WS xatosi"));
     this.emitPresence(identity.deviceId, true);
     this.ensureHeartbeat();
+    this.publishUp(connection);
   }
 
-  /** Qurilmani darhol uzadi (masalan kabinetda bekor qilinganda). */
+  /** Qurilmani darhol uzadi (masalan kabinetda bekor qilinganda) — qaysi replikada bo'lsa ham. */
   kick(deviceId: string, reason = "Qurilma bekor qilindi"): void {
+    this.kickLocal(deviceId, reason);
+    if (this.cluster.shared) this.cluster.broadcast({ t: "hub.kick", d: deviceId, reason });
+  }
+
+  private kickLocal(deviceId: string, reason: string): void {
     const connection = this.connections.get(deviceId);
     if (connection === undefined) return;
     connection.socket.close(4001, reason);
@@ -141,8 +197,13 @@ export class AgentHub {
 
   send(deviceId: string, message: ServerMessage): boolean {
     const connection = this.connections.get(deviceId);
-    if (connection === undefined) return false;
-    connection.socket.send(encodeMessage(message));
+    if (connection !== undefined) {
+      connection.socket.send(encodeMessage(message));
+      return true;
+    }
+    const remote = this.liveRemote(deviceId);
+    if (remote === null) return false;
+    this.cluster.sendTo(remote.replica, { t: "hub.send", d: deviceId, m: message });
     return true;
   }
 
@@ -150,7 +211,15 @@ export class AgentHub {
   run(deviceId: string, op: OpEnvelope, jobId: string): Promise<Result<OpResultData>> {
     const connection = this.connections.get(deviceId);
     if (connection === undefined) {
-      return Promise.resolve(fail("ENV_AGENT_OFFLINE", "Panel ulanmagan"));
+      const remote = this.liveRemote(deviceId);
+      if (remote === null) return Promise.resolve(fail("ENV_AGENT_OFFLINE", "Panel ulanmagan"));
+      return this.call(
+        remote.replica,
+        deviceId,
+        { kind: "run", op, jobId },
+        op.timeout_ms + NETWORK_SLACK_MS + CLUSTER_SLACK_MS,
+        `${op.op} javobi kelmadi`,
+      ) as Promise<Result<OpResultData>>;
     }
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
@@ -175,7 +244,15 @@ export class AgentHub {
     timeoutMs: number,
   ): Promise<Result<RequestReply>> {
     if (!this.connections.has(deviceId)) {
-      return Promise.resolve(fail("ENV_AGENT_OFFLINE", "Panel ulanmagan"));
+      const remote = this.liveRemote(deviceId);
+      if (remote === null) return Promise.resolve(fail("ENV_AGENT_OFFLINE", "Panel ulanmagan"));
+      return this.call(
+        remote.replica,
+        deviceId,
+        { kind: "request", m: message, timeoutMs },
+        timeoutMs + CLUSTER_SLACK_MS,
+        `${message.type} javobi kelmadi`,
+      ) as Promise<Result<RequestReply>>;
     }
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
@@ -189,10 +266,17 @@ export class AgentHub {
 
   close(): void {
     if (this.heartbeat !== null) clearInterval(this.heartbeat);
+    if (this.sweeper !== null) clearInterval(this.sweeper);
     this.heartbeat = null;
+    this.sweeper = null;
     for (const connection of [...this.connections.values()]) {
       connection.socket.close(1001, "Server to'xtatilmoqda");
       this.detach(connection);
+    }
+    for (const [id, call] of [...this.calls]) {
+      clearTimeout(call.timer);
+      this.calls.delete(id);
+      call.resolve(fail("ENV_AGENT_OFFLINE", "Server to'xtatilmoqda"));
     }
   }
 
@@ -229,6 +313,13 @@ export class AgentHub {
     }
     void this.touch(connection.identity.deviceId, {});
     this.emitPresence(connection.identity.deviceId, false);
+    if (this.cluster.shared) {
+      this.cluster.broadcast({
+        t: "hub.down",
+        d: connection.identity.deviceId,
+        since: connection.since,
+      });
+    }
     this.log.info({ device: connection.identity.deviceId }, "panel uzildi");
   }
 
@@ -261,6 +352,7 @@ export class AgentHub {
           protocol: message.protocol_version,
           panelVersion: message.panel_version,
         };
+        this.publishState(connection);
         await this.touch(connection.identity.deviceId, { aeVersion: message.ae_version });
         connection.socket.send(
           encodeMessage({
@@ -284,6 +376,7 @@ export class AgentHub {
           protocol: connection.state.protocol,
           panelVersion: connection.state.panelVersion,
         };
+        this.publishState(connection);
         await this.touch(connection.identity.deviceId, { aeVersion: message.ae_version });
         break;
       case "op.done":
@@ -299,6 +392,7 @@ export class AgentHub {
     // papkani qayta ochishni so'ramasin.
     if (message.type === "project.opened") {
       connection.state = { ...connection.state, projectRoot: message.project.root_path };
+      this.publishState(connection);
     }
     if ("request_id" in message && message.request_id !== undefined) {
       const pending = this.requests.get(message.request_id);
@@ -333,5 +427,188 @@ export class AgentHub {
       }
       connection.socket.send(encodeMessage({ type: "ping", ts: nowMs }));
     }
+    this.publishAlive();
+  }
+
+  // ---------------------------------------------------------------- replikalar (P9.07)
+
+  private liveRemote(deviceId: string): RemoteDevice | null {
+    const entry = this.remote.get(deviceId);
+    if (entry === undefined) return null;
+    if (this.now().getTime() - entry.seenAt > REMOTE_TTL_MS) return null;
+    return entry;
+  }
+
+  private snapshot(connection: Connection) {
+    return {
+      d: connection.identity.deviceId,
+      u: connection.identity.userId,
+      s: connection.state,
+      since: connection.since,
+    };
+  }
+
+  private publishUp(connection: Connection): void {
+    if (this.cluster.shared) this.cluster.broadcast({ t: "hub.up", ...this.snapshot(connection) });
+  }
+
+  private publishState(connection: Connection): void {
+    if (this.cluster.shared) {
+      this.cluster.broadcast({
+        t: "hub.state",
+        d: connection.identity.deviceId,
+        s: connection.state,
+      });
+    }
+  }
+
+  private publishAlive(): void {
+    if (!this.cluster.shared || this.connections.size === 0) return;
+    this.cluster.broadcast({
+      t: "hub.alive",
+      list: [...this.connections.values()].map((c) => this.snapshot(c)),
+    });
+  }
+
+  /** Eskirgan remote yozuvlar va ularga yuborilgan RPC'lar. */
+  private sweep(): void {
+    const nowMs = this.now().getTime();
+    for (const [deviceId, entry] of [...this.remote]) {
+      if (nowMs - entry.seenAt > REMOTE_TTL_MS) this.dropRemote(deviceId, entry.replica);
+    }
+  }
+
+  private dropRemote(deviceId: string, replica: string): void {
+    const entry = this.remote.get(deviceId);
+    if (entry === undefined || entry.replica !== replica) return;
+    this.remote.delete(deviceId);
+    for (const [id, call] of [...this.calls]) {
+      if (call.deviceId !== deviceId) continue;
+      clearTimeout(call.timer);
+      this.calls.delete(id);
+      call.resolve(fail("ENV_AGENT_OFFLINE", "Panel uzildi"));
+    }
+  }
+
+  /** Boshqa replikadagi panel ulandi yoki tirikligini bildirdi. */
+  private remoteUp(replica: string, item: { d: string; u: string; s: AgentState; since: number }) {
+    const local = this.connections.get(item.d);
+    if (local !== undefined) {
+      const remoteNewer =
+        item.since > local.since ||
+        (item.since === local.since && replica > this.cluster.replicaId);
+      if (!remoteNewer) {
+        // Bizdagi ulanish yangiroq — eskisini yopishlari uchun qayta e'lon qilamiz.
+        this.publishUp(local);
+        return;
+      }
+      local.socket.close(4000, "Yangi ulanish bilan almashtirildi");
+      this.detach(local);
+    }
+    this.remote.set(item.d, {
+      replica,
+      userId: item.u,
+      state: item.s,
+      since: item.since,
+      seenAt: this.now().getTime(),
+    });
+  }
+
+  private call(
+    replica: string,
+    deviceId: string,
+    body: Record<string, unknown>,
+    timeoutMs: number,
+    timeoutText: string,
+  ): Promise<Result<unknown>> {
+    const id = randomUUID();
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.calls.delete(id);
+        resolve(fail("AE_TIMEOUT", timeoutText));
+      }, timeoutMs);
+      this.calls.set(id, { deviceId, resolve, timer });
+      this.cluster.sendTo(replica, { t: "hub.rpc", id, d: deviceId, ...body });
+    });
+  }
+
+  private onCluster(message: ClusterMessage): void {
+    const from = message.from;
+    if (from === undefined || from === this.cluster.replicaId) return;
+    switch (message.t) {
+      case "hub.sync":
+        this.publishAlive();
+        return;
+      case "hub.up":
+        this.remoteUp(from, message as unknown as Parameters<AgentHub["remoteUp"]>[1]);
+        return;
+      case "hub.alive":
+        for (const item of message.list as Parameters<AgentHub["remoteUp"]>[1][]) {
+          const known = this.remote.get(item.d);
+          if (known !== undefined && known.replica === from) {
+            known.seenAt = this.now().getTime();
+            known.state = item.s;
+          } else {
+            this.remoteUp(from, item);
+          }
+        }
+        return;
+      case "hub.state": {
+        const known = this.remote.get(message.d as string);
+        if (known !== undefined && known.replica === from) {
+          known.state = message.s as AgentState;
+          known.seenAt = this.now().getTime();
+        }
+        return;
+      }
+      case "hub.down": {
+        const known = this.remote.get(message.d as string);
+        if (known !== undefined && known.since === message.since) {
+          this.dropRemote(message.d as string, from);
+        }
+        return;
+      }
+      case "hub.kick":
+        this.kickLocal(message.d as string, String(message.reason ?? "Qurilma bekor qilindi"));
+        return;
+      case "hub.send":
+        if (this.connections.has(message.d as string)) {
+          this.send(message.d as string, message.m as ServerMessage);
+        }
+        return;
+      case "hub.rpc":
+        void this.serve(from, message);
+        return;
+      case "hub.res": {
+        const call = this.calls.get(message.id as string);
+        if (call === undefined) return;
+        clearTimeout(call.timer);
+        this.calls.delete(message.id as string);
+        call.resolve(message.result as Result<unknown>);
+        return;
+      }
+      default:
+        return;
+    }
+  }
+
+  /** Boshqa replika so'radi: bizdagi panelda bajarib javobini qaytaramiz. */
+  private async serve(from: string, message: ClusterMessage): Promise<void> {
+    const deviceId = message.d as string;
+    let result: Result<unknown>;
+    if (!this.connections.has(deviceId)) {
+      result = fail("ENV_AGENT_OFFLINE", "Panel ulanmagan");
+    } else if (message.kind === "run") {
+      result = await this.run(deviceId, message.op as OpEnvelope, message.jobId as string);
+    } else if (message.kind === "request") {
+      result = await this.request(
+        deviceId,
+        message.m as Extract<ServerMessage, { request_id: string }>,
+        Number(message.timeoutMs),
+      );
+    } else {
+      result = fail("SYS_BAD_REQUEST", "Noma'lum RPC");
+    }
+    this.cluster.sendTo(from, { t: "hub.res", id: message.id, result });
   }
 }

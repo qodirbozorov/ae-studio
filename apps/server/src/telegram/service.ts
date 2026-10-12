@@ -100,7 +100,8 @@ export class TelegramService {
   private readonly handled = new Set<number>();
 
   constructor(
-    private readonly ctx: Pick<AppContext, "db" | "env" | "now">,
+    private readonly ctx: Pick<AppContext, "db" | "env" | "now"> &
+      Partial<Pick<AppContext, "cluster">>,
     private readonly log: FastifyBaseLogger,
     private readonly options: TelegramOptions = {},
   ) {
@@ -287,6 +288,13 @@ export class TelegramService {
     // Avval webhook o'rnatilgan bo'lsa getUpdates ishlamaydi (409).
     await this.api("deleteWebhook", {});
     while (!this.stopped) {
+      // Ko'p replika (P9.07): getUpdates'ni faqat bitta replika chaqiradi (aks holda Telegram 409 beradi).
+      // Bir nechta replikada webhook (TELEGRAM_WEBHOOK_SECRET) tavsiya etiladi.
+      const cluster = this.ctx.cluster;
+      if (cluster?.shared === true && !(await cluster.acquire("telegram:poll", 90_000))) {
+        await this.sleep(15_000);
+        continue;
+      }
       try {
         await this.pollOnce();
       } catch (error) {

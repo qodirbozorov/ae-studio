@@ -8,7 +8,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { FastifyBaseLogger } from "fastify";
 import type { AppContext } from "../context";
 import { devices } from "../db/schema";
-import { RateLimiter } from "../lib/rate-limit";
+import { createLimiter } from "../lib/rate-limit";
+import type { Limiter } from "../lib/rate-limit";
 import { deleteSecret, maskSecret, readSecret, saveSecret } from "../secrets";
 import { ElevenClient, ElevenError } from "./client";
 import type { ElevenOptions } from "./client";
@@ -42,14 +43,17 @@ const CALLS_PER_MINUTE = 60;
 
 export class ElevenService {
   private readonly cache = new Map<string, { at: number; value: Subscription }>();
-  private readonly limiter: RateLimiter;
+  private readonly limiter: Limiter;
 
   constructor(
-    private readonly ctx: Pick<AppContext, "db" | "env" | "now" | "hub">,
+    private readonly ctx: Pick<AppContext, "db" | "env" | "now" | "hub"> &
+      Partial<Pick<AppContext, "cluster">>,
     private readonly log: FastifyBaseLogger,
     private readonly options: ElevenOptions = {},
   ) {
-    this.limiter = new RateLimiter(CALLS_PER_MINUTE, 60_000, () => ctx.now().getTime());
+    this.limiter = createLimiter(ctx.cluster, "audio", CALLS_PER_MINUTE, 60_000, () =>
+      ctx.now().getTime(),
+    );
   }
 
   attach(): void {
@@ -86,7 +90,7 @@ export class ElevenService {
     if (key === null) {
       return fail("EL_AUTH", "Audio xizmati sozlanmagan (administrator: ELEVENLABS_API_KEY)");
     }
-    if (!this.limiter.take(userId)) {
+    if (!(await this.limiter.check(userId)).allowed) {
       return fail("EL_RATE_LIMIT", `Daqiqasiga ${CALLS_PER_MINUTE} ta audio so'rov`);
     }
     return ok(this.build(key));

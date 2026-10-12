@@ -11,6 +11,7 @@ import type { BrandService } from "./brands/service";
 import type { BatchService } from "./batch/service";
 import type { TelegramService } from "./telegram/service";
 import type { Storage } from "./storage";
+import type { Cluster } from "./cluster";
 import type { AgentHub } from "./ws/hub";
 
 /** Route modullari uchun umumiy bog'liqliklar. `now` — testlarda vaqtni boshqarish uchun. */
@@ -22,6 +23,8 @@ export interface AppContext {
   storage: Storage;
   /** Ulangan panellar (WS). */
   hub: AgentHub;
+  /** Replikalararo xabar, qulf va hisoblagich (P9.07); yakka rejimda lokal. */
+  cluster: Cluster;
   /** ElevenLabs hisobi va klientlari (P4.01). */
   eleven: ElevenService;
   /** Audio vazifalari navbati (P4.03). */

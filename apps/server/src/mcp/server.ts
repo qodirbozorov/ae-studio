@@ -13,7 +13,9 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { fail, makeError, parseWith } from "@aes/shared";
 import type { AesError } from "@aes/shared";
 import { z } from "zod";
-import { RateLimiter } from "../lib/rate-limit";
+import { createLimiter } from "../lib/rate-limit";
+import type { Limiter } from "../lib/rate-limit";
+import type { Cluster } from "../cluster";
 import { SERVER_VERSION } from "../version";
 import type { PromptDef } from "./prompts";
 import type { ToolContext, ToolDef, ToolOutput } from "./registry";
@@ -52,7 +54,7 @@ export function toCallResult(output: ToolOutput, notices: readonly string[] = []
 export interface McpServerOptions {
   tools: readonly ToolDef[];
   prompts: readonly PromptDef[];
-  limiter: RateLimiter;
+  limiter: Limiter;
   context: ToolContext;
   /** Har tool chaqiruvi (audit, Claude indikatori). */
   onCall?: (name: string, ok: boolean) => void;
@@ -89,10 +91,11 @@ export function createMcpServer(options: McpServerOptions): Server {
     if (tool === undefined) {
       return toCallResult(fail("SYS_NOT_FOUND", `Noma'lum tool: ${request.params.name}`));
     }
-    if (!options.limiter.take(options.context.userId)) {
+    const limit = await options.limiter.check(options.context.userId);
+    if (!limit.allowed) {
       return toCallResult(
         fail("SYS_RATE_LIMIT", `Daqiqasiga ${PER_MINUTE} ta chaqiruv chegarasi`, {
-          retry_after_s: options.limiter.retryAfterS(options.context.userId),
+          retry_after_s: limit.retryAfterS,
         }),
       );
     }
@@ -134,6 +137,6 @@ export function createMcpServer(options: McpServerOptions): Server {
   return server;
 }
 
-export function mcpRateLimiter(now: () => Date): RateLimiter {
-  return new RateLimiter(PER_MINUTE, 60_000, () => now().getTime());
+export function mcpRateLimiter(now: () => Date, cluster?: Cluster): Limiter {
+  return createLimiter(cluster, "mcp", PER_MINUTE, 60_000, () => now().getTime());
 }

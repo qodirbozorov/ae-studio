@@ -12,11 +12,11 @@
   - audio vazifalari;
   - batch'lar.
 - **Migratsiyalar** pre-deploy bosqichida (`node apps/server/dist/migrate.js`). Ular idempotent:
-  0000–0015.
+  0000–0017.
 - **Build** `deep-filter` 0.5.6 binarini yuklaydi (`apps/server/scripts/fetch-deep-filter.mjs`, sha256
   tekshiriladi) — standart ovoz tozalash serverda bajariladi.
 
-### Env (Faza 8)
+### Env (Faza 8–9)
 
 | O'zgaruvchi | Ma'nosi |
 |---|---|
@@ -26,6 +26,8 @@
 | `AES_ROLE` | `all` (default) · `api` · `worker` |
 | `AUDIO_CONCURRENCY` | Worker'da parallel audio vazifalar (default 2) |
 | `DEEP_FILTER_BIN` | `deep-filter` yo'li (bo'sh — `apps/server/bin/` dan topiladi) |
+| `TELEGRAM_WEBHOOK_SECRET` | Telegram webhook (24–256 belgi `A-Za-z0-9_-`). Berilsa — webhook, aks holda long polling. Bir nechta replikada tavsiya etiladi |
+| `AES_CLUSTER` | `redis` · `off`. Berilmasa: production'da `redis` (presence, RPC, qulflar Redis orqali), boshqa muhitda `off` |
 
 ### Storage
 
@@ -36,15 +38,42 @@ ikkalasini ko'rsatadi: yuklab olish, o'chirish, bir storage'dan boshqasiga nusxa
 ### Masshtab
 
 - Bitta instans (`AES_ROLE=all`) — default. Audio navbati, job engine va Telegram polling jarayon ichida.
+- **Bir nechta replika** (P9.07; Railway → server → Replicas). Talablar: R2 faol (volume bitta replikaga
+  ulanadi), Redis (`REDIS_URL`, ichki tarmoq), `AES_CLUSTER` `off` emas, Telegram uchun webhook
+  (`TELEGRAM_WEBHOOK_SECRET`). Nima qanday ishlaydi:
+  - panel istalgan replikaga ulanadi; replikalar presence'ni Redis pub/sub orqali tarqatadi, boshqa
+    replikadagi panelga op/so'rov RPC bilan yetkaziladi (`apps/server/src/ws/hub.ts`);
+  - job driver `job:<id>` qulfi ostida (60 s, uzaytiriladi): bitta job ikki replikada yurmaydi; qulf band
+    bo'lsa egasiga "yana yurit" yuboriladi; replika o'lsa qulf bo'shaydi va qayta ishga tushganda tiklanadi;
+  - batch `advance` — `batch:<id>` qulfi; backup/tozalash va Telegram polling — lider qulfi;
+  - audio: navbat Postgres'da (atomar egallash, 40 daqiqalik lease), kutuvchilar DB orqali xabar oladi;
+  - rate limit (login, admin, OAuth, MCP, audio) — Redis hisoblagichi (barcha replikalar uchun umumiy);
+  - narx va storage sozlamasi o'zgarsa boshqa replikalar darhol qayta o'qiydi;
+  - sessiya, OAuth, admin cookie — DB yoki imzo (holatsiz).
+  Cheklov: admin → Storage'dagi "nusxalash" holati faqat shu so'rov tushgan replikada ko'rinadi.
+  Redis ishlamasa qulf va limit "ochiq" ishlaydi (xizmat to'xtamaydi, xato logda).
 - Og'ir audio uchun alohida worker servisi: serverda `AES_ROLE=api`, worker'da `AES_ROLE=worker` (xuddi shu
   image, `DATABASE_URL` va `MASTER_KEY` bir xil). **Faqat R2 faol bo'lganda** — volume bitta servisga
   ulanadi. Worker navbatdan vazifani atomar oladi, 40 daqiqalik lease bilan; o'lgan worker'ning vazifasi
   qaytadi. R2 faol bo'lmasa worker kutadi va `/health` 503 qaytaradi.
 
+### Admin (`/admin`)
+
+- **Foydalanuvchilar:** qidiruv (ism, @username, Telegram ID, email, ID), holat filtri, umumiy ko'rsatkichlar
+  (tushum, sarf, tannarx, marja). Profil: balans va sarf tarixi, panellar, Claude ulanishlari, joblar,
+  sessiyalar. Amallar: balansni to'ldirish (tarif yoki erkin summa; manfiy — tuzatish), sessiyalarni bekor
+  qilish (ixtiyoriy Claude ulanishlari bilan), bloklash (barcha sessiya, panel va Claude tokenlari bekor,
+  panel uziladi; har autentifikatsiyada ham tekshiriladi) va blokdan chiqarish.
+- **Narxlar:** tariflar (to'lov → balansga summa, bonus; faollari kabinetda ko'rinadi), stavkalar (ustama,
+  oddiy/pro nisbati, kesh, montaj, boshlang'ich to'lov, tannarxlar — bo'sh maydon koddagi qiymat), to'lov
+  kontakti (kabinet, panel, bot va Claude ko'rsatadi). Har o'zgarish audit'da.
+
 ### Balans va musiqa
 
-- To'ldirish: `pnpm --filter @aes/server topup <telegram_id|email|user_id> <usd> [izoh]`
-  (`DATABASE_PUBLIC_URL` bilan). Jami 20 $ ga yetganda hisob faollashadi.
+- To'ldirish: admin → Foydalanuvchilar → profil (tarif yoki summa) yoki
+  `pnpm --filter @aes/server topup <telegram_id|email|user_id> <usd> [izoh]`
+  (`DATABASE_PUBLIC_URL` bilan). Jami 20 $ ga yetganda hisob faollashadi. Foydalanuvchiga botda xabar boradi;
+  balans 1 $ dan pastga tushganda ham.
 - Musiqa kutubxonasi: admin → **Musiqa** (yuklash, nom/kategoriya/tavsif, nomzodlarni tasdiqlash) yoki
   `pnpm --filter @aes/server seed:music <papka> [meta.json|csv]`. Pro generatsiya natijalari nomzod
   sifatida avtomatik yig'iladi.
@@ -77,6 +106,19 @@ Har kuni avtomatik tozalanadi:
 | Telegram bog'lash kodlari | muddati o'tishi bilan |
 
 Server loglari (pino, stdout) Railway'da saqlanadi. `authorization` va `cookie` sarlavhalari yashiriladi.
+
+## Xavfsizlik ko'rigi (2026-10-12, Faza 9)
+
+| Soha | Holat |
+|---|---|
+| Kirish (Telegram) | Bot so'rov tafsilotini (brauzer, IP, Toshkent vaqti) ko'rsatadi; saytdagi 2 xonali raqam botdagi 3 tugmadan tanlanadi; noto'g'ri raqam yoki «Bu men emas» so'rovni yopadi; havolani boshqa Telegram hisobi ocholmaydi. Fishing havolasi bilan begona kira olmaydi |
+| Webhook | `X-Telegram-Bot-Api-Secret-Token` konstant vaqtda solishtiriladi, takroriy update e'tiborsiz |
+| Sessiyalar | IP va brauzer saqlanadi; kabinetda ro'yxat, bittasini yoki boshqa barchasini yopish; 24 soatda rotatsiya (eski token 60 s ishlaydi). Token `created_at` ilova soatidan |
+| Bloklash | Barcha kirish tokenlari bekor + sessiya, panel (HTTP/WS), Claude bearer va OAuth token berishda tekshiruv; Telegram kirishi rad |
+| Device flow | Tasdiq sahifasida panel IP'si va vaqti; boshqa tarmoqdan bo'lsa ogohlantirish |
+| Admin | HMAC cookie (`sameSite=strict`), konstant vaqt, umumiy rate limit, o'zgartiruvchi so'rovlarda Origin, har amal audit'da (login, logout ham) |
+| IDOR | REST (`/api/*`, `/api/agent/*`) va MCP tool'larining barcha id'li so'rovlari foydalanuvchi yoki qurilma bo'yicha filtrlanadi (ko'rib chiqildi; testlarda boshqa foydalanuvchiga 404) |
+| Ko'p replika | Redis faqat ichki tarmoqda (cluster xabarlari ishonchli kanal hisoblanadi) |
 
 ## Xavfsizlik ko'rigi (2026-10-07)
 

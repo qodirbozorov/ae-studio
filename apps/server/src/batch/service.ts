@@ -8,6 +8,7 @@ import type { AesError, Aspect, Result } from "@aes/shared";
 import { and, eq } from "drizzle-orm";
 import type { FastifyBaseLogger } from "fastify";
 import type { AppContext } from "../context";
+import { withLock } from "../cluster";
 import { batches, projects } from "../db/schema";
 import type { JobEngine, JobRow } from "../jobs/engine";
 import { applyTemplate } from "../templates/apply";
@@ -58,7 +59,8 @@ export class BatchService {
   private stopped = false;
 
   constructor(
-    private readonly ctx: Pick<AppContext, "db" | "now" | "templates">,
+    private readonly ctx: Pick<AppContext, "db" | "now" | "templates"> &
+      Partial<Pick<AppContext, "cluster">>,
     private readonly engine: JobEngine,
     private readonly log: FastifyBaseLogger,
   ) {}
@@ -216,16 +218,31 @@ export class BatchService {
     return ok(updated);
   }
 
-  private kick(batchId: string): void {
+  private kick(batchId: string, attempt = 0): void {
     if (this.stopped) return;
     const previous = this.chains.get(batchId) ?? Promise.resolve();
     const next = previous
-      .then(() => this.advance(batchId))
+      .then(() => this.advanceLocked(batchId, attempt))
       .catch((error: unknown) => this.log.error({ err: error, batch: batchId }, "batch xatosi"));
     this.chains.set(batchId, next);
     void next.finally(() => {
       if (this.chains.get(batchId) === next) this.chains.delete(batchId);
     });
+  }
+
+  /**
+   * Ko'p replika (P9.07): `advance` (items JSON'ini o'qib-yozadi) `batch:<id>` qulfi ostida. Qulf band bo'lsa
+   * — boshqa replika hozir yuritmoqda; hodisa yo'qolmasligi uchun biroz keyin qayta urinamiz.
+   */
+  private async advanceLocked(batchId: string, attempt: number): Promise<void> {
+    const cluster = this.ctx.cluster;
+    if (cluster === undefined || !cluster.shared) return this.advance(batchId);
+    const result = await withLock(cluster, `batch:${batchId}`, 120_000, () =>
+      this.advance(batchId),
+    );
+    if (!result.done && attempt < 20 && !this.stopped) {
+      setTimeout(() => this.kick(batchId, attempt + 1), 3000).unref();
+    }
   }
 
   private async kickRunning(): Promise<void> {

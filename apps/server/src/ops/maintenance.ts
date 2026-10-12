@@ -13,6 +13,8 @@ import { dumpDatabase } from "./backup";
 import type { BackupStats } from "./backup";
 
 export const BACKUP_PREFIX = "system/backups/";
+/** Lider qulfi (P9.07). */
+const LEADER_MS = 2 * 3600_000;
 const DAY_MS = 24 * 3600_000;
 const AUDIT_RETENTION_DAYS = 365;
 const TOKEN_GRACE_DAYS = 7;
@@ -31,7 +33,8 @@ export class MaintenanceService {
   private running: Promise<unknown> | null = null;
 
   constructor(
-    private readonly ctx: Pick<AppContext, "db" | "storage" | "env" | "now">,
+    private readonly ctx: Pick<AppContext, "db" | "storage" | "env" | "now"> &
+      Partial<Pick<AppContext, "cluster">>,
     private readonly log: FastifyBaseLogger,
   ) {}
 
@@ -90,6 +93,11 @@ export class MaintenanceService {
   /** Soatiga bir: muddati kelgan backup va tozalash. */
   async tick(): Promise<void> {
     if (this.running !== null) return;
+    // Ko'p replika (P9.07): backup va tozalashni faqat lider bajaradi (qulf har tick'da yangilanadi,
+    // lider o'lsa 2 soatdan keyin boshqasi oladi).
+    const cluster = this.ctx.cluster;
+    if (cluster?.shared === true && !(await cluster.acquire("maintenance:leader", LEADER_MS)))
+      return;
     const now = this.ctx.now().getTime();
     const interval = this.ctx.env.BACKUP_INTERVAL_H * 3600_000;
     const work = (async () => {

@@ -10,16 +10,16 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 8 — Ovoz dvigateli, narx va admin · yakunlandi (10/10)
-- **Oxirgi bajarilgan:** P8.10 — e2e (ledger), docs, deploy, panel 0.6.0 (o'rnatilgan) (2026-10-12)
-- **Keyingi todo:** Faza 9 — P9.02 foydalanuvchilar boshqaruvi (admin), P9.03 balans/to'ldirish UI, P9.06 Telegram auth mustahkamlash, P9.07 multi-replica
-- **Faza 8 natijasi (qisqa):**
-  - Narx: `packages/shared/src/pricing.ts` (tannarx × 2.4; basic — DFN3/kutubxona × 0.1; kesh × 0.5; timeline 0.01 $/daq job uchun bir marta); sarf `usage_ledger`; `BILLING_ENFORCE` prod'da o'chiq.
-  - Pro tasdiq: `users.prefs` (pro_music, pro_isolation) — panel/kabinet tugmalari; o'chiq bo'lsa `BILLING_CONFIRM_REQUIRED` → Claude narxni aytib so'raydi → `pro_confirmed`.
-  - Audio: DFN3 serverda (`deep-filter` 0.5.6), musiqa kutubxonasi (admin → Musiqa, `seed:music`, `music_search`, loop + crossfade), markaziy `ELEVENLABS_API_KEY`, tool nomlari neytral (`el_*` alias).
-  - Admin `/admin` (`ADMIN_LOGIN`/`ADMIN_PASSWORD`): Storage (volume ↔ R2 toggle, fayl ko'ruvchi, nusxalash), Musiqa. Worker: `AES_ROLE=api|worker` faqat R2 faol bo'lganda.
-  - Ops hujjati: docs/production.md → "Env (Faza 8)", "Storage", "Masshtab", "Balans va musiqa".
-- 👤 **Railway env:** `ADMIN_LOGIN`, `ADMIN_PASSWORD` (≥12), `ELEVENLABS_API_KEY`; R2 — admin → Storage orqali.
+- **Faza:** 9 — Admin, tariflar, auth xavfsizligi, masshtab · yakunlandi (9/9)
+- **Oxirgi bajarilgan:** P9.09 — xavfsizlik ko'rigi, docs, deploy (2026-10-12)
+- **Keyingi todo:** reja yakunlangan — yangi talablar foydalanuvchidan
+- **Faza 8–9 natijasi (qisqa):**
+  - Narx: `packages/shared/src/pricing.ts` (tannarx × 2.4; basic × 0.1; kesh × 0.5; timeline 0.01 $/daq); stavkalar admin'da (`system_settings.billing`), sarf `usage_ledger`; `BILLING_ENFORCE` prod'da o'chiq.
+  - Admin `/admin`: Foydalanuvchilar (profil, to'ldirish tarif/summa, bloklash, sessiyalar), Narxlar (tariflar, stavkalar, to'lov kontakti), Musiqa, Storage (volume ↔ R2).
+  - Kirish: botda tafsilot + saytdagi raqam (3 tugma) + «Bu men emas»; sessiyalar ro'yxati/rotatsiya; webhook `TELEGRAM_WEBHOOK_SECRET`.
+  - Ko'p replika: `apps/server/src/cluster` (Redis pub/sub, qulf, hisoblagich; `AES_CLUSTER`), hub RPC, job/batch qulfi, lider (backup, Telegram polling). Talab: R2 + Redis + webhook.
+  - Ops hujjati: docs/production.md → "Env (Faza 8–9)", "Masshtab", "Admin", "Xavfsizlik ko'rigi (2026-10-12)".
+- 👤 **Railway env:** `ADMIN_LOGIN`, `ADMIN_PASSWORD` (≥12), `ELEVENLABS_API_KEY`; ixtiyoriy `TELEGRAM_WEBHOOK_SECRET`; R2 — admin → Storage. `BILLING_ENFORCE=1` — tariflar va to'lov kontakti kiritilgach.
 - **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
@@ -1719,3 +1719,7 @@ Kabinet: reference uslubi (Inter light, Google Fonts), mobil moslashuv, PWA (man
 ### Faza 8 yakuni (2026-10-12)
 
 Ovoz dvigateli va narx: sarf jurnali (USD), DFN3 serverda, musiqa kutubxonasi (loop/crossfade), Pro tasdiq (panel/kabinet tugmalari + MCP `pro_confirmed`), neytral tool nomlari, admin (Storage: volume ↔ R2 + fayl ko'ruvchi; Musiqa), audio worker (Postgres navbati, lease). Approve panel/kabinetdan. Panel 0.6.0: balans pill'i, Sozlama → Balans va Pro. To'liq to'plam: 576 o'tdi, 2 skip.
+
+### Faza 9 yakuni (2026-10-12)
+
+Admin: foydalanuvchilar (qidiruv, profil, to'ldirish tarif/summa, bloklash — barcha tokenlar bekor + har auth'da tekshiruv), tariflar, narx stavkalari DB'da, to'lov kontakti, umumiy ko'rsatkichlar. Telegram kirish: tafsilot + raqam mosligi + «Bu men emas», webhook (secret_token), sessiyalar (ro'yxat, yopish, rotatsiya), device flow IP. Bot: balans va to'xtagan job xabarlari. Ko'p replika: Redis cluster (presence/RPC, job/batch qulfi, lider, umumiy rate limit, sozlamalar tarqatilishi). To'liq to'plam oddiy va `AES_TEST_CLUSTER=shared` rejimlarida o'tdi.

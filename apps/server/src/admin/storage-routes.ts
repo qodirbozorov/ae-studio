@@ -33,7 +33,7 @@ const driverArg = z.enum(["local", "s3"]);
 
 export function registerAdminStorageRoutes(
   app: FastifyInstance,
-  ctx: Pick<AppContext, "env" | "db" | "now">,
+  ctx: Pick<AppContext, "env" | "db" | "now"> & Partial<Pick<AppContext, "cluster">>,
   storage: SwitchStorage,
   settings: StorageSettings,
 ): void {
@@ -43,6 +43,8 @@ export function registerAdminStorageRoutes(
   const pick = (name: StorageDriverName) => storage.byName(name);
   const note = (action: string, data: unknown, ip: string) =>
     audit(ctx, app.log, { userId: null, actor: "admin", action, ip, data });
+  /** Boshqa replikalar sozlamani darhol qayta o'qisin (P9.07; aks holda 30 s ichida). */
+  const changed = () => ctx.cluster?.broadcast({ t: "settings", key: "storage" });
 
   app.get("/api/admin/storage", { preHandler: requireAdmin }, async () =>
     ok({ ...settings.view(), copy }),
@@ -60,6 +62,7 @@ export function registerAdminStorageRoutes(
     if (!parsed.success) return reply.code(400).send(fail("SYS_BAD_REQUEST", parsed.error.message));
     const result = await settings.saveR2(parsed.data, "admin");
     if (!result.ok) return reply.code(400).send(result);
+    changed();
     await note(
       "admin.storage.r2_saved",
       { endpoint: parsed.data.endpoint, bucket: parsed.data.bucket },
@@ -70,7 +73,9 @@ export function registerAdminStorageRoutes(
 
   app.delete("/api/admin/storage/r2", { preHandler: requireAdmin }, async (request) => {
     await note("admin.storage.r2_removed", null, request.ip);
-    return ok(await settings.removeR2("admin"));
+    const removed = await settings.removeR2("admin");
+    changed();
+    return ok(removed);
   });
 
   app.put("/api/admin/storage/active", { preHandler: requireAdmin }, async (request, reply) => {
@@ -78,6 +83,7 @@ export function registerAdminStorageRoutes(
     if (!parsed.success) return reply.code(400).send(fail("SYS_BAD_REQUEST", "driver: local | s3"));
     const result = await settings.setActive(parsed.data.driver, "admin");
     if (!result.ok) return reply.code(400).send(result);
+    changed();
     await note("admin.storage.active", { driver: parsed.data.driver }, request.ip);
     return result;
   });

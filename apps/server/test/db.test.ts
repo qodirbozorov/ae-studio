@@ -60,6 +60,7 @@ describe("migratsiyalar", () => {
       "system_settings",
       "telegram_logins",
       "usage_ledger",
+      "tariffs",
     ];
     expect(rows.map((r) => r.table_name).sort()).toEqual([...fromPlan, ...extra].sort());
   });

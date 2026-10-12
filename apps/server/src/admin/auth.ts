@@ -9,12 +9,12 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { audit } from "../audit";
 import type { AppContext } from "../context";
-import { RateLimiter } from "../lib/rate-limit";
+import { createLimiter } from "../lib/rate-limit";
 
 export const ADMIN_COOKIE = "aes_admin";
 const TTL_MS = 12 * 60 * 60 * 1000;
 
-type Ctx = Pick<AppContext, "env" | "db" | "now">;
+type Ctx = Pick<AppContext, "env" | "db" | "now"> & Partial<Pick<AppContext, "cluster">>;
 
 function signingKey(env: Ctx["env"]): Buffer | null {
   if (env.ADMIN_LOGIN === undefined || env.ADMIN_PASSWORD === undefined) return null;
@@ -82,20 +82,21 @@ export function makeRequireAdmin(ctx: Ctx) {
 }
 
 export function registerAdminAuth(app: FastifyInstance, ctx: Ctx): void {
-  // IP bo'yicha: 15 daqiqada 8 ta urinish.
-  const limiter = new RateLimiter(8, 15 * 60_000, () => ctx.now().getTime());
+  // IP bo'yicha: 15 daqiqada 8 ta urinish (barcha replikalar uchun umumiy).
+  const limiter = createLimiter(ctx.cluster, "admin-login", 8, 15 * 60_000, () =>
+    ctx.now().getTime(),
+  );
   const body = z.object({ login: z.string().max(200), password: z.string().max(500) });
 
   app.post("/api/admin/login", async (request, reply) => {
     if (signingKey(ctx.env) === null) {
       return reply.code(404).send(fail("SYS_NOT_FOUND", "Admin panel sozlanmagan"));
     }
-    if (!limiter.take(request.ip)) {
-      return reply.code(429).send(
-        fail("SYS_RATE_LIMIT", "Juda ko'p urinish", {
-          retry_after_s: limiter.retryAfterS(request.ip),
-        }),
-      );
+    const limit = await limiter.check(request.ip);
+    if (!limit.allowed) {
+      return reply
+        .code(429)
+        .send(fail("SYS_RATE_LIMIT", "Juda ko'p urinish", { retry_after_s: limit.retryAfterS }));
     }
     const parsed = body.safeParse(request.body);
     const valid =

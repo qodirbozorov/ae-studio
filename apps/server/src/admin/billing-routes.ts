@@ -44,6 +44,7 @@ export function registerAdminBillingRoutes(
     }
     const before = ctx.billing.stored;
     await ctx.billing.saveSettings(parsed.data, `admin:${ctx.env.ADMIN_LOGIN ?? "?"}`);
+    ctx.cluster.broadcast({ t: "settings", key: "billing" });
     await note("admin.pricing.update", { before, after: parsed.data }, request.ip);
     return ok(pricingView());
   });

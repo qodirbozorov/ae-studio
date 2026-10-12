@@ -14,13 +14,23 @@ export class ClaudePresence {
   private readonly lastPushed = new Map<string, number>();
 
   constructor(
-    private readonly ctx: Pick<AppContext, "db" | "hub" | "now">,
+    private readonly ctx: Pick<AppContext, "db" | "hub" | "now"> &
+      Partial<Pick<AppContext, "cluster">>,
     private readonly log: FastifyBaseLogger,
   ) {}
 
   attach(): void {
     this.ctx.hub.onMessage((identity, message) => {
       if (message.type === "hello") void this.pushTo(identity.userId, [identity.deviceId]);
+    });
+    // Ko'p replika (P9.07): MCP so'rovi boshqa replikaga tushsa ham "oxirgi faollik" hammada bir xil.
+    this.ctx.cluster?.onMessage((message) => {
+      if (message.t !== "claude.seen" || typeof message.u !== "string") return;
+      const at = new Date(String(message.at));
+      const known = this.lastSeen.get(message.u);
+      if (!Number.isNaN(at.getTime()) && (known === undefined || known < at)) {
+        this.lastSeen.set(message.u, at);
+      }
     });
   }
 
@@ -31,6 +41,9 @@ export class ClaudePresence {
     const pushed = this.lastPushed.get(userId) ?? 0;
     if (now.getTime() - pushed < PUSH_INTERVAL_MS) return;
     this.lastPushed.set(userId, now.getTime());
+    if (this.ctx.cluster?.shared === true) {
+      this.ctx.cluster.broadcast({ t: "claude.seen", u: userId, at: now.toISOString() });
+    }
     void this.pushTo(userId);
   }
 

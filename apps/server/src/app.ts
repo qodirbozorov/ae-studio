@@ -2,7 +2,9 @@ import { fail } from "@aes/shared";
 import cookie from "@fastify/cookie";
 import websocket from "@fastify/websocket";
 import Fastify from "fastify";
-import type { FastifyError, FastifyInstance } from "fastify";
+import type { FastifyBaseLogger, FastifyError, FastifyInstance } from "fastify";
+import { MemoryCluster } from "./cluster";
+import type { Cluster } from "./cluster";
 import { registerAssetRoutes } from "./assets/routes";
 import { audit, registerAuditRoutes } from "./audit";
 import { registerAuthRoutes } from "./auth/routes";
@@ -38,7 +40,7 @@ import { registerAdminAuth } from "./admin/auth";
 import { registerAdminStorageRoutes } from "./admin/storage-routes";
 import { registerAdminMusicRoutes } from "./admin/music-routes";
 import type { Storage } from "./storage";
-import { RateLimiter } from "./lib/rate-limit";
+import { createLimiter } from "./lib/rate-limit";
 import { findWebDist, isSpaRequest, registerWeb } from "./web";
 import { projects } from "./db/schema";
 import { eq } from "drizzle-orm";
@@ -59,6 +61,7 @@ declare module "fastify" {
   interface FastifyInstance {
     /** Ulangan panellar markazi (testlar va keyingi modullar uchun). */
     hub: AgentHub;
+    cluster: Cluster;
     storage: Storage;
     jobs: JobEngine;
     audio: AudioService;
@@ -73,6 +76,9 @@ declare module "fastify" {
     maintenance: MaintenanceService;
   }
 }
+
+/** Audio vazifasi "tirik" hisoblanadigan muddat (worker bilan bir xil, P8.03). */
+const AUDIO_LEASE_MS = 40 * 60_000;
 
 export interface AppDeps {
   env: Env;
@@ -89,6 +95,11 @@ export interface AppDeps {
   audioOptions?: ConstructorParameters<typeof AudioService>[2];
   /** Telegram (testlar: soxta fetch, polling'siz). */
   telegramOptions?: TelegramOptions;
+  /**
+   * Replikalararo aloqa (P9.07). Berilmasa — yakka (`MemoryCluster`, taqsimlangan yo'llar o'chiq).
+   * Production: `RedisCluster` (`index.ts`).
+   */
+  cluster?: (log: FastifyBaseLogger) => Cluster;
 }
 
 /** Fastify ilovasini yig'adi (tinglamaydi): testlar `app.inject()` bilan chaqiradi. */
@@ -121,12 +132,20 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
 
   const now = deps.now ?? (() => new Date());
-  const hub = new AgentHub(deps.db, app.log, now);
+  const cluster = deps.cluster?.(app.log) ?? new MemoryCluster();
+  try {
+    await cluster.start();
+  } catch (error) {
+    app.log.error({ err: error }, "cluster (Redis) ulanmadi: replikalararo aloqa ishlamaydi");
+  }
+  app.decorate("cluster", cluster);
+  const hub = new AgentHub(deps.db, app.log, now, cluster);
   app.decorate("hub", hub);
   const storage = deps.storage ?? createStorage(deps.env, app.log, now);
   app.decorate("storage", storage);
   const ctx = {
     hub,
+    cluster,
     storage,
     env: deps.env,
     db: deps.db,
@@ -135,6 +154,15 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   } as AppContext;
   ctx.billing = new BillingService(ctx, undefined, app.log);
   app.decorate("billing", ctx.billing);
+  // Admin narxni boshqa replikada o'zgartirdi (P9.07).
+  cluster.onMessage((message) => {
+    if (message.t === "settings" && message.key === "billing") {
+      ctx.billing
+        .loadSettings()
+        .catch((error: unknown) => app.log.warn({ err: error }, "narx sozlamasi yangilanmadi"));
+    }
+  });
+
   const tariffs = new TariffService(ctx);
   ctx.tariffs = tariffs;
   app.decorate("tariffs", tariffs);
@@ -154,6 +182,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     ...(deps.env.DEEP_FILTER_BIN === undefined
       ? {}
       : { deepFilter: { bin: deps.env.DEEP_FILTER_BIN } }),
+    cluster,
     ...deps.audioOptions,
   });
   ctx.audio.attach();
@@ -175,7 +204,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(websocket, { options: { maxPayload: 16 * 1024 * 1024 } });
 
   // Login va qurilma ulash: IP bo'yicha chegaralar (brute force / spam'ga qarshi, P3.10).
-  const authLimiter = new RateLimiter(30, 10 * 60_000, () => now().getTime());
+  const authLimiter = createLimiter(ctx.cluster, "auth", 30, 10 * 60_000, () => now().getTime());
   const limited = new Set(["/api/auth/telegram", "/oauth/device/code", "/api/devices/confirm"]);
   // Xavfsizlik sarlavhalari (P5.13): MIME sniffing, clickjacking, referer sizishi, HTTPS (production).
   app.addHook("onSend", async (_request, reply) => {
@@ -188,10 +217,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   app.addHook("onRequest", async (request, reply) => {
     if (request.method !== "POST" || !limited.has(request.url.split("?")[0]!)) return;
-    if (!authLimiter.take(`${request.ip}:${request.url}`)) {
+    const limit = await authLimiter.check(`${request.ip}:${request.url}`);
+    if (!limit.allowed) {
       return reply
         .code(429)
-        .header("retry-after", String(authLimiter.retryAfterS(`${request.ip}:${request.url}`)))
+        .header("retry-after", String(limit.retryAfterS))
         .send(fail("SYS_RATE_LIMIT", "Juda ko'p urinish, birozdan keyin qayta urining"));
     }
   });
@@ -220,6 +250,15 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     }
     storageSettings.start();
     app.addHook("onClose", async () => storageSettings.stop());
+    cluster.onMessage((message) => {
+      if (message.t === "settings" && message.key === "storage") {
+        storageSettings
+          .load()
+          .catch((error: unknown) =>
+            app.log.warn({ err: error }, "storage sozlamasi yangilanmadi"),
+          );
+      }
+    });
     registerAdminStorageRoutes(app, ctx, storage, storageSettings);
   }
   registerHealth(app, deps);
@@ -311,7 +350,12 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         ctx.audio.startPolling();
         return;
       }
-      const requeued = await ctx.audio.recover();
+      // Ko'p replika (P9.07): boshqa tirik replika bajarayotgan vazifaga tegilmaydi (lease), o'lganlarning
+      // navbatdagi vazifalarini DB navbatidan olamiz (egallash atomar).
+      const requeued = cluster.shared
+        ? await ctx.audio.recover({ leaseMs: AUDIO_LEASE_MS })
+        : await ctx.audio.recover();
+      if (cluster.shared) ctx.audio.startPolling(5000);
       if (requeued > 0) app.log.info({ requeued }, "audio vazifalari davom ettirildi");
     } catch (error) {
       app.log.warn({ err: error }, "audio vazifalari tiklanmadi");
@@ -325,6 +369,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       app.log.error({ err: error }, "narx sozlamasi o'qilmadi: kod stavkalari ishlatiladi");
     }
     ctx.billing.startRefresh();
+    // Boshqa replikalardagi panellar ro'yxati (P9.07).
+    hub.announce();
   });
   app.addHook("onReady", async () => {
     // DB hali tayyor bo'lmasa server baribir ko'tariladi (health 503 ko'rsatadi).
@@ -347,6 +393,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     hub.close();
     await engine.idle();
     await ctx.batches.idle();
+    await cluster.close();
   });
 
   return app;

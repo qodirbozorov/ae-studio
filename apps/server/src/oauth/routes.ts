@@ -18,7 +18,7 @@ import type { TokenRow } from "../auth/tokens";
 import type { AppContext } from "../context";
 import { oauthClients, oauthTokens } from "../db/schema";
 import { audit } from "../audit";
-import { RateLimiter } from "../lib/rate-limit";
+import { createLimiter } from "../lib/rate-limit";
 import {
   OAuthError,
   fetchClientMetadata,
@@ -129,8 +129,9 @@ export function registerOAuthRoutes(
   const urls = oauthUrls(ctx.env.PUBLIC_URL);
   const fetcher = options.fetcher ?? fetchClientMetadata;
   const csrfSecret = ctx.env.JWT_SIGNING_KEY ?? randomBytes(32).toString("hex");
-  const registerLimit = new RateLimiter(30, 60 * 60_000, () => ctx.now().getTime());
-  const tokenLimit = new RateLimiter(120, 60_000, () => ctx.now().getTime());
+  const clock = () => ctx.now().getTime();
+  const registerLimit = createLimiter(ctx.cluster, "oauth-register", 30, 60 * 60_000, clock);
+  const tokenLimit = createLimiter(ctx.cluster, "oauth-token", 120, 60_000, clock);
 
   const csrfFor = (sessionId: string) =>
     createHash("sha256").update(`${sessionId}:${csrfSecret}`).digest("base64url");
@@ -177,7 +178,7 @@ export function registerOAuthRoutes(
   // ---------------------------------------------------------------- DCR
 
   app.post("/oauth/register", async (request, reply) => {
-    if (!registerLimit.take(request.ip)) {
+    if (!(await registerLimit.check(request.ip)).allowed) {
       return oauthReply(reply, new OAuthError("invalid_request", "Juda ko'p so'rov", 429));
     }
     try {
@@ -404,7 +405,7 @@ export function registerOAuthRoutes(
   }
 
   app.post("/oauth/token", async (request, reply) => {
-    if (!tokenLimit.take(request.ip)) {
+    if (!(await tokenLimit.check(request.ip)).allowed) {
       return oauthReply(reply, new OAuthError("invalid_request", "Juda ko'p so'rov", 429));
     }
     const body = (request.body ?? {}) as Record<string, string>;

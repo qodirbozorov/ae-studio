@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app";
 import type { AppDeps } from "../../src/app";
+import { MemoryCluster, MemoryNetwork } from "../../src/cluster";
 import { SESSION_TTL_MS } from "../../src/auth/session";
 import { issueToken } from "../../src/auth/tokens";
 import { users } from "../../src/db/schema";
@@ -23,7 +24,10 @@ export interface TestApp {
 export async function createTestApp(
   env: Record<string, string> = {},
   db?: TestDb,
-  extra: Pick<AppDeps, "oauthFetcher" | "elevenOptions" | "audioOptions" | "telegramOptions"> = {},
+  extra: Pick<
+    AppDeps,
+    "oauthFetcher" | "elevenOptions" | "audioOptions" | "telegramOptions" | "cluster"
+  > = {},
 ): Promise<TestApp> {
   const testDb = db ?? (await createTestDb());
   const clock = {
@@ -46,6 +50,13 @@ export async function createTestApp(
     db: testDb.db,
     redis: { ping: async () => "PONG", quit: async () => "OK" },
     now: () => clock.now,
+    // `AES_TEST_CLUSTER=shared` — butun to'plam taqsimlangan yo'llar (qulf, tarqatish) yoqilgan holda (P9.07).
+    ...(process.env.AES_TEST_CLUSTER === "shared"
+      ? {
+          cluster: () =>
+            new MemoryCluster({ network: new MemoryNetwork(() => clock.now.getTime()) }),
+        }
+      : {}),
     ...extra,
   });
   return {

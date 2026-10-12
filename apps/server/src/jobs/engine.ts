@@ -43,6 +43,7 @@ import type { FastifyBaseLogger } from "fastify";
 import { applyScan } from "../assets/routes";
 import { isProAudio, quoteTask } from "../audio/service";
 import type { AppContext } from "../context";
+import { withLock } from "../cluster";
 import {
   assets,
   jobEvents,
@@ -117,10 +118,14 @@ const MAX_BATCH_OPS = 400;
 const BATCH_TIMEOUT_CAP_MS = 30 * 60_000;
 const BATCH_SLACK_MS = 15_000;
 
+/** Job driver qulfi (davriy uzaytiriladi; replika o'lsa shu muddatdan keyin bo'shaydi). */
+const DRIVE_LOCK_MS = 60_000;
+
 export type EngineContext = Pick<
   AppContext,
   | "db"
   | "hub"
+  | "cluster"
   | "now"
   | "storage"
   | "eleven"
@@ -200,11 +205,20 @@ export class JobEngine {
     private readonly log: FastifyBaseLogger,
   ) {}
 
-  /** Hub'ga ulanadi: panel `hello` yuborganda shu qurilmadagi `WAITING_AGENT` joblar davom etadi. */
+  /**
+   * Hub'ga ulanadi: panel `hello` yuborganda shu qurilmadagi `WAITING_AGENT` joblar davom etadi.
+   * Ko'p replika (P9.07): boshqa replika "shu jobni yurit" desa (`job.drive`) — yuritamiz.
+   */
   attach(): void {
     this.ctx.hub.onMessage((identity, message) => {
       if (message.type === "hello") void this.agentReady(identity.deviceId);
     });
+    if (this.ctx.cluster.shared) {
+      this.ctx.cluster.onMessage((message) => {
+        if (message.t === "job.drive" && typeof message.job === "string")
+          void this.drive(message.job);
+      });
+    }
   }
 
   listen(listener: JobListener): () => void {
@@ -571,7 +585,11 @@ export class JobEngine {
 
   // ------------------------------------------------------------------ driver
 
-  /** Job'ni idle holatgacha yuritadi. Bir job uchun bitta driver; ishlab tursa yana bir aylanish belgilanadi. */
+  /**
+   * Job'ni idle holatgacha yuritadi. Bir job uchun bitta driver; ishlab tursa yana bir aylanish belgilanadi.
+   * Ko'p replika (P9.07): driver `job:<id>` qulfi ostida — bitta job ikki replikada yurmaydi. Qulf boshqa
+   * replikada bo'lsa, o'shanga "yana bir aylanish" so'rovi yuboriladi (holat DB'da, u qayta o'qiydi).
+   */
   drive(jobId: string): Promise<void> {
     const running = this.driving.get(jobId);
     if (running !== undefined) {
@@ -579,15 +597,33 @@ export class JobEngine {
       return running;
     }
     const run = (async () => {
-      do {
-        this.rerun.delete(jobId);
-        await this.loop(jobId);
-      } while (this.rerun.has(jobId) && !this.stopped);
+      const outcome = await withLock(this.ctx.cluster, `job:${jobId}`, DRIVE_LOCK_MS, async () => {
+        do {
+          this.rerun.delete(jobId);
+          await this.loop(jobId);
+        } while (this.rerun.has(jobId) && !this.stopped);
+      });
+      if (!outcome.done) await this.forward(jobId);
     })()
       .catch((error: unknown) => this.log.error({ err: error, job: jobId }, "job driver xatosi"))
-      .finally(() => this.driving.delete(jobId));
+      .finally(() => {
+        this.driving.delete(jobId);
+        // Tsikl tugagach kelgan so'rov yo'qolmasin.
+        if (this.rerun.delete(jobId) && !this.stopped) void this.drive(jobId);
+      });
     this.driving.set(jobId, run);
     return run;
+  }
+
+  /** Qulf egasi bo'lgan replikaga "yana yurit" (u allaqachon yuritayotgan bo'lsa — yana bir aylanish). */
+  private async forward(jobId: string): Promise<void> {
+    const owner = await this.ctx.cluster.owner(`job:${jobId}`);
+    if (owner !== null && owner !== this.ctx.cluster.replicaId) {
+      this.ctx.cluster.sendTo(owner, { t: "job.drive", job: jobId });
+      return;
+    }
+    // Qulf shu orada bo'shadi — o'zimiz yuritamiz.
+    this.rerun.add(jobId);
   }
 
   private async loop(jobId: string): Promise<void> {

@@ -72,6 +72,11 @@ export const envSchema = z
      * vazifalari (HTTP faqat /health). `api`/`worker` umumiy storage (R2) bilan ishlaydi.
      */
     AES_ROLE: z.enum(["all", "api", "worker"]).default("all"),
+    /**
+     * Replikalararo aloqa (P9.07): `redis` — presence/RPC/qulflar Redis orqali (bir nechta replika uchun),
+     * `off` — yakka. Berilmasa: production'da `redis`, boshqa muhitda `off`.
+     */
+    AES_CLUSTER: z.enum(["redis", "off"]).optional(),
     /** DeepFilterNet3 binari (berilmasa `apps/server/bin/deep-filter`). */
     DEEP_FILTER_BIN: optionalString,
     /** Bitta jarayonda bir vaqtda bajariladigan audio vazifalar soni. */

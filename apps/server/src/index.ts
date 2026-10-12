@@ -1,4 +1,5 @@
 import { buildApp } from "./app";
+import { RedisCluster } from "./cluster";
 import { createDb } from "./db/client";
 import { loadEnv } from "./env";
 import { createRedis } from "./redis";
@@ -12,7 +13,14 @@ async function main(): Promise<void> {
   // Audio worker (P8.03): bitta build, rol env bilan (`AES_ROLE=worker`).
   if (env.AES_ROLE === "worker") return runWorker(env, database);
   const redis = createRedis(env.REDIS_URL);
-  const app = await buildApp({ env, db: database.db, redis });
+  const clustered =
+    env.AES_CLUSTER === "redis" || (env.AES_CLUSTER === undefined && env.NODE_ENV === "production");
+  const app = await buildApp({
+    env,
+    db: database.db,
+    redis,
+    ...(clustered ? { cluster: (log) => new RedisCluster(env.REDIS_URL, log) } : {}),
+  });
 
   app.addHook("onClose", async () => {
     await Promise.allSettled([database.close(), redis.quit()]);

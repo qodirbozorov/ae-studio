@@ -80,6 +80,22 @@ Testlar Vitest bilan yoziladi. Turlari:
 - Xato `fail(code, message, details)` bilan, kodi `ERROR_DEFS` dan.
 - So'ng `pnpm gen:docs` va test.
 
+## Ko'p replika (P9.07)
+
+Server bir nechta replikada ishlay oladi (`apps/server/src/cluster`). Yangi kod yozganda:
+
+- **Holat xotirada bo'lmasin.** Haqiqat manbai — Postgres; xotiradagi kesh faqat tezlik uchun.
+- **Panelga** faqat `ctx.hub` orqali (`send`, `run`, `request`, `kick`) — panel boshqa replikada bo'lsa ham
+  yetadi. `hub.onMessage` faqat shu replikaga ulangan panellar xabarini oladi: undagi ish DB orqali bo'lsin.
+- **Fondagi ish** (davriy yoki "bitta bo'lishi shart"): `withLock(ctx.cluster, "<kalit>", ttl, fn)` yoki lider
+  qulfi (`cluster.acquire` har tick'da). Yakka rejimda (`cluster.shared = false`) qulf yo'q.
+- **Rate limit:** `createLimiter(ctx.cluster, "<nom>", limit, oyna)`.
+- **Boshqa replikaga xabar:** `cluster.broadcast({ t: "<tur>", … })` / `cluster.sendTo(replica, …)`;
+  qabul — `cluster.onMessage` (build vaqtida ro'yxatdan o'tkazing, `onReady` ichida emas).
+- **Test:** `test/cluster.test.ts` — ikki ilova bitta PGlite va `MemoryNetwork` bilan. Butun to'plamni
+  taqsimlangan yo'llar yoqilgan holda: `AES_TEST_CLUSTER=shared pnpm test`. Redis buyruqlari —
+  `test/redis-cluster.test.ts` (ioredis-mock).
+
 ## Deploy (Railway)
 
 - `railway.json`:

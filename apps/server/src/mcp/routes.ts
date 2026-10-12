@@ -23,7 +23,7 @@ export function registerMcpRoutes(
   engine: JobEngine,
   hooks: McpHooks = {},
 ): void {
-  const limiter = mcpRateLimiter(ctx.now);
+  const limiter = mcpRateLimiter(ctx.now, ctx.cluster);
 
   app.post("/mcp", { bodyLimit: 4 * 1024 * 1024 }, async (request, reply) => {
     const auth = await authenticateBearer(ctx, request.headers.authorization);

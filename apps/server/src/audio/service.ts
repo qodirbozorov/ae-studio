@@ -12,6 +12,7 @@ import type { AesError, AudioKind, AudioTier, PriceQuote, PricingRates, Result }
 import { and, desc, eq, gt, inArray, isNotNull, isNull, lt } from "drizzle-orm";
 import type { FastifyBaseLogger } from "fastify";
 import type { AppContext } from "../context";
+import type { Cluster } from "../cluster";
 import { audioTasks, elevenCache, musicTracks, projects } from "../db/schema";
 import { forcedAlignment, isolate, speechToText } from "../eleven/analyze";
 import { audioResult } from "../eleven/audio";
@@ -166,6 +167,7 @@ export class AudioService {
   private readonly concurrency: number;
   private poller: NodeJS.Timeout | null = null;
   private watcher: NodeJS.Timeout | null = null;
+  private syncer: NodeJS.Timeout | null = null;
   /** `api` roli: shu jarayonda xabar berilgan holatlar (`id:status:updatedAt`). */
   private readonly seen = new Map<string, number>();
   private watchSince: Date | null = null;
@@ -180,9 +182,34 @@ export class AudioService {
       role?: () => "all" | "api" | "worker";
       /** Server isolation buyrug'i (sukut: topilgan `deep-filter` binari). */
       deepFilter?: { command?: string[]; bin?: string };
+      /** Ko'p replika (P9.07): vazifani boshqa replika bajarsa ham kutuvchilar DB orqali xabar oladi. */
+      cluster?: Cluster;
     } = {},
   ) {
     this.concurrency = options.concurrency ?? 2;
+    if (options.cluster?.shared === true) {
+      this.syncer = setInterval(() => void this.syncWaiters().catch(() => undefined), 1000);
+      this.syncer.unref();
+    }
+  }
+
+  /** Bu jarayonda kutilayotgan, lekin boshqa replikada tugagan vazifalar (faqat kutuvchilarga xabar). */
+  async syncWaiters(): Promise<void> {
+    if (this.waiters.size === 0) return;
+    const ids = [...this.waiters.keys()].filter((id) => !this.running.has(id));
+    if (ids.length === 0) return;
+    const rows = await this.ctx.db
+      .select()
+      .from(audioTasks)
+      .where(
+        and(inArray(audioTasks.id, ids), inArray(audioTasks.status, ["done", "failed", "skipped"])),
+      );
+    for (const row of rows) {
+      const set = this.waiters.get(row.id);
+      if (set === undefined) continue;
+      this.waiters.delete(row.id);
+      for (const resolve of set) resolve(row);
+    }
   }
 
   private get executes(): boolean {
@@ -204,6 +231,8 @@ export class AudioService {
     this.stopped = true;
     if (this.poller !== null) clearInterval(this.poller);
     if (this.watcher !== null) clearInterval(this.watcher);
+    if (this.syncer !== null) clearInterval(this.syncer);
+    this.syncer = null;
     this.poller = null;
     this.watcher = null;
   }

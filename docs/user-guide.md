@@ -10,11 +10,17 @@ so'rasangiz `out/` papkasida MP4.
    (ulanish → ish papkasi → muhit tekshiruvi).
 2. **Claude:** [claude-connector.md](claude-connector.md) — Claude'da custom connector qo'shing (server
    manzili `/mcp`). Birinchi marta brauzerda kabinetga kirib ruxsat berasiz.
-3. **Web kabinet** (server manzili): «Telegram orqali kirish» → botda **Start**. Ro'yxatdan o'tish ham
-   shu, email va parol kerak emas. Shu chat xabarnomalar uchun avtomatik ulanadi. Keyin Sozlamalar:
-   - **Balans va Pro** — balans dollarda. Boshlash uchun bir martalik 20 $ to'lov (administrator kiritadi),
-     keyin ishlatilgan sari yechiladi. Bu yerda (yoki panel → Sozlama) **Pro musiqa** va **Pro ovoz
-     tozalash** tugmalari: yoqilsa Claude har safar so'ramaydi, o'chiq bo'lsa narxni aytib ruxsat so'raydi.
+3. **Web kabinet** (server manzili): «Telegram orqali kirish» → botda **Start** → bot so'rov tafsilotini
+   (brauzer, IP, vaqt) ko'rsatadi → **saytdagi raqamni** botda tanlang. Raqam mos kelmasa yoki kirishni siz
+   boshlamagan bo'lsangiz («Bu men emas») — kirish bekor bo'ladi. Ro'yxatdan o'tish ham shu, email va parol
+   kerak emas. Shu chat xabarnomalar uchun avtomatik ulanadi. Keyin Sozlamalar:
+   - **Balans va Pro** — balans dollarda. Boshlash uchun bir martalik 20 $ to'lov, keyin ishlatilgan sari
+     yechiladi. To'lov hozircha administrator orqali: tariflar va murojaat shu bo'limda; to'lov tushgach
+     botga xabar keladi (balans 1 $ dan kamaysa ham). Bu yerda (yoki panel → Sozlama) **Pro musiqa** va
+     **Pro ovoz tozalash** tugmalari: yoqilsa Claude har safar so'ramaydi, o'chiq bo'lsa narxni aytib
+     ruxsat so'raydi.
+   - **Kirishlar** — kabinet ochiq brauzerlar (brauzer, IP). Tanimaganini yoping yoki «Boshqa barchasidan
+     chiqish».
    - **Telegram** — kirishda avtomatik ulanadi (boshqa chatga: «Ulash kodini olish» → botga `/start <kod>`). Video tayyor bo'lganda yoki
      to'xtaganda xabar keladi.
    - **Brand kit** (ixtiyoriy) — ranglar, shriftlar, logo, subtitr stili, default ovoz. `default` slug'li
