@@ -9,7 +9,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { AUDIO_INPUT_KINDS, fail, makeError, ok, quoteAudio } from "@aes/shared";
 import type { AesError, AudioKind, AudioTier, PriceQuote, Result } from "@aes/shared";
-import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNotNull, isNull, lt } from "drizzle-orm";
 import type { FastifyBaseLogger } from "fastify";
 import type { AppContext } from "../context";
 import { audioTasks, elevenCache, projects } from "../db/schema";
@@ -133,13 +133,27 @@ export class AudioService {
   private readonly delivering = new Map<string, Promise<void>>();
   private stopped = false;
   private readonly concurrency: number;
+  private poller: NodeJS.Timeout | null = null;
+  private watcher: NodeJS.Timeout | null = null;
+  /** `api` roli: shu jarayonda xabar berilgan holatlar (`id:status:updatedAt`). */
+  private readonly seen = new Map<string, number>();
+  private watchSince: Date | null = null;
 
   constructor(
     private readonly ctx: Pick<AppContext, "db" | "hub" | "now" | "storage" | "eleven" | "billing">,
     private readonly log: FastifyBaseLogger,
-    private readonly options: { concurrency?: number; dubPoll?: PollOptions } = {},
+    private readonly options: {
+      concurrency?: number;
+      dubPoll?: PollOptions;
+      /** `api` — vazifalarni o'zi bajarmaydi (worker oladi); `worker`/`all` — bajaradi. */
+      role?: () => "all" | "api" | "worker";
+    } = {},
   ) {
     this.concurrency = options.concurrency ?? 2;
+  }
+
+  private get executes(): boolean {
+    return (this.options.role?.() ?? "all") !== "api";
   }
 
   attach(): void {
@@ -155,6 +169,69 @@ export class AudioService {
 
   stop(): void {
     this.stopped = true;
+    if (this.poller !== null) clearInterval(this.poller);
+    if (this.watcher !== null) clearInterval(this.watcher);
+    this.poller = null;
+    this.watcher = null;
+  }
+
+  /**
+   * Worker: navbatdagi vazifalarni DB'dan oladi (bir nechta worker xavfsiz raqobatlashadi — `process()`
+   * vazifani atomar egallaydi).
+   */
+  startPolling(intervalMs = 1000): void {
+    if (this.poller !== null) return;
+    this.poller = setInterval(() => void this.pollOnce().catch(() => undefined), intervalMs);
+    this.poller.unref();
+  }
+
+  async pollOnce(): Promise<void> {
+    if (this.stopped || !this.executes) return;
+    const free = this.concurrency - this.running.size - this.pending.length;
+    if (free <= 0) return;
+    const rows = await this.ctx.db
+      .select({ id: audioTasks.id })
+      .from(audioTasks)
+      .where(eq(audioTasks.status, "queued"))
+      .orderBy(audioTasks.createdAt)
+      .limit(free);
+    for (const row of rows) this.enqueue(row.id);
+  }
+
+  /**
+   * `api` roli: boshqa jarayon (worker) yangilagan vazifalarni kuzatadi — kutayotganlarga xabar beradi va
+   * tayyor faylni panelga yetkazadi (panel shu serverga ulangan).
+   */
+  startWatching(intervalMs = 1000): void {
+    if (this.watcher !== null) return;
+    this.watchSince = this.ctx.now();
+    this.watcher = setInterval(() => void this.watchOnce().catch(() => undefined), intervalMs);
+    this.watcher.unref();
+  }
+
+  async watchOnce(): Promise<void> {
+    if (this.stopped || this.watchSince === null) return;
+    const since = new Date(this.watchSince.getTime() - 2000);
+    const rows = await this.ctx.db
+      .select()
+      .from(audioTasks)
+      .where(gt(audioTasks.updatedAt, since))
+      .orderBy(audioTasks.updatedAt)
+      .limit(200);
+    const nowMs = this.ctx.now().getTime();
+    for (const row of rows) {
+      const key = `${row.id}:${row.status}:${row.updatedAt.getTime()}`;
+      if (this.seen.has(key)) continue;
+      this.seen.set(key, nowMs);
+      if (row.updatedAt > this.watchSince) this.watchSince = row.updatedAt;
+      if (["done", "failed", "skipped"].includes(row.status)) {
+        this.finished(row);
+        if (row.status === "done") void this.deliver(row);
+      } else {
+        this.notify(row);
+      }
+    }
+    for (const [key, at] of this.seen) if (nowMs - at > 60_000) this.seen.delete(key);
   }
 
   /** Testlar: navbat va yetkazishlar tugashini kutadi. */
@@ -317,12 +394,22 @@ export class AudioService {
     if (task !== undefined) this.finished(task);
   }
 
-  /** Server ishga tushganda: tugallanmagan vazifalarni qayta navbatga qo'yadi, yetkazilmaganlarni yetkazadi. */
-  async recover(): Promise<number> {
+  /**
+   * Ishga tushganda: tugallanmagan vazifalarni qayta navbatga qo'yadi. `leaseMs` berilsa (bir nechta worker)
+   * faqat shu muddatdan uzoq "running" turganlar (o'lgan worker'niki) qaytariladi.
+   */
+  async recover(options: { leaseMs?: number } = {}): Promise<number> {
+    const stale =
+      options.leaseMs === undefined
+        ? inArray(audioTasks.status, ["queued", "running"])
+        : and(
+            eq(audioTasks.status, "running"),
+            lt(audioTasks.updatedAt, new Date(this.ctx.now().getTime() - options.leaseMs)),
+          );
     const rows = await this.ctx.db
       .update(audioTasks)
       .set({ status: "queued", updatedAt: this.ctx.now() })
-      .where(inArray(audioTasks.status, ["queued", "running"]))
+      .where(stale)
       .returning({ id: audioTasks.id });
     for (const row of rows) this.enqueue(row.id);
     return rows.length;
@@ -331,7 +418,9 @@ export class AudioService {
   // ---------------------------------------------------------------- navbat
 
   private enqueue(id: string): void {
-    if (!this.pending.includes(id)) this.pending.push(id);
+    // `api` roli: vazifani worker oladi (DB navbati).
+    if (!this.executes) return;
+    if (!this.pending.includes(id) && !this.running.has(id)) this.pending.push(id);
     this.pump();
   }
 

@@ -56,6 +56,15 @@ export const envSchema = z
     /** Lokal storage drayveri papkasi (S3 berilmaganda). */
     STORAGE_DIR: optionalString,
 
+    /**
+     * Jarayon roli (P8.03): `all` — hammasi bitta serverda (sukut); `api` — server audio vazifalarini
+     * bajarmaydi, faqat navbatga qo'yadi va natijani kuzatib panelga yetkazadi; `worker` — faqat audio
+     * vazifalari (HTTP faqat /health). `api`/`worker` umumiy storage (R2) bilan ishlaydi.
+     */
+    AES_ROLE: z.enum(["all", "api", "worker"]).default("all"),
+    /** Bitta jarayonda bir vaqtda bajariladigan audio vazifalar soni. */
+    AUDIO_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(2),
+
     /** `/admin` kirishi (login va parol). Berilmasa admin panel o'chiq. */
     ADMIN_LOGIN: optionalString,
     ADMIN_PASSWORD: z.string().min(12).optional(),

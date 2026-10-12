@@ -58,6 +58,7 @@ declare module "fastify" {
     jobs: JobEngine;
     audio: AudioService;
     billing: BillingService;
+    eleven: ElevenService;
     templates: TemplateService;
     brands: BrandService;
     batches: BatchService;
@@ -129,7 +130,17 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.decorate("billing", ctx.billing);
   ctx.eleven = new ElevenService(ctx, app.log, deps.elevenOptions ?? {});
   ctx.eleven.attach();
-  ctx.audio = new AudioService(ctx, app.log, deps.audioOptions ?? {});
+  app.decorate("eleven", ctx.eleven);
+  // `api` roli faqat umumiy storage (R2) bilan: lokal diskni worker ko'rmaydi — unda server o'zi bajaradi.
+  const audioRole = () =>
+    deps.env.AES_ROLE === "api" && ctx.storage.driver === "s3"
+      ? ("api" as const)
+      : ("all" as const);
+  ctx.audio = new AudioService(ctx, app.log, {
+    role: audioRole,
+    concurrency: deps.env.AUDIO_CONCURRENCY,
+    ...deps.audioOptions,
+  });
   ctx.audio.attach();
   app.decorate("audio", ctx.audio);
   ctx.templates = new TemplateService(ctx);
@@ -260,6 +271,12 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   app.addHook("onReady", async () => {
     try {
+      if (deps.env.AES_ROLE === "api") {
+        // Worker bajaradi; server natijani kuzatadi. R2 o'chirilsa server navbatni o'zi oladi.
+        ctx.audio.startWatching();
+        ctx.audio.startPolling();
+        return;
+      }
       const requeued = await ctx.audio.recover();
       if (requeued > 0) app.log.info({ requeued }, "audio vazifalari davom ettirildi");
     } catch (error) {
