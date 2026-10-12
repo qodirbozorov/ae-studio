@@ -118,7 +118,7 @@ describe("preflight va dry_run", () => {
     const dry = await s.call("build_start", { project_id: projectId, dry_run: true });
     expect(dry.result.data).toMatchObject({
       dry_run: true,
-      credits: 0,
+      timeline_usd: expect.any(Number),
       ops_by_type: { "project.save": 4 },
     });
     expect(await t.db.db.select().from(jobs)).toEqual([]);

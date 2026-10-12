@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { cacheFlags } from "../../audio/cache-status";
 import { estimateCredits } from "../../audio/estimate";
+import { quoteTask } from "../../audio/service";
 import { DEFAULT_TTS_MODEL, planAudioTasks } from "../../audio/plan";
 import { assets, pronunciationDicts } from "../../db/schema";
 import { createDictionary, listModels, listVoices } from "../../eleven/voice";
@@ -25,7 +26,10 @@ const voiceSettings = z
   })
   .strict();
 
-/** Kredit bahosi va kvota bilan solishtirish; oshsa ask_user. */
+/**
+ * Narx bahosi (P8.02): mijozga narx dollarda (keshdagi vazifa — yarim narx), balans bilan solishtirish.
+ * Tashqi xizmat kvotasi ichkarida tekshiriladi (kreditlar Claude'ga ko'rsatilmaydi). Oshsa ask_user.
+ */
 export async function estimateWithQuota(
   ctx: ToolContext,
   items: {
@@ -36,8 +40,8 @@ export async function estimateWithQuota(
     /** Plan elementi: kirish fayli (hash oldindan noma'lum). */
     inputAsset?: string;
   }[],
+  extraUsd = 0,
 ) {
-  // Keshdagi vazifalar kredit sarflamaydi (#8): `cached: true` → 0.
   const flags = await cacheFlags(
     ctx.app.db,
     items.map((item) => ({
@@ -46,38 +50,56 @@ export async function estimateWithQuota(
       hasInput: item.inputAsset !== undefined,
     })),
   );
+  const inputs = (seconds: number | null | undefined) => [
+    { name: "", storage_key: "", sha256: "", duration_s: seconds ?? null },
+  ];
+  let providerCredits = 0;
   const rows = items.map((item, i) => {
-    const full = estimateCredits({
-      kind: item.kind,
-      params: item.params,
-      inputSeconds: item.inputSeconds ?? null,
-    });
     const cached = flags[i] ?? null;
+    const full = quoteTask(item.kind, item.params, inputs(item.inputSeconds), null);
+    if (cached !== true) {
+      providerCredits += estimateCredits({
+        kind: item.kind,
+        params: item.params,
+        inputSeconds: item.inputSeconds ?? null,
+      });
+    }
     return {
       label: item.label,
       kind: item.kind,
       cached,
-      credits: cached === true ? 0 : full,
-      credits_if_uncached: full,
+      price_usd:
+        cached === true
+          ? quoteTask(item.kind, item.params, inputs(item.inputSeconds), null, true).priceUsd
+          : full.priceUsd,
+      price_usd_if_uncached: full.priceUsd,
     };
   });
-  const total = rows.reduce((sum, row) => sum + row.credits, 0);
-  const totalUncached = rows.reduce((sum, row) => sum + row.credits_if_uncached, 0);
-  const account = await ctx.app.eleven.account(ctx.userId);
-  const fits = account.remaining === null ? null : total <= account.remaining;
+  const round = (value: number) => Math.round(value * 10_000) / 10_000;
+  const total = round(rows.reduce((sum, row) => sum + row.price_usd, 0) + extraUsd);
+  const totalUncached = round(
+    rows.reduce((sum, row) => sum + row.price_usd_if_uncached, 0) + extraUsd,
+  );
+  const billing = await ctx.app.billing.account(ctx.userId);
+  const provider = await ctx.app.eleven.account(ctx.userId);
+  const providerShort = provider.remaining !== null && providerCredits > provider.remaining;
+  const balanceShort = billing.enforced && (!billing.activated || billing.balance_usd < total);
+  const fits = !(providerShort || balanceShort);
   return {
     items: rows,
-    total,
+    total_usd: total,
     /** Kesh bo'lmaganda (hammasi qayta generatsiya) narx. */
-    total_uncached: totalUncached,
+    total_usd_uncached: totalUncached,
     cached_count: rows.filter((row) => row.cached === true).length,
-    remaining: account.remaining,
+    balance_usd: Math.round(billing.balance_usd * 100) / 100,
     fits,
     approximate: true,
     ...(fits === false
       ? {
           ask_user: true,
-          hint: "Taxminiy narx qolgan kvotadan oshadi: foydalanuvchidan tasdiq so'rang yoki rejani qisqartiring",
+          hint: balanceShort
+            ? "Taxminiy narx balansdan oshadi: foydalanuvchiga narxni ayting va balansni to'ldirishni so'rang yoki rejani qisqartiring"
+            : "Audio xizmati kvotasi yetmaydi: foydalanuvchidan so'rang yoki rejani qisqartiring",
         }
       : {}),
   };
@@ -292,9 +314,9 @@ export const elevenVoiceTools = [
 
   defineTool({
     name: "el_estimate",
-    title: "Estimate credits",
+    title: "Estimate price",
     description:
-      "Approximate ElevenLabs credits for a plan's audio (project_id + optional plan_version) or for given items, compared to the remaining quota. If it does not fit → ask_user: true (ask before spending).",
+      "Approximate price in USD (charged to the user's balance) for a plan's audio (project_id + optional plan_version) or for given items; cached items cost half. Compared to the balance: if it does not fit → ask_user: true (tell the user the price and ask before spending).",
     input: z.object({
       project_id: uuidArg("project_id").optional(),
       plan_version: z.number().int().min(1).optional(),

@@ -2,7 +2,7 @@
  * Qurish toollari (§8): preflight, build_start (+dry_run, §11.4.2), job_status, job_resume, job_cancel, job_list.
  */
 import { compile } from "@aes/compiler";
-import { collectAssetRefs, fail, ok, parseSpec } from "@aes/shared";
+import { collectAssetRefs, fail, ok, parseSpec, quoteTimeline } from "@aes/shared";
 import type { JobState, OpEnvelope, Result, VideoSpec } from "@aes/shared";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
@@ -263,15 +263,15 @@ export const buildTools = [
             dictionaries: await dictionaries(ctx, ctx.userId),
             brand,
           });
-          const pendingCredits = await estimateWithQuota(ctx, pendingPlan);
+          const pendingPrice = await estimateWithQuota(ctx, pendingPlan);
           return ok({
             dry_run: true,
             pending_audio: true,
             plan_version: plan.data.version,
             missing,
             aep_path: projectPath,
-            credits: pendingCredits.total,
-            audio: pendingCredits,
+            price_usd: pendingPrice.total_usd,
+            audio: pendingPrice,
             note: "Sahna vaqtlari va oplar AUDIO bosqichidan keyin aniqlanadi (TTS-first)",
           });
         }
@@ -285,7 +285,12 @@ export const buildTools = [
           dictionaries: await dictionaries(ctx, ctx.userId),
           brand,
         });
-        const credits = audioPlan.length === 0 ? null : await estimateWithQuota(ctx, audioPlan);
+        const timeline = quoteTimeline(
+          compiled.data.duration,
+          1 + compiled.data.variants.length,
+          ctx.app.billing.rates,
+        );
+        const audio = audioPlan.length === 0 ? null : await estimateWithQuota(ctx, audioPlan);
         return ok({
           dry_run: true,
           plan_version: plan.data.version,
@@ -296,8 +301,9 @@ export const buildTools = [
           scenes: compiled.data.scenes,
           duration_s: compiled.data.duration,
           estimate_s: estimateSeconds(compiled.data.ops),
-          credits: credits?.total ?? 0,
-          ...(credits === null ? {} : { audio: credits }),
+          price_usd: Math.round(((audio?.total_usd ?? 0) + timeline.priceUsd) * 10_000) / 10_000,
+          timeline_usd: timeline.priceUsd,
+          ...(audio === null ? {} : { audio }),
           warnings: compiled.data.warnings,
         });
       }

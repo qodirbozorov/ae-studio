@@ -91,13 +91,11 @@ export function registerAdminAuth(app: FastifyInstance, ctx: Ctx): void {
       return reply.code(404).send(fail("SYS_NOT_FOUND", "Admin panel sozlanmagan"));
     }
     if (!limiter.take(request.ip)) {
-      return reply
-        .code(429)
-        .send(
-          fail("SYS_RATE_LIMIT", "Juda ko'p urinish", {
-            retry_after_s: limiter.retryAfterS(request.ip),
-          }),
-        );
+      return reply.code(429).send(
+        fail("SYS_RATE_LIMIT", "Juda ko'p urinish", {
+          retry_after_s: limiter.retryAfterS(request.ip),
+        }),
+      );
     }
     const parsed = body.safeParse(request.body);
     const valid =

@@ -186,9 +186,9 @@ ElevenLabs plan, used and remaining characters/credits, reset date.
 
 Parametrsiz.
 
-### `el_estimate` — Estimate credits · faqat o'qish
+### `el_estimate` — Estimate price · faqat o'qish
 
-Approximate ElevenLabs credits for a plan's audio (project_id + optional plan_version) or for given items, compared to the remaining quota. If it does not fit → ask_user: true (ask before spending).
+Approximate price in USD (charged to the user's balance) for a plan's audio (project_id + optional plan_version) or for given items; cached items cost half. Compared to the balance: if it does not fit → ask_user: true (tell the user the price and ask before spending).
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|

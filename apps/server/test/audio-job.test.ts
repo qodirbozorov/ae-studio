@@ -158,7 +158,7 @@ describe("AUDIO holati", () => {
     expect(ready.message).toContain("3 tasi keshdan");
   });
 
-  it("el_estimate kesh holatini ko'rsatadi (#8): keshdagi vazifa 0 kredit, total_uncached alohida", async () => {
+  it("el_estimate kesh holatini ko'rsatadi (#8): keshdagi vazifa yarim narx, total_usd_uncached alohida", async () => {
     await s.call("plan_write", { project_id: projectId, spec: SPEC });
     const before = (await s.call("el_estimate", { project_id: projectId })).result.data;
     expect(before.cached_count).toBe(0);
@@ -166,10 +166,12 @@ describe("AUDIO holati", () => {
     expect(first.status.state).toBe("VERIFY");
     const after = (await s.call("el_estimate", { project_id: projectId })).result.data;
     const tts = after.items.find((i: { kind: string }) => i.kind === "tts");
-    expect(tts).toMatchObject({ cached: true, credits: 0 });
-    expect(tts.credits_if_uncached).toBeGreaterThan(0);
+    expect(tts).toMatchObject({ cached: true });
+    expect(tts.price_usd).toBeCloseTo(tts.price_usd_if_uncached / 2);
+    expect(tts.price_usd_if_uncached).toBeGreaterThan(0);
     expect(after.cached_count).toBeGreaterThanOrEqual(2);
-    expect(after.total).toBeLessThan(after.total_uncached);
+    expect(after.total_usd).toBeLessThan(after.total_usd_uncached);
+    expect(JSON.stringify(after)).not.toContain("credits");
   });
 
   it("kvota yetmasa → BLOCKED EL_QUOTA (ask_user), generatsiya boshlanmaydi", async () => {

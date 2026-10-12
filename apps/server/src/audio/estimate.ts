@@ -1,5 +1,6 @@
 /**
- * Kredit bahosi (§7.1, `el_estimate`): ElevenLabs belgi/kredit hisobi bo'yicha taxminiy qiymat.
+ * Tashqi xizmat kreditlari (ichki kvota tekshiruvi uchun; mijoz narxi — `@aes/shared` pricing, P8.02).
+ * ElevenLabs belgi/kredit hisobi bo'yicha taxminiy qiymat.
  * - TTS / dialogue: belgilar soni (Flash/Turbo modellar ~0.5×).
  * - SFX: ~40 kredit/soniya (davomiylik berilmasa ~200).
  * - Music: ~10 kredit/soniya (taxminiy).

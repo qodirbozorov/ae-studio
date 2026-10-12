@@ -258,7 +258,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 
 **Todo'lar:**
 - [x] **P8.01 — Sarf ledger'i.** `usage_ledger` (user, job, tur, hajm: belgi/soniya, tannarx USD, mijoz narxi USD, manba: pro/oddiy/kesh), narx jadvali (kodda default, DB'da override), `balance` (USD, mikro-birlikda). Job oldidan baho → zaxira (hold), oxirida haqiqiy sarf bo'yicha yopish; yetmasa `BILLING_BALANCE_LOW` / `BILLING_NOT_ACTIVATED` (job AUDIO'dan oldin to'xtaydi; cheklov `BILLING_ENFORCE=1` bilan yoqiladi). Timeline sarfi job yaratilganda bir marta. Kesh urilishi — tannarx 0 (mijoz narxi: ❓ M1).
-- [ ] **P8.02 — Stavkalarni yangilash.** `estimate.ts` eski kredit stavkalari (musiqa 10 kr/s, isolation 1000/daq, STT 0) → USD stavkalar (ElevenLabs API narxlari, sana bilan); `el_estimate` → narx $ da.
+- [x] **P8.02 — Stavkalarni yangilash.** `estimate.ts` eski kredit stavkalari (musiqa 10 kr/s, isolation 1000/daq, STT 0) → USD stavkalar (ElevenLabs API narxlari, sana bilan); `el_estimate` → narx $ da.
 - [ ] **P8.03 — Worker servisi.** `apps/worker` (bo'sh) → BullMQ consumer: audio vazifalari serverdan ko'chadi; har replika uchun concurrency limiti; Railway'da alohida servis, replika soni oshiriladi. Server faqat navbatga qo'yadi va natijani kutadi.
 - [ ] **P8.04 — R2 storage.** S3 drayveri (mavjud) R2 env'lari bilan; volume'dan ko'chirish skripti; worker va server bir storage'dan o'qiydi.
 - [ ] **P8.05 — DeepFilterNet3 (server).** Worker image'iga Linux `deep-filter` binari (Rust, PyTorch'siz); 48 kHz konvert (ffmpeg) → filtr → natija storage'ga; `isolate` vazifasi `engine: dfn3 | pro`. 🧪 O'lchov: 4 daq audio, 1/4/20 parallel — vaqt va xotira (process.md ga).

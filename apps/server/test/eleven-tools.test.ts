@@ -168,7 +168,7 @@ describe("P4.05: TTS, ovozlar, modellar, talaffuz, hisob, narx", () => {
     ]);
   });
 
-  it("el_estimate (plan va items), kvota oshsa ask_user; dry_run'da kredit", async () => {
+  it("el_estimate (plan va items), kvota oshsa ask_user; dry_run'da narx", async () => {
     await setKey();
     await s.call("plan_write", { project_id: projectId, spec: AUDIO_SPEC });
     const est = await s.call("el_estimate", { project_id: projectId });
@@ -177,8 +177,13 @@ describe("P4.05: TTS, ovozlar, modellar, talaffuz, hisob, narx", () => {
       "music",
       "sfx",
     ]);
-    expect(est.result.data).toMatchObject({ fits: true, approximate: true, remaining: 99_000 });
-    expect(est.result.data.total).toBe(16 + 95 + 32);
+    expect(est.result.data).toMatchObject({ fits: true, approximate: true, balance_usd: 0 });
+    expect(est.result.data.total_usd).toBeGreaterThan(0);
+    // TTS 16 belgi (tannarxda) + musiqa 9.5 s va SFX 0.8 s (× 2.4).
+    expect(est.result.data.total_usd).toBeCloseTo(
+      0.0016 + (9.5 / 60) * 0.15 * 2.4 + (0.8 / 60) * 0.12 * 2.4,
+      4,
+    );
 
     el.subscription.character_count = 99_990;
     t.clock.advance(61_000);
@@ -189,7 +194,8 @@ describe("P4.05: TTS, ovozlar, modellar, talaffuz, hisob, narx", () => {
 
     await seedSceneAssets();
     const dry = await s.call("build_start", { project_id: projectId, dry_run: true });
-    expect(dry.result.data.credits).toBe(143);
+    expect(dry.result.data.price_usd).toBeGreaterThan(0);
+    expect(dry.result.data.timeline_usd).toBeGreaterThan(0);
     expect(dry.result.data.audio.items).toHaveLength(3);
   });
 });
