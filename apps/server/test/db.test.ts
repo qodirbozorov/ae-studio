@@ -57,6 +57,7 @@ describe("migratsiyalar", () => {
       "pronunciation_dicts",
       "telegram_links",
       "telegram_logins",
+      "usage_ledger",
     ];
     expect(rows.map((r) => r.table_name).sort()).toEqual([...fromPlan, ...extra].sort());
   });

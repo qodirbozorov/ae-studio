@@ -63,6 +63,13 @@ ixtiyoriy `message` va `details`. Job BLOCKED bo'lsa sabab tuzatilgach `job_resu
 | `EL_TIMEOUT` | ha | ElevenLabs javob bermadi. Qayta urinadi. |
 | `EL_BAD_PARAMS` | yo'q | ElevenLabs parametrlari noto'g'ri. details ni tekshirib vazifani tuzating. |
 
+## Balans va hisob
+
+| Kod | Qayta urinish | Nima qilish kerak |
+|---|---|---|
+| `BILLING_NOT_ACTIVATED` | yo'q | Hisob faollashtirilmagan: ishlatishni boshlash uchun boshlang'ich to'lov kerak. Foydalanuvchiga ayting (ask_user). |
+| `BILLING_BALANCE_LOW` | yo'q | Balans yetmaydi. Foydalanuvchiga taxminiy narxni ayting va balansni to'ldirishni so'rang; to'ldirilgach job_resume (ask_user). |
+
 ## Render
 
 | Kod | Qayta urinish | Nima qilish kerak |

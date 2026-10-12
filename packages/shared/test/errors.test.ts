@@ -7,6 +7,7 @@ import type { Result } from "../src/result";
 // Faza 6–7 (update-technicalguidline §6): FRAME_, FX_, JSX_.
 const PREFIXES = [
   "SCRIPT",
+  "BILLING",
   "ENV",
   "AUTH",
   "SPEC",

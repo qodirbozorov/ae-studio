@@ -5,7 +5,16 @@ import { makeError } from "@aes/shared";
 import { and, asc, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { THREE_SCENES } from "../../../packages/compiler/test/fixtures";
-import { devices, jobEvents, jobs, ops, plans, projects, users } from "../src/db/schema";
+import {
+  devices,
+  jobEvents,
+  jobs,
+  ops,
+  plans,
+  projects,
+  usageLedger,
+  users,
+} from "../src/db/schema";
 import { aepPath, fileBase } from "../src/jobs/engine";
 import { actionAllowed, nextState } from "../src/jobs/machine";
 import { createTestApp, login } from "./helpers/app";
@@ -529,6 +538,13 @@ describe("Live (P2.12): job_events → WS → panel", () => {
       (e: { type: string }) => e.type,
     );
     expect(types).toContain("job.reopened");
+    // Timeline job uchun bir marta: patch bilan qayta qurish qo'shimcha yechmaydi.
+    const timeline = await t.db.db
+      .select()
+      .from(usageLedger)
+      .where(and(eq(usageLedger.jobId, id), eq(usageLedger.item, "timeline")));
+    expect(timeline).toHaveLength(1);
+    expect(timeline[0]!.amountMicros).toBeLessThan(0);
 
     // Web tugmasi: render'siz tasdiq.
     const web = await act(id, "approve", { render: false });

@@ -24,6 +24,8 @@ import { registerElevenRoutes } from "./eleven/routes";
 import { ElevenService } from "./eleven/service";
 import { registerAudioRoutes } from "./audio/routes";
 import { AudioService, presentTask } from "./audio/service";
+import { registerBillingRoutes } from "./billing/routes";
+import { BillingService } from "./billing/service";
 import { registerJobRoutes } from "./jobs/routes";
 import type { RedisLike } from "./redis";
 import { LocalStorage, createStorage } from "./storage";
@@ -52,6 +54,7 @@ declare module "fastify" {
     storage: Storage;
     jobs: JobEngine;
     audio: AudioService;
+    billing: BillingService;
     templates: TemplateService;
     brands: BrandService;
     batches: BatchService;
@@ -119,6 +122,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     redis: deps.redis,
     now,
   } as AppContext;
+  ctx.billing = new BillingService(ctx);
+  app.decorate("billing", ctx.billing);
   ctx.eleven = new ElevenService(ctx, app.log, deps.elevenOptions ?? {});
   ctx.eleven.attach();
   ctx.audio = new AudioService(ctx, app.log, deps.audioOptions ?? {});
@@ -200,6 +205,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerBatchRoutes(app, ctx);
   registerTelegramRoutes(app, ctx);
   registerCabinetRoutes(app, ctx, engine);
+  registerBillingRoutes(app, ctx);
   const presence = new ClaudePresence(ctx, app.log);
   presence.attach();
   registerMcpRoutes(app, ctx, engine, {

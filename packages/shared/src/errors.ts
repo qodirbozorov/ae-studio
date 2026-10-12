@@ -75,6 +75,14 @@ export const ERROR_DEFS = {
     retryable: false,
     hint: "ElevenLabs kaliti yaroqsiz. Web kabinetda kalitni yangilang.",
   },
+  BILLING_NOT_ACTIVATED: {
+    retryable: false,
+    hint: "Hisob faollashtirilmagan: ishlatishni boshlash uchun boshlang'ich to'lov kerak. Foydalanuvchiga ayting (ask_user).",
+  },
+  BILLING_BALANCE_LOW: {
+    retryable: false,
+    hint: "Balans yetmaydi. Foydalanuvchiga taxminiy narxni ayting va balansni to'ldirishni so'rang; to'ldirilgach job_resume (ask_user).",
+  },
   EL_QUOTA: {
     retryable: false,
     hint: "ElevenLabs kvotasi yetmaydi. Tarifni oshiring yoki vazifalarni qisqartiring (ask_user).",

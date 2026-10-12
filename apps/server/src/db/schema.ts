@@ -9,6 +9,7 @@ import {
   bigserial,
   boolean,
   check,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -74,6 +75,10 @@ export const users = pgTable("users", {
   telegramId: text("telegram_id").unique(),
   /** Ko'rinadigan nom (Telegram ism / @username). */
   name: text("name"),
+  /** Balans, mikro-dollar (1e-6 $). Faqat `usage_ledger` bilan birga o'zgaradi (Faza 8). */
+  balanceMicros: bigint("balance_micros", { mode: "number" }).notNull().default(0),
+  /** Boshlang'ich to'lov (activation) kiritilgan payt; null — hali faollashtirilmagan. */
+  activatedAt: tstz("activated_at"),
   createdAt: createdAt(),
 });
 
@@ -522,3 +527,43 @@ export const telegramLogins = pgTable("telegram_logins", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: createdAt(),
 });
+
+/**
+ * Sarf va to'ldirish jurnali (Faza 8, P8.01). `amount_micros` ishorali: to'ldirish +, sarf −.
+ * Bitta audio vazifa va bitta job timeline'i faqat bir marta hisoblanadi (qisman unique indekslar).
+ */
+export const usageLedger = pgTable(
+  "usage_ledger",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    jobId: uuid("job_id").references(() => jobs.id, { onDelete: "set null" }),
+    audioTaskId: uuid("audio_task_id").references(() => audioTasks.id, { onDelete: "set null" }),
+    /** charge | topup | adjust */
+    kind: text("kind").notNull(),
+    /** `music.pro`, `isolate.basic`, `tts`, `timeline`, `topup` ... */
+    item: text("item").notNull(),
+    quantity: doublePrecision("quantity").notNull().default(0),
+    /** chars | seconds | minutes | usd */
+    unit: text("unit").notNull(),
+    /** Tashqi xizmat tannarxi (sizning xarajatingiz), mikro-dollar. */
+    costMicros: bigint("cost_micros", { mode: "number" }).notNull().default(0),
+    amountMicros: bigint("amount_micros", { mode: "number" }).notNull(),
+    cached: boolean("cached").notNull().default(false),
+    note: text("note"),
+    /** system | admin:<login> | script */
+    createdBy: text("created_by").notNull().default("system"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("usage_ledger_user_idx").on(t.userId, t.id),
+    uniqueIndex("usage_ledger_task_uq")
+      .on(t.audioTaskId)
+      .where(sql`audio_task_id is not null`),
+    uniqueIndex("usage_ledger_timeline_uq")
+      .on(t.jobId)
+      .where(sql`item = 'timeline'`),
+  ],
+);

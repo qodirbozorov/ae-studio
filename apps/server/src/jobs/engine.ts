@@ -22,6 +22,7 @@ import {
   ok,
   opTimeoutMs,
   parseSpec,
+  quoteTimeline,
 } from "@aes/shared";
 import type {
   AeOpName,
@@ -40,6 +41,7 @@ import type {
 import { and, asc, desc, eq, gt, inArray, isNull, max, ne, notInArray, sql } from "drizzle-orm";
 import type { FastifyBaseLogger } from "fastify";
 import { applyScan } from "../assets/routes";
+import { quoteTask } from "../audio/service";
 import type { AppContext } from "../context";
 import {
   assets,
@@ -115,7 +117,7 @@ const BATCH_SLACK_MS = 15_000;
 
 export type EngineContext = Pick<
   AppContext,
-  "db" | "hub" | "now" | "storage" | "eleven" | "audio" | "templates" | "brands"
+  "db" | "hub" | "now" | "storage" | "eleven" | "audio" | "billing" | "templates" | "brands"
 >;
 
 /** Ish papkasidagi lokal nusxalar (§2.10): versiyali, hech biri ustiga yozilmaydi. */
@@ -272,6 +274,8 @@ export class JobEngine {
     if (active !== null) {
       return fail("JOB_ACTIVE", `Aktiv job: ${active.id} (${active.state})`, { job_id: active.id });
     }
+    const billing = await this.ctx.billing.check(project.userId, 0);
+    if (!billing.ok) return billing;
     let job: JobRow;
     try {
       const [row] = await this.ctx.db
@@ -1079,6 +1083,13 @@ export class JobEngine {
     for (const warning of compiled.data.warnings) {
       await this.event(job, "warn", "preflight.warning", warning);
     }
+    const formats = 1 + compiled.data.variants.length;
+    await this.ctx.billing.charge({
+      userId: project.userId,
+      jobId: job.id,
+      quote: quoteTimeline(compiled.data.duration, formats, this.ctx.billing.rates),
+      note: `${compiled.data.duration.toFixed(1)} s × ${formats} format`,
+    });
     await this.event(
       job,
       "info",
@@ -1508,6 +1519,28 @@ export class JobEngine {
             })),
       0,
     );
+    const priceUsd = items.reduce(
+      (sum, item, i) =>
+        sum +
+        quoteTask(
+          item.kind,
+          item.params,
+          [{ name: "", storage_key: "", sha256: "", duration_s: inputSeconds(item.inputAsset) }],
+          null,
+          cachedFlags[i] === true,
+        ).priceUsd,
+      0,
+    );
+    const affordable = await this.ctx.billing.check(project.userId, priceUsd);
+    if (!affordable.ok) {
+      return {
+        kind: "block",
+        error: makeError(affordable.error.code, affordable.error.message ?? affordable.error.hint, {
+          ...(affordable.error.details as object),
+          ask_user: true,
+        }),
+      };
+    }
     const account = await this.ctx.eleven.account(project.userId);
     if (account.remaining !== null && estimate > account.remaining) {
       return {
@@ -1523,9 +1556,13 @@ export class JobEngine {
       job,
       "info",
       "audio.started",
-      `AUDIO: ${items.length} vazifa (~${estimate} kredit)`,
+      `AUDIO: ${items.length} vazifa (~${estimate} kredit, ≈ ${priceUsd.toFixed(2)} $)`,
       {
-        data: { items: items.map((item) => ({ role: item.role, kind: item.kind })), estimate },
+        data: {
+          items: items.map((item) => ({ role: item.role, kind: item.kind })),
+          estimate,
+          price_usd: priceUsd,
+        },
       },
     );
 

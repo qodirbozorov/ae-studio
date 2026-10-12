@@ -7,8 +7,8 @@
  * storage `audio-in` → ElevenLabs).
  */
 import { createHash, randomUUID } from "node:crypto";
-import { fail, makeError, ok } from "@aes/shared";
-import type { AesError, AudioKind, Result } from "@aes/shared";
+import { AUDIO_INPUT_KINDS, fail, makeError, ok, quoteAudio } from "@aes/shared";
+import type { AesError, AudioKind, AudioTier, PriceQuote, Result } from "@aes/shared";
 import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { FastifyBaseLogger } from "fastify";
 import type { AppContext } from "../context";
@@ -49,6 +49,33 @@ export interface SubmitInput {
 }
 
 export type AudioListener = (task: AudioTaskRow) => void;
+
+/** Kirish audiosi bo'lgan turlar uchun kirish uzunligi (soniya), aks holda null. */
+function inputSecondsOf(
+  kind: AudioKind,
+  inputs: readonly InputRef[] | null | undefined,
+): number | null {
+  if (!AUDIO_INPUT_KINDS.includes(kind)) return null;
+  const total = (inputs ?? []).reduce((sum, input) => sum + (input.duration_s ?? 0), 0);
+  return total > 0 ? total : null;
+}
+
+/** Vazifa darajasi: oddiy (server) variant yoki pro (tashqi xizmat). P8.05/P8.06 da `params.tier` beriladi. */
+function tierOf(params: Record<string, unknown>): AudioTier {
+  return params.tier === "basic" ? "basic" : "pro";
+}
+
+/** Narx: kirish turlarida kirish uzunligi, generatsiyada natija uzunligi (bo'lmasa so'ralgani). */
+export function quoteTask(
+  kind: AudioKind,
+  params: Record<string, unknown>,
+  inputs: readonly InputRef[] | null | undefined,
+  outputSeconds: number | null,
+  cached = false,
+): PriceQuote {
+  const seconds = inputSecondsOf(kind, inputs) ?? outputSeconds;
+  return quoteAudio(kind, params, seconds, { tier: tierOf(params), cached });
+}
 
 /** Kalitlari tartiblangan JSON (hash barqaror bo'lishi uchun). */
 export function canonical(value: unknown): string {
@@ -108,7 +135,7 @@ export class AudioService {
   private readonly concurrency: number;
 
   constructor(
-    private readonly ctx: Pick<AppContext, "db" | "hub" | "now" | "storage" | "eleven">,
+    private readonly ctx: Pick<AppContext, "db" | "hub" | "now" | "storage" | "eleven" | "billing">,
     private readonly log: FastifyBaseLogger,
     private readonly options: { concurrency?: number; dubPoll?: PollOptions } = {},
   ) {
@@ -188,6 +215,15 @@ export class AudioService {
         .where(eq(elevenCache.paramsHash, hash))
         .limit(1);
       if (hit !== undefined) {
+        const quote = quoteTask(
+          input.kind,
+          input.params,
+          inputs,
+          hit.durationMs === null ? null : hit.durationMs / 1000,
+          true,
+        );
+        const allowed = await this.ctx.billing.check(input.userId, quote.priceUsd);
+        if (!allowed.ok) return allowed;
         const [task] = await this.ctx.db
           .insert(audioTasks)
           .values({
@@ -203,11 +239,21 @@ export class AudioService {
             result: hit.result,
           })
           .returning();
+        await this.ctx.billing.charge({
+          userId: task!.userId,
+          jobId: task!.jobId,
+          audioTaskId: task!.id,
+          quote,
+          cached: true,
+        });
         this.finished(task!);
         void this.deliver(task!);
         return ok(task!);
       }
     }
+    const estimate = quoteTask(input.kind, input.params, inputs, null);
+    const allowed = await this.ctx.billing.check(input.userId, estimate.priceUsd);
+    if (!allowed.ok) return allowed;
     const [task] = await this.ctx.db
       .insert(audioTasks)
       .values({
@@ -490,6 +536,21 @@ export class AudioService {
       .where(eq(audioTasks.id, task.id))
       .returning();
     if (done === undefined) return;
+    await this.ctx.billing
+      .charge({
+        userId: done.userId,
+        jobId: done.jobId,
+        audioTaskId: done.id,
+        quote: quoteTask(
+          done.kind as AudioKind,
+          done.params as Record<string, unknown>,
+          done.inputs,
+          out.durationS,
+        ),
+      })
+      .catch((error: unknown) =>
+        this.log.error({ err: error, task: done.id }, "sarfni yozib bo'lmadi"),
+      );
     this.finished(done);
     void this.deliver(done);
   }

@@ -11,7 +11,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate-cli.ts",
-    "dev:db": "tsx scripts/dev-db.ts"
+    "dev:db": "tsx scripts/dev-db.ts",
+    "topup": "tsx scripts/topup.mts"
   },
   "dependencies": {
     "@aes/compiler": "workspace:*",

@@ -137,7 +137,7 @@ describe("build_start va job boshqaruvi", () => {
       state: "VERIFY",
       aep_path: "reel_v001.aep",
       progress: { percent: 100 },
-      next_step: expect.stringContaining("frames_capture"),
+      next_step: expect.stringContaining("verify_approve"),
     });
     expect(view.logs.length).toBeGreaterThan(3);
     expect(view.logs.every((l: { level: string }) => l.level !== "debug")).toBe(true);

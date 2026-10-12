@@ -140,6 +140,7 @@ const PREFIXES: [string, string][] = [
   ["ASSET_", "Fayllar"],
   ["AE_", "After Effects"],
   ["EL_", "ElevenLabs"],
+  ["BILLING_", "Balans va hisob"],
   ["RENDER_", "Render"],
   ["JOB_", "Job boshqaruvi"],
   ["LOOP_", "VERIFY sikli"],

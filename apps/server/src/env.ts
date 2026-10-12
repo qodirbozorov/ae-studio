@@ -56,6 +56,15 @@ export const envSchema = z
     /** Lokal storage drayveri papkasi (S3 berilmaganda). */
     STORAGE_DIR: optionalString,
 
+    /**
+     * Balans cheklovi (Faza 8): `1` — faollashtirilmagan yoki balansi yetmagan foydalanuvchi pullik amal
+     * boshlay olmaydi. Berilmasa sarf faqat yoziladi (admin panel tayyor bo'lguncha).
+     */
+    BILLING_ENFORCE: z
+      .enum(["0", "1", "true", "false"])
+      .optional()
+      .transform((value) => value === "1" || value === "true"),
+
     /** Web kabinet build papkasi; berilmasa `apps/web/dist` avtomatik qidiriladi. */
     WEB_DIST: optionalString,
   })
