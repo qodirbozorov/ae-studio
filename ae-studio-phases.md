@@ -234,6 +234,61 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 
 **Shartli (kerak bo'lsa keyin):** matn v2 (box, runs, text animator, counter) · 3D/kamera/yorug'lik · o'tishlar v2 · `ae_run_jsx` (opt-in) · `preview_render` · presetlar kutubxonasi · plan boshqaruvi (`plan_scene_put`, `plan_diff`) · `vo_timings` · 👤 haqiqiy AE'da tezlik o'lchovi. Bitta loyihaga xos qismlar (promo KPI, phone/chat komponentlari) olib tashlandi.
 
+## 7d. Faza 8 — Ovoz engine'i: sarf hisobi, isolation, musiqa kutubxonasi · reja 2026-10-12 (👤 ko'rib chiqilmoqda)
+
+**Maqsad:** har audio amali foydalanuvchi hisobiga to'g'ri yoziladi; oddiy variantlar (DeepFilterNet3, kutubxona) sukut bo'yicha, ElevenLabs "pro" faqat ruxsat bilan. Foydalanuvchi ko'radigan joyda "ElevenLabs" so'zi yo'q. Ovoz vazifalari alohida, masshtablanadigan worker'da.
+
+**Narx siyosati** (balans dollarda; stavkalar admin'da o'zgartiriladi — Faza 9):
+
+| Xizmat | Qoida | Mijoz narxi (2026-10 stavkalari) |
+|---|---|---|
+| Pro musiqa · Pro isolation · Transkripsiya (ElevenLabs) | tannarx × 1,2 × 2 | 0,36 $/daq · 0,288 $/daq · ≈ 0,009 $/daq |
+| TTS (faqat ElevenLabs, bepul model yo'q) | **tannarxda**, ustamasiz | 0,10 $ / 0,05 $ (Flash) / 1000 belgi |
+| Isolation — DeepFilterNet3 (server) | pro isolation'dan 10× arzon | 0,0288 $/daq |
+| Kutubxona musiqasi | pro musiqadan 10× arzon (taxmin — tasdiqlanmagan) | 0,036 $/daq |
+| Timeline (montaj) | job uchun bir marta, yakuniy davomiylik bo'yicha; patch va qayta build bepul | 0,01 $/daq |
+
+**Qoidalar:**
+- Pro musiqa / Pro isolation — panel (va web) toggle'lari, serverda saqlanadi; yoqilganda narx eslatmasi. O'chiq bo'lsa oddiy variant; Claude pro'ni zarur deb topsa chatda narx bilan so'raydi (`user_confirmed`) yoki foydalanuvchi toggle'ni yoqadi. TTS uchun toggle yo'q.
+- Musiqa: avval kutubxona, mos trek bo'lmasa generatsiya (pro, tasdiq bilan). Generatsiya qilingan trekka Claude MCP orqali nom + kategoriya + qisqa izoh beradi → "nomzod"; admin tahrirlab saqlagach umumiy kutubxonaga chiqadi.
+- Storage: Cloudflare R2 (S3 API; Telegram/Telethon storage rad etildi — FLOOD_WAIT/ban xavfi, presigned URL yo'q, SLA yo'q).
+
+**Todo'lar:**
+- [ ] **P8.01 — Sarf ledger'i.** `usage_ledger` (user, job, tur, hajm: belgi/soniya, tannarx USD, mijoz narxi USD, manba: pro/oddiy/kesh), narx jadvali (kodda default, DB'da override), `balance` (USD, mikro-birlikda). Job oldidan baho → zaxira (hold), oxirida haqiqiy sarf bo'yicha yopish; yetmasa `BALANCE_LOW` (job AUDIO'dan oldin to'xtaydi). Timeline sarfi job yaratilganda bir marta. Kesh urilishi — tannarx 0 (mijoz narxi: ❓ M1).
+- [ ] **P8.02 — Stavkalarni yangilash.** `estimate.ts` eski kredit stavkalari (musiqa 10 kr/s, isolation 1000/daq, STT 0) → USD stavkalar (ElevenLabs API narxlari, sana bilan); `el_estimate` → narx $ da.
+- [ ] **P8.03 — Worker servisi.** `apps/worker` (bo'sh) → BullMQ consumer: audio vazifalari serverdan ko'chadi; har replika uchun concurrency limiti; Railway'da alohida servis, replika soni oshiriladi. Server faqat navbatga qo'yadi va natijani kutadi.
+- [ ] **P8.04 — R2 storage.** S3 drayveri (mavjud) R2 env'lari bilan; volume'dan ko'chirish skripti; worker va server bir storage'dan o'qiydi.
+- [ ] **P8.05 — DeepFilterNet3 (server).** Worker image'iga Linux `deep-filter` binari (Rust, PyTorch'siz); 48 kHz konvert (ffmpeg) → filtr → natija storage'ga; `isolate` vazifasi `engine: dfn3 | pro`. 🧪 O'lchov: 4 daq audio, 1/4/20 parallel — vaqt va xotira (process.md ga).
+- [ ] **P8.06 — Musiqa kutubxonasi (backend).** `music_tracks` (nom, kategoriya, izoh, teglar, davomiylik, BPM ixtiyoriy, manba: seed/admin/generated, holat: candidate/public/hidden, egasi, storage_key, sha256); matnli qidiruv (nom/kategoriya/izoh/teglar, keyin embedding — ❓ M2); seed: `pnpm seed:music <papka> [meta.csv|json]`.
+- [ ] **P8.07 — Spec va kompilyator.** `audio.music: { kind: "library", track }`; uzunlikka moslash (trim, loop, fade — panel ffmpeg yoki AE qatlam trim); `source_audio.isolate: true | "pro"`.
+- [ ] **P8.08 — MCP.** `music_search`, `music_generate` (title/category/description majburiy → nomzod), pro amallarda `user_confirmed` + narx bahosi, `CONFIRM_REQUIRED`/`BALANCE_LOW` xato kodlari; `el_*` tool nomlari neytral nomlarga (`voice_*`, `music_*`, `audio_*`); javob/hint matnlarida "ElevenLabs" yo'q; instructions yangilanadi. ❓ M3 (eski nomlar uchun alias).
+- [ ] **P8.09 — Pro toggle'lar va balans (panel + web).** `/api/me/preferences` (pro_music, pro_isolation); panel: toggle'lar + narx eslatmasi, ElevenLabs pill'i o'rniga balans; web: Sozlamalar'dagi ElevenLabs kaliti bo'limi olib tashlanadi (kalit faqat server env'da), balans va sarf tarixi.
+- [ ] **P8.10 — Yakun.** e2e: oddiy yo'l (DFN3 + kutubxona) va pro yo'l (tasdiq bilan) ledger'ga to'g'ri yozilishi; docs; deploy; panel relizi.
+
+## 7e. Faza 9 — Admin panel, tariflar, auth xavfsizligi, masshtab · reja 2026-10-12
+
+**Maqsad:** mijozlar, balans va tariflar admin orqali boshqariladi; to'lov hozircha qo'lda; auth phishing'ga chidamli; server bir nechta replikada ishlay oladi.
+
+- [ ] **P9.01 — `/admin` kirish.** `ADMIN_LOGIN` + `ADMIN_PASSWORD` (env; konstant vaqtli solishtirish), alohida httpOnly cookie va sessiya, urinishlarga rate limit, har admin amali `audit` ga.
+- [ ] **P9.02 — Foydalanuvchilar.** Ro'yxat/qidiruv, profil: balans, sarf (ledger), qurilmalar, job'lar, ulangan ilovalar; bloklash → sessiya, OAuth, qurilma tokenlari bekor; MCP/WS/panel bloklangan va balansi yo'q foydalanuvchini rad etadi.
+- [ ] **P9.03 — Tariflar va balans.** `plans` (nom, narx $, kiritiladigan summa/bonus, muddat); admin balansga $ qo'shadi (izoh bilan, ledger'ga `credit`); PAYG. ❓ M4 (tarif qanday ishlaydi).
+- [ ] **P9.04 — Narx sozlamalari.** P8 narx jadvali admin'da: tannarx stavkalari, ustama (1,2 × 2), oddiy/pro nisbati (10×), timeline narxi; o'zgarishlar audit'da.
+- [ ] **P9.05 — Musiqa kutubxonasi (admin).** Jadval + tinglash; bittalab va ko'p fayl yuklash (drag & drop); nom/kategoriya/izoh tahriri; nomzodlarni ko'rib chiqish → public/hidden; kategoriyalar ro'yxati.
+- [ ] **P9.06 — Telegram auth xavfsizligi.** Bot kirish so'rovini tafsilot bilan yuboradi (brauzer, IP, vaqt) + saytdagi kod bilan moslik + [Tasdiqlash]/[Bu men emas]; webhook `secret_token` tekshiruvi; sessiya rotatsiyasi, "barcha qurilmalardan chiqish"; device flow tasdiq sahifasida ham qurilma tafsiloti.
+- [ ] **P9.07 — Ko'p replika.** WS hub: Redis pub/sub (panel qaysi replikaga ulangan bo'lsa ham xabar yetadi); job drive: Postgres advisory lock (bitta job ikki replikada yurmaydi); rate limiter Redis'da; sessiya/OAuth stateless (bor). 🧪 2 replika bilan e2e.
+- [ ] **P9.08 — Web · panel · Claude · bot mosligi.** Balans/bloklanish yagona manbadan; bot: kam balans, tasdiq, job yakuni xabarlari; panel: balans; MCP: `BALANCE_LOW` hint'i to'ldirish yo'li bilan.
+- [ ] **P9.09 — Yakun.** Xavfsizlik ko'rigi (IDOR: har so'rov user bo'yicha), docs, deploy.
+
+**❓ Faza 8–9 ochiq savollar:**
+
+| # | Savol | Tavsiya |
+|---|---|---|
+| M1 | Kesh/kutubxonadan qayta ishlatilgan pro audio mijozdan yechiladimi? | Yechilmaydi yoki oddiy narxda |
+| M2 | Musiqa qidiruvi: matn (nom/kategoriya/izoh/teg) yoki embedding? | Avval matn + teglar; embedding kutubxona kattalashganda |
+| M3 | `el_*` nomlari o'zgarganda eski connector'lar uchun alias qoldirilsinmi? | Bitta reliz alias, keyin olib tashlash |
+| M4 | Tarif: obuna (masalan 20 $ → balansga 20 $ + bonus, oylik) yoki faqat balans to'ldirish? | Hozircha faqat balans (admin $ kiritadi), tarif = to'ldirish paketi |
+| M5 | Kutubxona musiqasi narxi: daqiqa bo'yicha yoki trek uchun qat'iy? | Daqiqa bo'yicha (videodagi uzunlik) |
+
 ---
 
 ## 8. Qamrov jadvali (asl rejadagi hech narsa tushib qolmasligi uchun)
