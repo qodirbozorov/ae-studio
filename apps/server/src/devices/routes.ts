@@ -38,6 +38,9 @@ interface DeviceCodeData extends Record<string, unknown> {
   device_name: string;
   os: string;
   last_poll_at?: number;
+  /** So'rov yuborgan panelning IP manzili va vaqti (tasdiq sahifasida ko'rsatiladi, P9.06). */
+  ip?: string;
+  requested_at?: string;
 }
 
 const codeRequestSchema = z.strictObject({
@@ -98,6 +101,8 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
       status: "pending",
       device_name: parsed.data.device_name,
       os: parsed.data.os,
+      ip: request.ip,
+      requested_at: ctx.now().toISOString(),
     };
     const { token } = await issueToken(ctx.db, {
       kind: "device_code",
@@ -167,7 +172,15 @@ export function registerDeviceRoutes(app: FastifyInstance, ctx: AppContext): voi
     if (data === undefined || data.status !== "pending") {
       return reply.code(404).send(fail("SYS_NOT_FOUND", "Kod topilmadi yoki eskirgan"));
     }
-    return ok({ user_code: code, device_name: data.device_name, os: data.os });
+    return ok({
+      user_code: code,
+      device_name: data.device_name,
+      os: data.os,
+      ip: data.ip ?? null,
+      requested_at: data.requested_at ?? null,
+      // Panel va brauzer bir tarmoqdami — boshqa joydan kelgan kod (fishing) uchun ogohlantirish.
+      same_network: data.ip === undefined ? null : data.ip === request.ip,
+    });
   });
 
   app.post("/api/devices/confirm", { preHandler: requireUser }, async (request, reply) => {
@@ -365,7 +378,12 @@ export async function authenticateDevice(
   if (token === "") return null;
   const row = await findActiveToken(ctx.db, "device", token, ctx.now());
   if (row === null || row.userId === null || row.deviceId === null) return null;
-  const [device] = await ctx.db.select().from(devices).where(eq(devices.id, row.deviceId)).limit(1);
-  if (device === undefined || device.revokedAt !== null) return null;
+  const [device] = await ctx.db
+    .select({ revokedAt: devices.revokedAt, blockedAt: users.blockedAt })
+    .from(devices)
+    .innerJoin(users, eq(users.id, devices.userId))
+    .where(eq(devices.id, row.deviceId))
+    .limit(1);
+  if (device === undefined || device.revokedAt !== null || device.blockedAt !== null) return null;
   return { userId: row.userId, deviceId: row.deviceId };
 }

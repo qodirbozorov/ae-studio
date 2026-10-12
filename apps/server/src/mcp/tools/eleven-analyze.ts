@@ -127,7 +127,7 @@ export const elevenAnalyzeTools = [
           ctx,
           "isolate",
           input.user_confirmed,
-          quoteAudio("isolate", {}, 60).priceUsd,
+          quoteAudio("isolate", {}, 60, {}, ctx.app.billing.rates).priceUsd,
         );
         if (!allowed.ok) return allowed;
       }

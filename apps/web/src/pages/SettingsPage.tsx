@@ -31,6 +31,16 @@ interface Billing {
     isolation_pro_per_min: number;
     isolation_standard_per_min: number;
   };
+  /** To'lov qo'lda (P9.03): kimga murojaat qilish va paketlar. */
+  contact: string | null;
+  tariffs: {
+    id: string;
+    name: string;
+    description: string;
+    price_usd: number;
+    credit_usd: number;
+    bonus_usd: number;
+  }[];
   history: {
     id: number;
     kind: string;
@@ -159,6 +169,37 @@ function BalanceSettings() {
               </div>
             ))}
           </div>
+
+          {data.tariffs.length > 0 || data.contact !== null ? (
+            <div>
+              <Label>To'ldirish</Label>
+              {data.tariffs.length > 0 ? (
+                <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {data.tariffs.map((t) => (
+                    <li key={t.id} className="rounded-[1.25rem] bg-white p-5 shadow-raise">
+                      <div className="flex flex-wrap items-center gap-2 text-[1.05rem] font-normal">
+                        {t.name}
+                        {t.bonus_usd > 0 ? <Pill tone="go">+{usd(t.bonus_usd)} bonus</Pill> : null}
+                      </div>
+                      <p className="mt-1 text-sm text-ink-3">
+                        To'lov {usd(t.price_usd)} → balansga {usd(t.credit_usd)}
+                        {t.description !== "" ? ` · ${t.description}` : ""}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <p className="mt-3 text-sm text-ink-3">
+                To'lov hozircha administrator orqali
+                {data.contact !== null ? (
+                  <>
+                    : <span className="text-ink">{data.contact}</span>
+                  </>
+                ) : null}
+                . To'lov tushgach balans shu yerda ko'rinadi.
+              </p>
+            </div>
+          ) : null}
 
           <div>
             <Label>Oxirgi sarflar</Label>

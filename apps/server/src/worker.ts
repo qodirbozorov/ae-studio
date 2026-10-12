@@ -28,7 +28,14 @@ export async function runWorker(env: Env, database: DbHandle): Promise<void> {
     storage,
     hub: new AgentHub(database.db, app.log, now),
   } as unknown as AppContext;
-  ctx.billing = new BillingService(ctx);
+  ctx.billing = new BillingService(ctx, undefined, app.log);
+  // Sarf admin stavkalari bo'yicha yoziladi (P9.04).
+  try {
+    await ctx.billing.loadSettings();
+  } catch (error) {
+    app.log.error({ err: error }, "narx sozlamasi o'qilmadi: kod stavkalari");
+  }
+  ctx.billing.startRefresh();
   ctx.eleven = new ElevenService(ctx, app.log);
   const settings = new StorageSettings(ctx, storage, app.log);
   await settings.load();
@@ -63,6 +70,7 @@ export async function runWorker(env: Env, database: DbHandle): Promise<void> {
     app.log.info({ signal }, "worker to'xtatilmoqda");
     audio.stop();
     settings.stop();
+    ctx.billing.stop();
     await audio.idle();
     await app.close();
     await database.close();

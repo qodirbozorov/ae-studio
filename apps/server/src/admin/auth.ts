@@ -117,7 +117,16 @@ export function registerAdminAuth(app: FastifyInstance, ctx: Ctx): void {
   app.get("/api/admin/me", { preHandler: requireAdmin }, async () =>
     ok({ login: ctx.env.ADMIN_LOGIN }),
   );
-  app.post("/api/admin/logout", async (_request, reply) => {
+  app.post("/api/admin/logout", async (request, reply) => {
+    const token = request.cookies[ADMIN_COOKIE];
+    if (token !== undefined && verifyAdminToken(ctx.env, token, ctx.now())) {
+      await audit(ctx, request.log, {
+        userId: null,
+        actor: "admin",
+        action: "admin.logout",
+        ip: request.ip,
+      });
+    }
     reply.clearCookie(ADMIN_COOKIE, { path: "/" });
     return ok({ logged_out: true });
   });

@@ -54,7 +54,8 @@ export async function loadSession(ctx: AppContext, request: FastifyRequest): Pro
   const row = await findActiveToken(ctx.db, "session", token, ctx.now());
   if (row === null || row.userId === null) return;
   const [user] = await ctx.db.select().from(users).where(eq(users.id, row.userId)).limit(1);
-  if (user !== undefined)
+  // Bloklangan hisob (P9.02): tokenlar bekor qilinadi, bu — qo'shimcha himoya.
+  if (user !== undefined && user.blockedAt === null)
     request.user = { id: user.id, name: displayName(user), sessionId: row.id };
 }
 

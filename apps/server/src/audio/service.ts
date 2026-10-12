@@ -8,7 +8,7 @@
  */
 import { createHash, randomUUID } from "node:crypto";
 import { AUDIO_INPUT_KINDS, fail, makeError, ok, quoteAudio } from "@aes/shared";
-import type { AesError, AudioKind, AudioTier, PriceQuote, Result } from "@aes/shared";
+import type { AesError, AudioKind, AudioTier, PriceQuote, PricingRates, Result } from "@aes/shared";
 import { and, desc, eq, gt, inArray, isNotNull, isNull, lt } from "drizzle-orm";
 import type { FastifyBaseLogger } from "fastify";
 import type { AppContext } from "../context";
@@ -98,13 +98,14 @@ export function quoteTask(
   inputs: readonly InputRef[] | null | undefined,
   outputSeconds: number | null,
   cached = false,
+  rates?: PricingRates,
 ): PriceQuote {
   // Kutubxona treki: narx videoda ishlatilgan uzunlik bo'yicha (M5), trek uzunligi emas.
   const seconds =
     typeof params.library_track === "string"
       ? null
       : (inputSecondsOf(kind, inputs) ?? outputSeconds);
-  return quoteAudio(kind, params, seconds, { tier: tierOf(params), cached });
+  return quoteAudio(kind, params, seconds, { tier: tierOf(params), cached }, rates);
 }
 
 /** Kalitlari tartiblangan JSON (hash barqaror bo'lishi uchun). */
@@ -330,6 +331,7 @@ export class AudioService {
           inputs,
           hit.durationMs === null ? null : hit.durationMs / 1000,
           true,
+          this.ctx.billing.rates,
         );
         const allowed = await this.ctx.billing.check(input.userId, quote.priceUsd);
         if (!allowed.ok) return allowed;
@@ -360,7 +362,14 @@ export class AudioService {
         return ok(task!);
       }
     }
-    const estimate = quoteTask(input.kind, input.params, inputs, null);
+    const estimate = quoteTask(
+      input.kind,
+      input.params,
+      inputs,
+      null,
+      false,
+      this.ctx.billing.rates,
+    );
     const allowed = await this.ctx.billing.check(input.userId, estimate.priceUsd);
     if (!allowed.ok) return allowed;
     const [task] = await this.ctx.db
@@ -723,6 +732,8 @@ export class AudioService {
           done.params as Record<string, unknown>,
           done.inputs,
           out.durationS,
+          false,
+          this.ctx.billing.rates,
         ),
       })
       .catch((error: unknown) =>

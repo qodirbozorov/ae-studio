@@ -161,7 +161,7 @@ export const elevenGenerateTools = [
         ctx,
         "music",
         input.user_confirmed,
-        quoteAudio("music", params, null).priceUsd,
+        quoteAudio("music", params, null, {}, ctx.app.billing.rates).priceUsd,
       );
       if (!allowed.ok) return allowed;
       return runTask(

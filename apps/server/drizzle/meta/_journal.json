@@ -113,6 +113,13 @@
       "when": 1791779075285,
       "tag": "0015_prefs_pro",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791792055458,
+      "tag": "0016_admin_users_tariffs",
+      "breakpoints": true
     }
   ]
 }

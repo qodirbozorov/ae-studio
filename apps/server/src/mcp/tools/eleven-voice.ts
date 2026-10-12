@@ -56,7 +56,8 @@ export async function estimateWithQuota(
   let providerCredits = 0;
   const rows = items.map((item, i) => {
     const cached = flags[i] ?? null;
-    const full = quoteTask(item.kind, item.params, inputs(item.inputSeconds), null);
+    const rates = ctx.app.billing.rates;
+    const full = quoteTask(item.kind, item.params, inputs(item.inputSeconds), null, false, rates);
     if (cached !== true) {
       providerCredits += estimateCredits({
         kind: item.kind,
@@ -70,7 +71,7 @@ export async function estimateWithQuota(
       cached,
       price_usd:
         cached === true
-          ? quoteTask(item.kind, item.params, inputs(item.inputSeconds), null, true).priceUsd
+          ? quoteTask(item.kind, item.params, inputs(item.inputSeconds), null, true, rates).priceUsd
           : full.priceUsd,
       price_usd_if_uncached: full.priceUsd,
     };

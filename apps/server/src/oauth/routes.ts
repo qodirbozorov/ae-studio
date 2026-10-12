@@ -11,6 +11,7 @@ import { fail, ok } from "@aes/shared";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { isBlocked } from "../auth/revoke";
 import { loadSession, requireUser } from "../auth/session";
 import { consumeToken, findActiveToken, hashToken, issueToken } from "../auth/tokens";
 import type { TokenRow } from "../auth/tokens";
@@ -78,6 +79,7 @@ export async function authenticateBearer(
   if (match === null) return null;
   const row = await findActiveToken(ctx.db, "access", match[1]!, ctx.now());
   if (row === null || row.userId === null || row.clientId === null) return null;
+  if (await isBlocked(ctx.db, row.userId)) return null;
   const resource = typeof row.data?.resource === "string" ? row.data.resource : "";
   if (!sameResource(resource, oauthUrls(ctx.env.PUBLIC_URL).resource)) return null;
   return { userId: row.userId, clientId: row.clientId, scope: row.scope ?? "", tokenId: row.id };
@@ -348,6 +350,7 @@ export function registerOAuthRoutes(
   }
 
   async function issuePair(userId: string, client: ClientRow, scope: string, resource: string) {
+    if (await isBlocked(ctx.db, userId)) throw new OAuthError("invalid_grant", "Hisob bloklangan");
     const now = ctx.now();
     const access = await issueToken(ctx.db, {
       kind: "access",

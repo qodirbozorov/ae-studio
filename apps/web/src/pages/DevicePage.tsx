@@ -2,12 +2,17 @@ import { Check, Monitor, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, post } from "../api";
-import { Button, Card, IconWell, LinkButton, Notice, PageTitle, cx, inputClass } from "../ui";
+import { Button, Card, IconWell, LinkButton, Notice, PageTitle, cx, inputClass, when } from "../ui";
 
 interface Pending {
   user_code: string;
   device_name: string;
   os: string;
+  /** Panel so'rov yuborgan IP va vaqt (P9.06). */
+  ip: string | null;
+  requested_at: string | null;
+  /** Panel va shu brauzer bir tarmoqdami (null — noma'lum). */
+  same_network: boolean | null;
 }
 
 /** Panel ko'rsatgan kodni tasdiqlash (§4.2, 3-qadam). */
@@ -102,6 +107,26 @@ export function DevicePage() {
                     </div>
                   </div>
                 </div>
+                <dl className="grid gap-1.5 text-sm">
+                  {pending.ip !== null ? (
+                    <div className="flex flex-wrap gap-x-3">
+                      <dt className="text-ink-3">IP manzil</dt>
+                      <dd className="font-mono">{pending.ip}</dd>
+                    </div>
+                  ) : null}
+                  {pending.requested_at !== null ? (
+                    <div className="flex flex-wrap gap-x-3">
+                      <dt className="text-ink-3">So'rov vaqti</dt>
+                      <dd>{when(pending.requested_at)}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+                {pending.same_network === false ? (
+                  <Notice ok={false}>
+                    Panel boshqa tarmoqdan so'rov yuborgan. Bu kodni o'zingiz After Effects panelida
+                    ko'rmagan bo'lsangiz (masalan kimdir yuborgan bo'lsa) — rad eting.
+                  </Notice>
+                ) : null}
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={() => void decide(true)}>
                     <Check /> Ruxsat berish

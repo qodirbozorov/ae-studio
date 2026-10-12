@@ -1585,6 +1585,8 @@ export class JobEngine {
                 },
               ],
               null,
+              false,
+              this.ctx.billing.rates,
             ).priceUsd,
           0,
         );
@@ -1611,6 +1613,7 @@ export class JobEngine {
           [{ name: "", storage_key: "", sha256: "", duration_s: inputSeconds(item.inputAsset) }],
           null,
           cachedFlags[i] === true,
+          this.ctx.billing.rates,
         ).priceUsd,
       0,
     );

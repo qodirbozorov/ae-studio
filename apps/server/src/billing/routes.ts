@@ -1,8 +1,9 @@
 /**
  * Balans, sarf va Pro sozlamalari: kabinet (`/api/me/*`, sessiya) va panel (`/api/agent/*`, qurilma tokeni).
- * Admin to'ldirishi — Faza 9 (`/admin`).
+ * Admin to'ldirishi — `/admin` → Foydalanuvchilar (P9.03).
  */
 import { fail, microsToUsd, ok, quoteAudio } from "@aes/shared";
+import type { PricingRates } from "@aes/shared";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -11,16 +12,18 @@ import type { AppContext } from "../context";
 import { users } from "../db/schema";
 import type { UserPrefs } from "../db/schema";
 import { authenticateDevice } from "../devices/routes";
+import { presentTariff } from "./tariffs";
+import type { TariffService } from "./tariffs";
 
 const prefsSchema = z.strictObject({
   pro_music: z.boolean().optional(),
   pro_isolation: z.boolean().optional(),
 });
 
-/** Daqiqalik narxlar (Pro tugmalari yonidagi eslatma). */
-function prices() {
+/** Daqiqalik narxlar (Pro tugmalari yonidagi eslatma) — amaldagi stavkalar bo'yicha. */
+function prices(rates: PricingRates) {
   const perMinute = (kind: "music" | "isolate", tier: "pro" | "basic") =>
-    Math.round(quoteAudio(kind, {}, 60, { tier }).priceUsd * 10_000) / 10_000;
+    Math.round(quoteAudio(kind, {}, 60, { tier }, rates).priceUsd * 10_000) / 10_000;
   return {
     music_pro_per_min: perMinute("music", "pro"),
     music_library_per_min: perMinute("music", "basic"),
@@ -29,7 +32,11 @@ function prices() {
   };
 }
 
-export function registerBillingRoutes(app: FastifyInstance, ctx: AppContext): void {
+export function registerBillingRoutes(
+  app: FastifyInstance,
+  ctx: AppContext,
+  tariffs: TariffService,
+): void {
   const prefsOf = async (userId: string): Promise<UserPrefs> => {
     const [row] = await ctx.db
       .select({ prefs: users.prefs })
@@ -48,7 +55,10 @@ export function registerBillingRoutes(app: FastifyInstance, ctx: AppContext): vo
       ...(await ctx.billing.account(userId)),
       pro_music: prefs.pro_music === true,
       pro_isolation: prefs.pro_isolation === true,
-      prices: prices(),
+      prices: prices(ctx.billing.rates),
+      /** To'lov qo'lda (P9.03): kimga murojaat qilish va paketlar. */
+      contact: ctx.billing.contact,
+      tariffs: (await tariffs.list(true)).map(presentTariff),
     };
   };
 

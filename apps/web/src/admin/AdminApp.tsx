@@ -1,16 +1,27 @@
-/** Admin panel (`/admin`): kirish va bo'limlar. Hozircha Storage; foydalanuvchilar, tariflar, musiqa — Faza 9. */
-import { HardDrive, LogIn, LogOut, Music, ShieldCheck } from "lucide-react";
+/** Admin panel (`/admin`): kirish va bo'limlar — foydalanuvchilar, narxlar va tariflar, musiqa, storage. */
+import { HardDrive, LogIn, LogOut, Music, ShieldCheck, Tag, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, post } from "../api";
 import { Button, Field, Logo, Notice, Spinner, cx, inputClass } from "../ui";
 import { MusicPage } from "./MusicPage";
+import { PricingPage } from "./PricingPage";
 import { StoragePage } from "./StoragePage";
+import { UsersPage } from "./UsersPage";
 
 const NAV = [
-  { href: "/admin/storage", label: "Storage", icon: HardDrive },
+  { href: "/admin/users", label: "Foydalanuvchilar", icon: Users },
+  { href: "/admin/pricing", label: "Narxlar", icon: Tag },
   { href: "/admin/music", label: "Musiqa", icon: Music },
+  { href: "/admin/storage", label: "Storage", icon: HardDrive },
 ] as const;
+
+function Section({ path }: { path: string }) {
+  if (path.startsWith("/admin/music")) return <MusicPage />;
+  if (path.startsWith("/admin/storage")) return <StoragePage />;
+  if (path.startsWith("/admin/pricing")) return <PricingPage />;
+  return <UsersPage />;
+}
 
 function AdminLogin({ onDone }: { onDone: () => void }) {
   const [login, setLogin] = useState("");
@@ -117,8 +128,8 @@ export function AdminApp() {
           <nav aria-label="Admin" className="flex gap-1 lg:flex-col">
             {NAV.map(({ href, label, icon: Icon }) => {
               const active =
-                path === href ||
-                (href === "/admin/storage" && (path === "/admin" || path === "/admin/"));
+                path.startsWith(href) ||
+                (href === "/admin/users" && (path === "/admin" || path === "/admin/"));
               return (
                 <a
                   key={href}
@@ -145,7 +156,7 @@ export function AdminApp() {
         </aside>
         <main className="min-w-0 flex-1 px-5 pt-4 pb-12 sm:px-8 lg:pt-14 lg:pr-12 lg:pb-16 lg:pl-4">
           <div className="mx-auto max-w-[72rem]">
-            {path.startsWith("/admin/music") ? <MusicPage /> : <StoragePage />}
+            <Section path={path} />
           </div>
         </main>
       </div>

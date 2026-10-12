@@ -26,6 +26,9 @@ import { registerAudioRoutes } from "./audio/routes";
 import { AudioService, presentTask } from "./audio/service";
 import { registerBillingRoutes } from "./billing/routes";
 import { BillingService } from "./billing/service";
+import { TariffService } from "./billing/tariffs";
+import { registerAdminUserRoutes } from "./admin/users-routes";
+import { registerAdminBillingRoutes } from "./admin/billing-routes";
 import { MusicLibrary } from "./music/library";
 import { registerJobRoutes } from "./jobs/routes";
 import type { RedisLike } from "./redis";
@@ -60,6 +63,7 @@ declare module "fastify" {
     jobs: JobEngine;
     audio: AudioService;
     billing: BillingService;
+    tariffs: TariffService;
     eleven: ElevenService;
     music: MusicLibrary;
     templates: TemplateService;
@@ -129,8 +133,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     redis: deps.redis,
     now,
   } as AppContext;
-  ctx.billing = new BillingService(ctx);
+  ctx.billing = new BillingService(ctx, undefined, app.log);
   app.decorate("billing", ctx.billing);
+  const tariffs = new TariffService(ctx);
+  app.decorate("tariffs", tariffs);
   ctx.music = new MusicLibrary(ctx);
   app.decorate("music", ctx.music);
   ctx.eleven = new ElevenService(ctx, app.log, deps.elevenOptions ?? {});
@@ -198,6 +204,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   if (storage instanceof LocalStorage) await storage.register(app);
   registerAdminAuth(app, ctx);
   registerAdminMusicRoutes(app, ctx);
+  registerAdminUserRoutes(app, ctx, tariffs);
+  registerAdminBillingRoutes(app, ctx, tariffs);
   if (storage instanceof SwitchStorage) {
     await storage.local.register(app);
     const storageSettings = new StorageSettings(ctx, storage, app.log);
@@ -244,7 +252,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerBatchRoutes(app, ctx);
   registerTelegramRoutes(app, ctx);
   registerCabinetRoutes(app, ctx, engine);
-  registerBillingRoutes(app, ctx);
+  registerBillingRoutes(app, ctx, tariffs);
   const presence = new ClaudePresence(ctx, app.log);
   presence.attach();
   registerMcpRoutes(app, ctx, engine, {
@@ -300,6 +308,15 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     }
   });
   app.addHook("onReady", async () => {
+    // Narx stavkalari (P9.04): DB'dagi admin farqlari; o'qilmasa kod stavkalari.
+    try {
+      await ctx.billing.loadSettings();
+    } catch (error) {
+      app.log.error({ err: error }, "narx sozlamasi o'qilmadi: kod stavkalari ishlatiladi");
+    }
+    ctx.billing.startRefresh();
+  });
+  app.addHook("onReady", async () => {
     // DB hali tayyor bo'lmasa server baribir ko'tariladi (health 503 ko'rsatadi).
     try {
       const resumed = await engine.recover();
@@ -311,6 +328,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     }
   });
   app.addHook("onClose", async () => {
+    ctx.billing.stop();
     ctx.audio.stop();
     ctx.batches.stop();
     await ctx.telegram.stop();

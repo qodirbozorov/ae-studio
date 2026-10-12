@@ -272,10 +272,10 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 
 **Maqsad:** mijozlar, balans va tariflar admin orqali boshqariladi; to'lov hozircha qo'lda; auth phishing'ga chidamli; server bir nechta replikada ishlay oladi.
 
-- [ ] **P9.01 — `/admin` kirish.** `ADMIN_LOGIN` + `ADMIN_PASSWORD` (env; konstant vaqtli solishtirish), alohida httpOnly cookie va sessiya, urinishlarga rate limit, har admin amali `audit` ga.
-- [ ] **P9.02 — Foydalanuvchilar.** Ro'yxat/qidiruv, profil: balans, sarf (ledger), qurilmalar, job'lar, ulangan ilovalar; bloklash → sessiya, OAuth, qurilma tokenlari bekor; MCP/WS/panel bloklangan va balansi yo'q foydalanuvchini rad etadi.
-- [ ] **P9.03 — Tariflar va balans.** `plans` (nom, narx $, kiritiladigan summa/bonus, muddat); admin balansga $ qo'shadi (izoh bilan, ledger'ga `credit`); PAYG. ❓ M4 (tarif qanday ishlaydi).
-- [ ] **P9.04 — Narx sozlamalari.** P8 narx jadvali admin'da: tannarx stavkalari, ustama (1,2 × 2), oddiy/pro nisbati (10×), timeline narxi; o'zgarishlar audit'da.
+- [x] **P9.01 — `/admin` kirish.** `ADMIN_LOGIN` + `ADMIN_PASSWORD` (env; konstant vaqtli solishtirish), alohida httpOnly cookie va sessiya, urinishlarga rate limit, har admin amali `audit` ga.
+- [x] **P9.02 — Foydalanuvchilar.** Ro'yxat/qidiruv, profil: balans, sarf (ledger), qurilmalar, job'lar, ulangan ilovalar; bloklash → sessiya, OAuth, qurilma tokenlari bekor; MCP/WS/panel bloklangan va balansi yo'q foydalanuvchini rad etadi.
+- [x] **P9.03 — Tariflar va balans.** `plans` (nom, narx $, kiritiladigan summa/bonus, muddat); admin balansga $ qo'shadi (izoh bilan, ledger'ga `credit`); PAYG. ❓ M4 (tarif qanday ishlaydi).
+- [x] **P9.04 — Narx sozlamalari.** P8 narx jadvali admin'da: tannarx stavkalari, ustama (1,2 × 2), oddiy/pro nisbati (10×), timeline narxi; o'zgarishlar audit'da.
 - [x] **P9.05 — Musiqa kutubxonasi (admin).** (Faza 8 bilan birga) Jadval + tinglash; bittalab va ko'p fayl yuklash (drag & drop); nom/kategoriya/izoh tahriri; nomzodlarni ko'rib chiqish → public/hidden; kategoriyalar ro'yxati.
 - [ ] **P9.06 — Telegram auth xavfsizligi.** Bot kirish so'rovini tafsilot bilan yuboradi (brauzer, IP, vaqt) + saytdagi kod bilan moslik + [Tasdiqlash]/[Bu men emas]; webhook `secret_token` tekshiruvi; sessiya rotatsiyasi, "barcha qurilmalardan chiqish"; device flow tasdiq sahifasida ham qurilma tafsiloti.
 - [ ] **P9.07 — Ko'p replika.** WS hub: Redis pub/sub (panel qaysi replikaga ulangan bo'lsa ham xabar yetadi); job drive: Postgres advisory lock (bitta job ikki replikada yurmaydi); rate limiter Redis'da; sessiya/OAuth stateless (bor). 🧪 2 replika bilan e2e.

@@ -86,6 +86,9 @@ export const users = pgTable("users", {
   activatedAt: tstz("activated_at"),
   /** Foydalanuvchi sozlamalari (P8.08–P8.09): `pro_music`, `pro_isolation` — tasdiqsiz pro. */
   prefs: jsonb("prefs").$type<UserPrefs>().notNull().default({}),
+  /** Admin bloklagan payt (P9.02): kirish, MCP, panel va bot rad etiladi; tokenlar bekor qilinadi. */
+  blockedAt: tstz("blocked_at"),
+  blockedReason: text("blocked_reason"),
   createdAt: createdAt(),
 });
 
@@ -538,6 +541,22 @@ export const telegramLogins = pgTable("telegram_logins", {
 });
 
 /**
+ * Tariflar (P9.03): to'lov paketi — foydalanuvchi `price` to'laydi, balansga `credit` (bonus bilan) yoziladi.
+ * To'lov hozircha qo'lda: admin foydalanuvchi profilida tarifni tanlab balansni to'ldiradi.
+ */
+export const tariffs = pgTable("tariffs", {
+  id: id(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  priceMicros: bigint("price_micros", { mode: "number" }).notNull(),
+  creditMicros: bigint("credit_micros", { mode: "number" }).notNull(),
+  active: boolean("active").notNull().default(true),
+  sort: integer("sort").notNull().default(0),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+/**
  * Sarf va to'ldirish jurnali (Faza 8, P8.01). `amount_micros` ishorali: to'ldirish +, sarf −.
  * Bitta audio vazifa va bitta job timeline'i faqat bir marta hisoblanadi (qisman unique indekslar).
  */
@@ -550,6 +569,8 @@ export const usageLedger = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     jobId: uuid("job_id").references(() => jobs.id, { onDelete: "set null" }),
     audioTaskId: uuid("audio_task_id").references(() => audioTasks.id, { onDelete: "set null" }),
+    /** To'ldirish qaysi tarif bo'yicha (P9.03). */
+    tariffId: uuid("tariff_id").references(() => tariffs.id, { onDelete: "set null" }),
     /** charge | topup | adjust */
     kind: text("kind").notNull(),
     /** `music.pro`, `isolate.basic`, `tts`, `timeline`, `topup` ... */
