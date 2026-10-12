@@ -35,3 +35,6 @@ skills-lock.json
 
 # Impeccable: vaqtinchalik skrinshotlar
 **/.impeccable/review/
+
+# DeepFilterNet3 binari (scripts/fetch-deep-filter.mjs yuklab oladi)
+apps/server/bin/

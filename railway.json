@@ -2,7 +2,7 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "RAILPACK",
-    "buildCommand": "pnpm --filter @aes/web build && pnpm --filter @aes/server build",
+    "buildCommand": "pnpm --filter @aes/web build && pnpm --filter @aes/server build && node apps/server/scripts/fetch-deep-filter.mjs",
     "watchPatterns": ["/apps/server/**", "/apps/web/**", "/packages/shared/**", "/pnpm-lock.yaml"]
   },
   "deploy": {

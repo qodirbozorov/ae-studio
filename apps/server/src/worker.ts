@@ -38,6 +38,7 @@ export async function runWorker(env: Env, database: DbHandle): Promise<void> {
   const audio = new AudioService(ctx, app.log, {
     concurrency: env.AUDIO_CONCURRENCY,
     role: () => (storage.driver === "s3" ? "worker" : "api"),
+    ...(env.DEEP_FILTER_BIN === undefined ? {} : { deepFilter: { bin: env.DEEP_FILTER_BIN } }),
   });
   ctx.audio = audio;
 

@@ -25,6 +25,7 @@ import type { Alignment, TtsParams } from "../eleven/tts";
 import { designVoice, dub, voiceChange } from "../eleven/voice";
 import type { PollOptions } from "../eleven/voice";
 import { storageKey } from "../storage";
+import { DeepFilterError, findDeepFilter, runDeepFilter, wavDuration } from "./dfn";
 import { estimateCredits } from "./estimate";
 
 export type AudioTaskRow = typeof audioTasks.$inferSelect;
@@ -63,6 +64,11 @@ function inputSecondsOf(
 /** Vazifa darajasi: oddiy (server) variant yoki pro (tashqi xizmat). P8.05/P8.06 da `params.tier` beriladi. */
 function tierOf(params: Record<string, unknown>): AudioTier {
   return params.tier === "basic" ? "basic" : "pro";
+}
+
+/** Oddiy (server) isolation: DeepFilterNet3, tashqi xizmat kerak emas. */
+function isBasicIsolate(task: Pick<AudioTaskRow, "kind" | "params">): boolean {
+  return task.kind === "isolate" && (task.params as Record<string, unknown>).tier === "basic";
 }
 
 /** Narx: kirish turlarida kirish uzunligi, generatsiyada natija uzunligi (bo'lmasa so'ralgani). */
@@ -147,6 +153,8 @@ export class AudioService {
       dubPoll?: PollOptions;
       /** `api` — vazifalarni o'zi bajarmaydi (worker oladi); `worker`/`all` — bajaradi. */
       role?: () => "all" | "api" | "worker";
+      /** Server isolation buyrug'i (sukut: topilgan `deep-filter` binari). */
+      deepFilter?: { command?: string[]; bin?: string };
     } = {},
   ) {
     this.concurrency = options.concurrency ?? 2;
@@ -444,16 +452,22 @@ export class AudioService {
     if (task === undefined) return;
     this.notify(task);
     try {
+      const inputs = await this.loadInputs(task);
+      if (isBasicIsolate(task)) {
+        await this.complete(task, await this.isolateBasic(inputs));
+        return;
+      }
       const client = await this.ctx.eleven.client(task.userId);
       if (!client.ok) throw new ElevenError(client.error);
-      const inputs = await this.loadInputs(task);
       const out = await this.execute(task, client.data, inputs);
       await this.complete(task, out);
     } catch (error) {
       const aes =
         error instanceof ElevenError
           ? error.error
-          : makeError("SYS_INTERNAL", error instanceof Error ? error.message : String(error));
+          : error instanceof DeepFilterError
+            ? makeError("SYS_INTERNAL", `Ovozni tozalash (server): ${error.message}`)
+            : makeError("SYS_INTERNAL", error instanceof Error ? error.message : String(error));
       this.log.warn({ task: task.id, kind: task.kind, code: aes.code }, "audio vazifa xatosi");
       const [failed] = await this.ctx.db
         .update(audioTasks)
@@ -481,6 +495,27 @@ export class AudioService {
       });
     }
     return files;
+  }
+
+  /** Oddiy isolation: serverdagi DeepFilterNet3 (48 kHz mono WAV → WAV). */
+  private async isolateBasic(inputs: InputFile[]): Promise<{
+    audio: AudioResult;
+    result: Record<string, unknown>;
+    durationS: number | null;
+  }> {
+    const input = inputs[0];
+    if (input === undefined) {
+      throw new ElevenError(makeError("ASSET_MISSING", "isolate uchun kirish fayli yo'q"));
+    }
+    const bin = findDeepFilter(this.options.deepFilter?.bin);
+    const command = this.options.deepFilter?.command ?? (bin === null ? [] : [bin]);
+    if (command.length === 0) throw new DeepFilterError("deep-filter binari o'rnatilmagan");
+    const audio = await runDeepFilter(input.data, { command });
+    return {
+      audio: { audio, contentType: "audio/wav", ext: "wav" },
+      result: { engine: "dfn3" },
+      durationS: wavDuration(audio),
+    };
   }
 
   private async execute(

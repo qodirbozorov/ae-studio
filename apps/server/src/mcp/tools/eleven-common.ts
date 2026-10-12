@@ -77,6 +77,7 @@ export async function inputFromAsset(
   projectId: string,
   key: string,
   name = "audio",
+  extract: { format?: "opus" | "wav" | "mp3"; sampleRate?: number } = {},
 ): Promise<Result<InputRef>> {
   const project = await ownProject(ctx, projectId);
   if (!project.ok) return project;
@@ -91,7 +92,7 @@ export async function inputFromAsset(
   }
   if (asset.status !== "ok")
     return fail("ASSET_CORRUPT", `asset:${asset.key} holati: ${asset.status}`);
-  return extractInput(ctx.app, project.data, asset.localPath, { name });
+  return extractInput(ctx.app, project.data, asset.localPath, { name, ...extract });
 }
 
 /** User lug'atlari: slug → locator. */

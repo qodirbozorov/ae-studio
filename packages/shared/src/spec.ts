@@ -476,9 +476,12 @@ export const captionsSchema = z.strictObject({
   max_words: z.number().int().min(1).max(12).default(4),
 });
 
+/** Ovozni tozalash: `true`/`standard` — serverda (arzon), `pro` — tashqi xizmat (qimmat, tasdiq bilan). */
+export const isolateModeSchema = z.union([z.boolean(), z.enum(["standard", "pro"])]);
+
 export const sourceAudioSchema = z.strictObject({
   asset: assetRefSchema,
-  isolate: z.boolean().default(false),
+  isolate: isolateModeSchema.default(false),
   transcribe: z.boolean().default(false),
   language: languageSchema.optional(),
   /** Asl (yoki tozalangan) ovoz videoda qoladimi. */
@@ -687,5 +690,5 @@ export function audioUsesEleven(spec: VideoSpec): boolean {
   if (audio.sfx.some((sfx) => sfx.prompt !== undefined)) return true;
   if (audio.captions !== undefined && audio.captions.method !== "tts_timestamps") return true;
   const source = audio.source_audio;
-  return source !== undefined && (source.isolate || source.transcribe);
+  return source !== undefined && (source.isolate === "pro" || source.transcribe);
 }

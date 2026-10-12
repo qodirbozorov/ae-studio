@@ -126,12 +126,14 @@ export function planAudioTasks(
   const source = audio.source_audio;
   if (source !== undefined) {
     const key = assetKey(source.asset);
-    if (source.isolate) {
+    if (source.isolate !== false) {
+      const pro = source.isolate === "pro";
       items.push({
         role: "source_isolate",
         kind: "isolate",
-        label: "Ovozni tozalash",
-        params: {},
+        label: pro ? "Ovozni tozalash (pro)" : "Ovozni tozalash",
+        // Oddiy — serverdagi DeepFilterNet3 (P8.05); pro — tashqi xizmat.
+        params: pro ? {} : { tier: "basic" },
         inputAsset: key,
       });
     }

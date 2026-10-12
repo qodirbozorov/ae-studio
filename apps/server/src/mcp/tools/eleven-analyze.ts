@@ -101,8 +101,11 @@ export const elevenAnalyzeTools = [
     name: "el_isolate",
     title: "Isolate voice",
     description:
-      "Removes background noise/music from a project video/audio, leaving clean speech (new file in audio/).",
-    input: z.object(sourceArgs),
+      'Removes background noise from a project video/audio, leaving clean speech (new WAV in audio/). quality "standard" (default) runs on our server and is cheap; "pro" uses the premium external service (stronger, also separates speech from music; ~10× the price) — use pro only if the user asked for it or confirmed the price.',
+    input: z.object({
+      ...sourceArgs,
+      quality: z.enum(["standard", "pro"]).default("standard"),
+    }),
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -110,16 +113,23 @@ export const elevenAnalyzeTools = [
       openWorldHint: true,
     },
     async handler(ctx, input) {
-      const audio = await inputFromAsset(ctx, input.project_id, input.key);
+      const basic = input.quality === "standard";
+      const audio = await inputFromAsset(
+        ctx,
+        input.project_id,
+        input.key,
+        "audio",
+        basic ? { format: "wav", sampleRate: 48_000 } : {},
+      );
       if (!audio.ok) return audio;
       return runTask(
         ctx,
         {
           projectId: input.project_id,
           kind: "isolate",
-          label: `Toza ovoz: ${input.key}`,
+          label: `Toza ovoz${basic ? "" : " (pro)"}: ${input.key}`,
           inputs: [audio.data],
-          params: {},
+          params: basic ? { tier: "basic" } : {},
         },
         input.wait_s,
       );

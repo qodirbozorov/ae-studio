@@ -139,6 +139,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   ctx.audio = new AudioService(ctx, app.log, {
     role: audioRole,
     concurrency: deps.env.AUDIO_CONCURRENCY,
+    ...(deps.env.DEEP_FILTER_BIN === undefined
+      ? {}
+      : { deepFilter: { bin: deps.env.DEEP_FILTER_BIN } }),
     ...deps.audioOptions,
   });
   ctx.audio.attach();

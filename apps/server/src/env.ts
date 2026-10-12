@@ -62,6 +62,8 @@ export const envSchema = z
      * vazifalari (HTTP faqat /health). `api`/`worker` umumiy storage (R2) bilan ishlaydi.
      */
     AES_ROLE: z.enum(["all", "api", "worker"]).default("all"),
+    /** DeepFilterNet3 binari (berilmasa `apps/server/bin/deep-filter`). */
+    DEEP_FILTER_BIN: optionalString,
     /** Bitta jarayonda bir vaqtda bajariladigan audio vazifalar soni. */
     AUDIO_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(2),
 

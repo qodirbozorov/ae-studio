@@ -19,7 +19,7 @@ export async function extractInput(
   ctx: Pick<AppContext, "hub" | "storage">,
   project: typeof projects.$inferSelect,
   localPath: string,
-  options: { format?: "opus" | "wav" | "mp3"; name?: string } = {},
+  options: { format?: "opus" | "wav" | "mp3"; name?: string; sampleRate?: number } = {},
 ): Promise<Result<InputRef>> {
   if (project.deviceId === null || !ctx.hub.isOnline(project.deviceId)) {
     return fail("ENV_AGENT_OFFLINE", "Loyiha qurilmasida panel ulanmagan");
@@ -42,6 +42,7 @@ export async function extractInput(
       local_path: localPath,
       format,
       mono: true,
+      ...(options.sampleRate === undefined ? {} : { sample_rate: options.sampleRate }),
       upload: {
         url: await ctx.storage.presignPut(key, { contentType: MIME[format] }),
         storage_key: key,

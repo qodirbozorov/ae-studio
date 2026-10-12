@@ -1581,7 +1581,13 @@ export class JobEngine {
               ),
             };
           }
-          const input = await extractInput(this.ctx, project, asset.localPath);
+          // Server isolation (DeepFilterNet3) 48 kHz mono WAV kutadi.
+          const input = await extractInput(
+            this.ctx,
+            project,
+            asset.localPath,
+            item.params.tier === "basic" ? { format: "wav", sampleRate: 48_000 } : {},
+          );
           if (!input.ok) {
             if (input.error.code === "ENV_AGENT_OFFLINE") {
               return { kind: "wait_agent", reason: "AUDIO: panel uzildi (ovoz ajratish)" };

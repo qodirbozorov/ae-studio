@@ -275,13 +275,14 @@ Aligns a known text to a project audio/video → exact word timings (for subtitl
 
 ### `el_isolate` — Isolate voice
 
-Removes background noise/music from a project video/audio, leaving clean speech (new file in audio/).
+Removes background noise from a project video/audio, leaving clean speech (new WAV in audio/). quality "standard" (default) runs on our server and is cheap; "pro" uses the premium external service (stronger, also separates speech from music; ~10× the price) — use pro only if the user asked for it or confirmed the price.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
 | `project_id` | uuid | ha |  |
 | `key` | string | ha | Audio or video asset key from assets_list · ≤ 128 belgi |
 | `wait_s` | integer |  | Seconds to wait for the result (0 = return task_id immediately; poll audio_tasks_status) · default `30`, ≥ 0, ≤ 55 |
+| `quality` | `standard` \\| `pro` |  | default `"standard"` |
 
 ### `transcript_get` — Get transcript · faqat o'qish
 
