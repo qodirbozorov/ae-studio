@@ -482,3 +482,38 @@ const EVENT: Record<string, string> = {
 export function eventTitle(type: string): string {
   return EVENT[type] ?? type;
 }
+
+/** Yoqish/o'chirish tugmasi (switch). */
+export function Toggle({
+  checked,
+  onChange,
+  label,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={cx(
+        "relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40",
+        checked ? "bg-ink" : "bg-line",
+      )}
+    >
+      <span
+        className={cx(
+          "inline-block h-5 w-5 rounded-full bg-white shadow-raise transition-transform duration-200 ease-out",
+          checked ? "translate-x-6" : "translate-x-1",
+        )}
+      />
+    </button>
+  );
+}

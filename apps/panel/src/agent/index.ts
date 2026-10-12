@@ -20,7 +20,7 @@ import { extractAudio } from "./extract";
 import { makePreviews } from "./preview";
 import { RenderError, findAerender, renderJob } from "./render";
 import { uploadFile } from "./files";
-import { getJson, postJson } from "./http";
+import { getJson, postJson, putJson } from "./http";
 import { scanSource } from "./ingest";
 import type { ScannedAsset } from "./ingest";
 import { AudioStore } from "./audio-store";
@@ -87,6 +87,20 @@ export interface HistoryJob {
   renders: { id: string; status: string; preset: string; local_path: string }[];
 }
 
+export interface PanelBilling {
+  activated: boolean;
+  balance_usd: number;
+  activation_usd: number;
+  pro_music: boolean;
+  pro_isolation: boolean;
+  prices: {
+    music_pro_per_min: number;
+    music_library_per_min: number;
+    isolation_pro_per_min: number;
+    isolation_standard_per_min: number;
+  };
+}
+
 export interface PanelProfile {
   name: string;
   telegram: boolean;
@@ -116,6 +130,13 @@ export interface Agent {
   history(): Promise<HistoryJob[]>;
   /** Hisob egasi va qurilma nomi (`/api/agent/me`); ulanmagan yoki eski server bo'lsa null. */
   profile(): Promise<PanelProfile | null>;
+  /** Balans va Pro sozlamalari (`/api/agent/billing`); ulanmagan yoki eski server bo'lsa null. */
+  billing(): Promise<PanelBilling | null>;
+  /** Pro musiqa / Pro ovoz tozalash (serverda saqlanadi — web va Claude ham shuni ko'radi). */
+  setPreferences(patch: {
+    pro_music?: boolean;
+    pro_isolation?: boolean;
+  }): Promise<PanelBilling | null>;
   jobReport(jobId: string): Promise<string | null>;
   renderAgain(jobId: string, preset?: string): Promise<{ ok: boolean; message?: string }>;
   /** Shablonlar ekrani (P5.06): galereya, loyiha assetlari, ishga tushirish (Claude'siz). */
@@ -649,6 +670,30 @@ export function createAgent(options: AgentOptions): Agent {
       } catch {
         return null;
       }
+    },
+    async billing() {
+      if (api === null) return null;
+      const { base, headers } = authed();
+      try {
+        const res = await getJson<{ ok: boolean; data?: PanelBilling }>(
+          `${base}/api/agent/billing`,
+          {
+            headers,
+          },
+        );
+        return res.body.ok ? (res.body.data ?? null) : null;
+      } catch {
+        return null;
+      }
+    },
+    async setPreferences(patch) {
+      if (api === null) return null;
+      const res = await putJson<{ ok: boolean; data?: PanelBilling }>(
+        `${api.base}/api/agent/preferences`,
+        patch,
+        { headers: { authorization: `Bearer ${api.token}` } },
+      );
+      return res.body.ok ? (res.body.data ?? null) : null;
     },
     async history() {
       const { base, headers } = authed();

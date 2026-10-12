@@ -116,3 +116,52 @@ describe("sarf jurnali", () => {
     expect((await t.app.billing.account(userId)).activated).toBe(true);
   });
 });
+
+describe("Pro sozlamalari (P8.09)", () => {
+  it("kabinet: holat + narxlar; Pro yoqiladi; panel shu sozlamani device token bilan ko'radi va o'zgartiradi", async () => {
+    await setup();
+    const first = await t.app.inject({ url: "/api/me/billing", headers: { cookie } });
+    expect(first.json().data).toMatchObject({ pro_music: false, pro_isolation: false });
+    const prices = first.json().data.prices;
+    expect(prices.music_pro_per_min).toBeCloseTo(0.36);
+    expect(prices.music_library_per_min).toBeCloseTo(0.036);
+    expect(prices.isolation_pro_per_min).toBeCloseTo(0.288);
+    expect(prices.isolation_standard_per_min).toBeCloseTo(0.0288);
+
+    const on = await t.app.inject({
+      method: "PUT",
+      url: "/api/me/preferences",
+      headers: { cookie },
+      payload: { pro_music: true },
+    });
+    expect(on.json().data).toMatchObject({ pro_music: true, pro_isolation: false });
+    const bad = await t.app.inject({
+      method: "PUT",
+      url: "/api/me/preferences",
+      headers: { cookie },
+      payload: { pro_music: "ha" },
+    });
+    expect(bad.statusCode).toBe(400);
+
+    const { issueToken } = await import("../src/auth/tokens");
+    const [device] = await t.db.db.select().from(devices).where(eq(devices.userId, userId));
+    const { token } = await issueToken(t.db.db, {
+      kind: "device",
+      userId,
+      deviceId: device!.id,
+      ttlMs: 3_600_000,
+      now: t.clock.now,
+    });
+    const auth = { authorization: `Bearer ${token}` };
+    const panel = await t.app.inject({ url: "/api/agent/billing", headers: auth });
+    expect(panel.json().data).toMatchObject({ pro_music: true, balance_usd: 0, activated: false });
+    const off = await t.app.inject({
+      method: "PUT",
+      url: "/api/agent/preferences",
+      headers: auth,
+      payload: { pro_music: false, pro_isolation: true },
+    });
+    expect(off.json().data).toMatchObject({ pro_music: false, pro_isolation: true });
+    expect((await t.app.inject({ url: "/api/agent/billing" })).statusCode).toBe(401);
+  });
+});

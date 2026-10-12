@@ -96,7 +96,7 @@ function nav(devices: Device[] | null): Item[] {
       icon: Settings,
       match: (p) => p === "/settings",
       children: [
-        { href: "/settings#elevenlabs", label: "ElevenLabs" },
+        { href: "/settings#balance", label: "Balans va Pro" },
         { href: "/settings#telegram", label: "Telegram" },
         { href: "/settings#brand", label: "Brand kit" },
       ],

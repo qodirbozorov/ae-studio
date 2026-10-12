@@ -13,7 +13,7 @@ export interface RequestOptions {
 }
 
 function requestJson<T>(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PUT",
   url: string,
   payload: unknown,
   options: RequestOptions,
@@ -67,4 +67,12 @@ export function postJson<T>(
 
 export function getJson<T>(url: string, options: RequestOptions = {}): Promise<HttpResponse<T>> {
   return requestJson<T>("GET", url, undefined, options);
+}
+
+export function putJson<T>(
+  url: string,
+  payload: unknown,
+  options: RequestOptions = {},
+): Promise<HttpResponse<T>> {
+  return requestJson<T>("PUT", url, payload, options);
 }

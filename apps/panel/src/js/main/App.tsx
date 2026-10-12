@@ -7,6 +7,7 @@ import {
   LayoutTemplate,
   Server,
   Settings as SettingsIcon,
+  Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -24,6 +25,7 @@ import { LiveLog } from "./LiveLog";
 import { Settings, Workspace } from "./Workspace";
 import { Templates } from "./Templates";
 import { FirstRun } from "./FirstRun";
+import { ProSettings, useBilling } from "./Pro";
 
 type Status = "ok" | "off" | "unknown" | "busy";
 
@@ -86,22 +88,20 @@ function ClaudeStatus({ agent }: { agent: NonNullable<ReturnType<typeof getAgent
   );
 }
 
-function ElevenStatus({ agent }: { agent: NonNullable<ReturnType<typeof getAgent>> }) {
-  const status = useSyncExternalStore(
-    (notify) => agent.eleven.subscribe(notify),
-    () => agent.eleven.current(),
-  );
-  const dot: Status = status === null ? "unknown" : status.ok ? "ok" : "off";
+/** Balans pill'i (ElevenLabs o'rniga, P8.09): faol va balans bo'lsa yashil. */
+function BalanceStatus({ agent }: { agent: NonNullable<ReturnType<typeof getAgent>> }) {
+  const status = useConnectionStatus(agent);
+  const [billing] = useBilling(agent, status === "connected");
+  const dot: Status =
+    billing === null ? "unknown" : billing.activated && billing.balance_usd > 0 ? "ok" : "off";
   const text =
-    status === null
-      ? "ElevenLabs"
-      : !status.configured
-        ? "ElevenLabs: kalit yo'q"
-        : status.ok
-          ? `ElevenLabs${status.remaining !== null ? ` (${status.remaining.toLocaleString()})` : ""}`
-          : "ElevenLabs: xato";
+    billing === null
+      ? "Balans"
+      : !billing.activated
+        ? "Balans: faol emas"
+        : `Balans ${billing.balance_usd.toFixed(2)} $`;
   return (
-    <Pill status={dot} icon={AudioLines}>
+    <Pill status={dot} icon={Wallet}>
       {text}
     </Pill>
   );
@@ -156,11 +156,11 @@ export function App() {
           <ClaudeStatus agent={agent} />
         )}
         {agent === null ? (
-          <Pill status="unknown" icon={AudioLines}>
-            ElevenLabs
+          <Pill status="unknown" icon={Wallet}>
+            Balans
           </Pill>
         ) : (
-          <ElevenStatus agent={agent} />
+          <BalanceStatus agent={agent} />
         )}
       </section>
 
@@ -257,6 +257,7 @@ function Workbench({
         {tab === "history" ? <History agent={agent} connected={connected} /> : null}
         {tab === "settings" ? (
           <>
+            <ProSettings agent={agent} connected={connected} />
             <Settings agent={agent} onChange={(s) => onLogLevel(s.log_level)} />
             <DevTools agent={agent} />
           </>
