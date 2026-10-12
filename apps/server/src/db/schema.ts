@@ -534,6 +534,20 @@ export const telegramLogins = pgTable("telegram_logins", {
   next: text("next").notNull().default("/"),
   /** Bot tasdiqlagan foydalanuvchi. */
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  /**
+   * P9.06: saytda ko'rsatiladigan 2 xonali raqam — botda shu raqam tanlanadi (fishing havolasini olgan begona
+   * odam raqamni bilmaydi). So'rov tafsiloti (IP, brauzer) botda ko'rsatiladi.
+   */
+  matchCode: text("match_code"),
+  ip: text("ip"),
+  userAgent: text("user_agent"),
+  /** Start bosgan Telegram foydalanuvchisi va bot xabari (tugma natijasini shu xabarga yozish uchun). */
+  telegramUserId: text("telegram_user_id"),
+  chatId: text("chat_id"),
+  messageId: integer("message_id"),
+  /** Rad etilgan: `not_me` (Bu men emas), `wrong_code` (raqam mos emas), `blocked`. */
+  rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+  rejectReason: text("reject_reason"),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
   consumedAt: timestamp("consumed_at", { withTimezone: true }),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),

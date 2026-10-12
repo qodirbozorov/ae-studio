@@ -120,6 +120,13 @@
       "when": 1791792055458,
       "tag": "0016_admin_users_tariffs",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791792921274,
+      "tag": "0017_telegram_login_hardening",
+      "breakpoints": true
     }
   ]
 }

@@ -6,16 +6,29 @@ import { Button, Logo, Notice, Pill } from "../ui";
 interface Start {
   link: string;
   bot: string;
+  /** Botda shu raqam tanlanadi (P9.06). */
+  match_code: string;
   expires_at: string;
   poll_ms: number;
 }
 
-type Status = { status: "pending" } | { status: "expired" } | { status: "ok"; next: string };
+type Status =
+  | { status: "pending" }
+  | { status: "expired" }
+  | { status: "rejected"; reason: string }
+  | { status: "ok"; next: string };
+
+const REJECTED: Record<string, string> = {
+  wrong_code: "Botda boshqa raqam tanlandi — kirish bekor qilindi. Qaytadan bosing.",
+  not_me: "Botda «Bu men emas» tanlandi — kirish bekor qilindi.",
+  blocked: "Hisob bloklangan. Administratorga murojaat qiling.",
+};
 
 /** Kirish Telegram bot orqali: deep link → botda Start → shu sahifa o'zi kiradi. */
 export function LoginPage({ next }: { next: string }) {
   const [start, setStart] = useState<Start | null>(null);
-  const [state, setState] = useState<"idle" | "waiting" | "expired">("idle");
+  const [state, setState] = useState<"idle" | "waiting" | "expired" | "rejected">("idle");
+  const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
 
@@ -48,6 +61,10 @@ export function LoginPage({ next }: { next: string }) {
       } else if (poll.data.status === "expired") {
         stop();
         setState("expired");
+      } else if (poll.data.status === "rejected") {
+        stop();
+        setReason(poll.data.reason);
+        setState("rejected");
       }
     }, res.data.poll_ms);
   };
@@ -68,8 +85,18 @@ export function LoginPage({ next }: { next: string }) {
               </Pill>
               <p className="text-[1.05rem] leading-relaxed text-ink-2">
                 Telegram'da <span className="font-normal text-ink">@{start.bot}</span> ochildi —{" "}
-                <span className="font-normal text-ink">Start</span> tugmasini bosing. Shu sahifa
-                o'zi kabinetga kiradi.
+                <span className="font-normal text-ink">Start</span> tugmasini bosing, so'ng botda
+                shu raqamni tanlang:
+              </p>
+              <div
+                aria-label="Tasdiqlash raqami"
+                className="num text-center text-[4.5rem] leading-none font-extralight tracking-[0.08em]"
+              >
+                {start.match_code}
+              </div>
+              <p className="text-[0.95rem] leading-relaxed text-ink-3">
+                Botdagi brauzer va IP shu qurilmaniki ekanini tekshiring. Raqamni hech kimga aytmang
+                — AE Studio uni hech qachon so'ramaydi.
               </p>
               <p className="text-[0.95rem] text-ink-3">
                 Ochilmadimi?{" "}
@@ -91,6 +118,9 @@ export function LoginPage({ next }: { next: string }) {
               </p>
               {state === "expired" ? (
                 <Notice ok={false}>Havola eskirdi, qaytadan bosing.</Notice>
+              ) : null}
+              {state === "rejected" ? (
+                <Notice ok={false}>{REJECTED[reason] ?? "Kirish rad etildi."}</Notice>
               ) : null}
               <Button className="w-full sm:w-fit" onClick={() => void begin()}>
                 <Send /> Telegram orqali kirish

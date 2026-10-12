@@ -44,6 +44,7 @@ export async function issueToken(
       scope: input.scope ?? null,
       data: input.data ?? null,
       expiresAt: input.ttlMs === null ? null : new Date(input.now.getTime() + input.ttlMs),
+      createdAt: input.now,
     })
     .returning();
   return { token, row: row! };

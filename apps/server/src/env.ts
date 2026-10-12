@@ -45,6 +45,14 @@ export const envSchema = z
     TELEGRAM_BOT_USERNAME: optionalString,
     /** Telegram Bot API manzili (default https://api.telegram.org; testlarda soxta). */
     TELEGRAM_API_URL: z.url().optional(),
+    /**
+     * Webhook rejimi (P9.06, bir nechta replika uchun): Telegram har so'rovda shu sirni
+     * `X-Telegram-Bot-Api-Secret-Token` sarlavhasida yuboradi. Bo'sh — long polling.
+     */
+    TELEGRAM_WEBHOOK_SECRET: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{24,256}$/, { error: "24–256 belgi: A-Z a-z 0-9 _ -" })
+      .optional(),
 
     /** Production xizmat ko'rsatish (P5.13): backup oralig'i (soat, 0 — o'chiq), nechta saqlanadi, loglar muddati. */
     BACKUP_INTERVAL_H: z.coerce

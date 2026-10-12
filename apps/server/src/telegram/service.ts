@@ -3,7 +3,10 @@
  * render tugaganda, job BLOCKED bo'lganda va batch yakunlanganda xabar.
  *
  * Bog'lash: kabinet bir martalik kod beradi (15 daqiqa) → foydalanuvchi botga `/start <kod>` yuboradi →
- * server long polling (`getUpdates`) bilan kodni topib `chat_id` ni saqlaydi. Webhook kerak emas.
+ * server kodni topib `chat_id` ni saqlaydi.
+ *
+ * Yangilanishlar ikki usulda (P9.06): `TELEGRAM_WEBHOOK_SECRET` berilsa — webhook (`/api/telegram/webhook`,
+ * Telegram `secret_token` sarlavhasi tekshiriladi; bir nechta replika uchun mos), aks holda long polling.
  */
 import { randomBytes } from "node:crypto";
 import { fail, ok } from "@aes/shared";
@@ -15,8 +18,16 @@ import { jobs, projects, telegramLinks } from "../db/schema";
 import type { BatchRow, BatchService } from "../batch/service";
 import { presentBatch } from "../batch/service";
 import type { JobEngine, JobRow } from "../jobs/engine";
-import { LOGIN_START_RE, confirmTelegramLogin } from "../auth/telegram-login";
-import type { TelegramUser } from "../auth/telegram-login";
+import { describeAgent, tashkentTime } from "../auth/client-info";
+import {
+  LOGIN_CALLBACK_RE,
+  LOGIN_START_RE,
+  answerTelegramLogin,
+  matchChoices,
+  openTelegramLogin,
+  rememberLoginMessage,
+} from "../auth/telegram-login";
+import type { LoginAnswer, TelegramUser } from "../auth/telegram-login";
 
 const CODE_TTL_MS = 15 * 60_000;
 const POLL_TIMEOUT_S = 25;
@@ -29,14 +40,44 @@ export interface TelegramOptions {
   sleep?: (ms: number) => Promise<void>;
 }
 
-interface Update {
+interface Chat {
+  id: number;
+  title?: string;
+  username?: string;
+  first_name?: string;
+}
+
+export interface TelegramUpdate {
   update_id: number;
   message?: {
-    chat: { id: number; title?: string; username?: string; first_name?: string };
+    chat: Chat;
     from?: TelegramUser;
     text?: string;
   };
+  /** Inline tugma bosildi (kirish tasdig'i, P9.06). */
+  callback_query?: {
+    id: string;
+    from: TelegramUser;
+    data?: string;
+    message?: { message_id: number; chat: Chat };
+  };
 }
+
+type InlineKeyboard = { text: string; callback_data: string }[][];
+
+/** Bot javoblari (kirish tugmalari natijasi). */
+const ANSWER_TEXT: Record<LoginAnswer, string> = {
+  confirmed: "✅ Kirish tasdiqlandi — brauzerga qayting. Xabarnomalar ham shu chatga keladi.",
+  not_me:
+    "🚫 Kirish rad etildi. Havolani kimdir yuborgan bo'lsa, unga ishonmang — hisobingiz xavfsiz.",
+  wrong_code:
+    "❌ Raqam saytdagisi bilan mos kelmadi — kirish bekor qilindi. Saytda «Telegram orqali kirish»ni qayta bosing.",
+  blocked: "⛔ Hisobingiz bloklangan. Administratorga murojaat qiling.",
+  expired: "⌛ Bu kirish so'rovi eskirgan yoki allaqachon hal qilingan.",
+  foreign: "Bu kirish so'rovi boshqa Telegram hisobi uchun.",
+};
+
+export const WEBHOOK_PATH = "/api/telegram/webhook";
 
 export interface TelegramStatus {
   enabled: boolean;
@@ -54,6 +95,8 @@ export class TelegramService {
   private readonly sleep: (ms: number) => Promise<void>;
   private loop: Promise<void> | null = null;
   private readonly pending = new Set<Promise<unknown>>();
+  /** Webhook qayta yuborsa bir update ikki marta qayta ishlanmasin. */
+  private readonly handled = new Set<number>();
 
   constructor(
     private readonly ctx: Pick<AppContext, "db" | "env" | "now">,
@@ -70,6 +113,11 @@ export class TelegramService {
 
   private get botUsername(): string | null {
     return this.ctx.env.TELEGRAM_BOT_USERNAME ?? null;
+  }
+
+  /** Webhook rejimi: maxfiy so'z berilgan (Telegram har so'rovda sarlavhada qaytaradi). */
+  get webhookSecret(): string | null {
+    return this.ctx.env.TELEGRAM_WEBHOOK_SECRET ?? null;
   }
 
   private async api<T>(method: string, body: Record<string, unknown>): Promise<Result<T>> {
@@ -100,7 +148,29 @@ export class TelegramService {
       },
     });
     batches.listen({ finished: (batch) => this.track(this.onBatch(batch)) });
-    if (this.enabled && this.options.poll !== false) this.loop = this.pollLoop();
+    if (this.enabled && this.options.poll !== false && this.webhookSecret === null) {
+      this.loop = this.pollLoop();
+    }
+  }
+
+  /** Webhook'ni ro'yxatdan o'tkazadi (server ishga tushganda; idempotent — har replika chaqirsa ham bo'ladi). */
+  async registerWebhook(publicUrl: string): Promise<Result<unknown>> {
+    if (!this.enabled || this.webhookSecret === null) return ok(null);
+    return this.api("setWebhook", {
+      url: `${publicUrl}${WEBHOOK_PATH}`,
+      secret_token: this.webhookSecret,
+      allowed_updates: ["message", "callback_query"],
+    });
+  }
+
+  /** Webhook so'rovi (sarlavha route'da tekshirilgan). */
+  async handleUpdate(update: TelegramUpdate): Promise<void> {
+    if (typeof update.update_id === "number") {
+      if (this.handled.has(update.update_id)) return;
+      this.handled.add(update.update_id);
+      if (this.handled.size > 2000) this.handled.clear();
+    }
+    await this.handle(update);
   }
 
   private track(task: Promise<unknown>): void {
@@ -164,10 +234,10 @@ export class TelegramService {
 
   /** Bitta `getUpdates` (long polling); bog'lash kodlarini qayta ishlaydi. */
   async pollOnce(timeoutS = POLL_TIMEOUT_S): Promise<number> {
-    const updates = await this.api<Update[]>("getUpdates", {
+    const updates = await this.api<TelegramUpdate[]>("getUpdates", {
       offset: this.offset,
       timeout: timeoutS,
-      allowed_updates: ["message"],
+      allowed_updates: ["message", "callback_query"],
     });
     if (!updates.ok) return 0;
     for (const update of updates.data) {
@@ -180,6 +250,8 @@ export class TelegramService {
   private async pollLoop(): Promise<void> {
     if (this.running) return;
     this.running = true;
+    // Avval webhook o'rnatilgan bo'lsa getUpdates ishlamaydi (409).
+    await this.api("deleteWebhook", {});
     while (!this.stopped) {
       try {
         await this.pollOnce();
@@ -191,21 +263,19 @@ export class TelegramService {
     this.running = false;
   }
 
-  private async handle(update: Update): Promise<void> {
+  private async handle(update: TelegramUpdate): Promise<void> {
+    if (update.callback_query !== undefined) {
+      await this.onCallback(update.callback_query);
+      return;
+    }
     const message = update.message;
     if (message?.text === undefined) return;
     const chatId = String(message.chat.id);
-    // Kabinetga kirish: `/start login_<kod>` (deep link).
+    // Kabinetga kirish: `/start login_<kod>` (deep link) → tafsilot va raqam tugmalari.
     const login = LOGIN_START_RE.exec(message.text.trim());
     if (login !== null) {
       const from = message.from ?? { id: message.chat.id, first_name: message.chat.first_name };
-      const result = await confirmTelegramLogin(this.ctx, login[1]!, from, chatId);
-      await this.send(
-        chatId,
-        result === "ok"
-          ? "✅ Kirish tasdiqlandi — brauzerga qayting. Xabarnomalar ham shu chatga keladi."
-          : "❌ Kirish havolasi eskirgan yoki ishlatilgan. Kabinetda «Telegram orqali kirish»ni qayta bosing.",
-      );
+      await this.onLoginStart(login[1]!, from, chatId);
       return;
     }
     const match = /^(?:\/start\s+)?([0-9A-Fa-f]{10})\s*$/.exec(message.text.trim());
@@ -239,17 +309,89 @@ export class TelegramService {
     );
   }
 
+  // ------------------------------------------------------------------ kirish tasdig'i (P9.06)
+
+  private async onLoginStart(code: string, from: TelegramUser, chatId: string): Promise<void> {
+    const opened = await openTelegramLogin(this.ctx, code, from);
+    if (opened.status !== "ok") {
+      await this.send(
+        chatId,
+        opened.status === "foreign"
+          ? ANSWER_TEXT.foreign
+          : "❌ Kirish havolasi eskirgan yoki ishlatilgan. Kabinetda «Telegram orqali kirish»ni qayta bosing.",
+      );
+      return;
+    }
+    const row = opened.row;
+    const text = [
+      "🔐 AE Studio kabinetiga kirish so'rovi",
+      "",
+      `Brauzer: ${describeAgent(row.userAgent)}`,
+      `IP: ${row.ip ?? "noma'lum"}`,
+      `Vaqt: ${tashkentTime(row.createdAt)}`,
+      "",
+      "Saytda ko'rsatilgan raqamni tanlang.",
+      "Kirishni siz boshlamagan bo'lsangiz — «Bu men emas».",
+    ].join("\n");
+    const choices = matchChoices(row.matchCode ?? "00");
+    const keyboard: InlineKeyboard = [
+      choices.map((n) => ({ text: n, callback_data: `lg:${row.id}:${n}` })),
+      [{ text: "🚫 Bu men emas", callback_data: `lg:${row.id}:x` }],
+    ];
+    const messageId = await this.sendMessage(chatId, text, keyboard);
+    await rememberLoginMessage(this.ctx, row.id, chatId, messageId);
+  }
+
+  private async onCallback(query: NonNullable<TelegramUpdate["callback_query"]>): Promise<void> {
+    const match = LOGIN_CALLBACK_RE.exec(query.data ?? "");
+    const chatId =
+      query.message === undefined ? String(query.from.id) : String(query.message.chat.id);
+    if (match === null) {
+      await this.api("answerCallbackQuery", { callback_query_id: query.id });
+      return;
+    }
+    const answer = await answerTelegramLogin(this.ctx, match[1]!, query.from, match[2]!, chatId);
+    await this.api("answerCallbackQuery", {
+      callback_query_id: query.id,
+      text: answer === "confirmed" ? "Tasdiqlandi" : ANSWER_TEXT[answer].slice(0, 190),
+    });
+    if (answer === "foreign") return;
+    // Tugmalar olib tashlanadi — natija xabarning o'zida.
+    if (query.message !== undefined) {
+      const edited = await this.api("editMessageText", {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        text: ANSWER_TEXT[answer],
+      });
+      if (edited.ok) return;
+    }
+    await this.send(chatId, ANSWER_TEXT[answer]);
+  }
+
   // ------------------------------------------------------------------ xabarlar
 
   private async send(chatId: string, text: string): Promise<boolean> {
-    const res = await this.api("sendMessage", {
+    return (await this.sendMessage(chatId, text)) !== null;
+  }
+
+  /** Xabar yuboradi; natija — `message_id` (xato bo'lsa null). */
+  private async sendMessage(
+    chatId: string,
+    text: string,
+    keyboard?: InlineKeyboard,
+  ): Promise<number | null> {
+    const res = await this.api<{ message_id?: number }>("sendMessage", {
       chat_id: chatId,
       // Telegram chegarasi 4096 belgi (uzun xato matni, masalan SQL, xabarni butunlay yo'qotmasin).
       text: text.length > 4000 ? `${text.slice(0, 4000)}…` : text,
       disable_web_page_preview: true,
+      ...(keyboard === undefined ? {} : { reply_markup: { inline_keyboard: keyboard } }),
     });
-    if (!res.ok) this.log.warn({ err: res.error }, "telegram xabar yuborilmadi");
-    return res.ok;
+    if (!res.ok) {
+      this.log.warn({ err: res.error }, "telegram xabar yuborilmadi");
+      return null;
+    }
+    return typeof res.data?.message_id === "number" ? res.data.message_id : 0;
   }
 
   /** Foydalanuvchiga (bog'langan bo'lsa) xabar. */

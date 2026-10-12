@@ -66,7 +66,12 @@ describe("device flow (§4.2, RFC 8628)", () => {
       url: `/api/devices/pending?code=${lower}`,
       headers: { cookie },
     });
-    expect(pending.json()).toMatchObject({ ok: true, data: { device_name: "Studio-PC" } });
+    expect(pending.json()).toMatchObject({
+      ok: true,
+      // P9.06: tasdiq sahifasida so'rov tafsiloti (panel va brauzer bir IP'dan — inject).
+      data: { device_name: "Studio-PC", ip: "127.0.0.1", same_network: true },
+    });
+    expect(pending.json().data.requested_at).toEqual(expect.any(String));
     expect((await confirm(lower, true)).json()).toMatchObject({
       ok: true,
       data: { status: "approved" },

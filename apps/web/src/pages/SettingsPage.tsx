@@ -1,7 +1,15 @@
-import { Palette, RefreshCw, Send, Sparkles, Wallet } from "lucide-react";
+import {
+  LogOut,
+  MonitorSmartphone,
+  Palette,
+  RefreshCw,
+  Send,
+  Sparkles,
+  Wallet,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { api } from "../api";
+import { api, post } from "../api";
 import {
   Button,
   Card,
@@ -16,6 +24,7 @@ import {
   Spinner,
   Toggle,
   inputClass,
+  when,
 } from "../ui";
 
 interface Billing {
@@ -447,6 +456,96 @@ function BrandSettings() {
   );
 }
 
+interface SessionRow {
+  id: string;
+  created_at: string;
+  ip: string | null;
+  browser: string;
+  current: boolean;
+}
+
+/** Sozlamalar → Kirishlar (P9.06): faol sessiyalar, bittasini yoki boshqa barchasini bekor qilish. */
+function SessionsSettings() {
+  const [rows, setRows] = useState<SessionRow[] | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const load = async () => {
+    const res = await api<{ sessions: SessionRow[] }>("/api/me/sessions");
+    if (res.ok) setRows(res.data.sessions);
+  };
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const revoke = async (row: SessionRow) => {
+    if (row.current && !window.confirm("Joriy sessiya — shu brauzerdan chiqasiz. Davom etilsinmi?"))
+      return;
+    const res = await api(`/api/me/sessions/${row.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setMessage({ ok: false, text: res.error.message ?? res.error.hint });
+      return;
+    }
+    if (row.current) window.location.href = "/";
+    else void load();
+  };
+
+  const logoutOthers = async () => {
+    if (!window.confirm("Boshqa barcha brauzer va qurilmalardagi kabinet sessiyalari yopilsinmi?"))
+      return;
+    const res = await post<{ revoked: number }>("/api/auth/logout-all");
+    setMessage(
+      res.ok
+        ? { ok: true, text: `${res.data.revoked} ta sessiya yopildi` }
+        : { ok: false, text: res.error.message ?? res.error.hint },
+    );
+    void load();
+  };
+
+  return (
+    <Card id="sessions" className="scroll-mt-6">
+      <CardTitle aside={<IconWell icon={MonitorSmartphone} />}>Kirishlar</CardTitle>
+      <p className="mb-5 max-w-[60ch] text-[0.95rem] text-ink-3">
+        Kabinetga kirilgan brauzerlar. Tanimagan qurilmani ko'rsangiz — yoping. Panel va Claude
+        ulanishlari alohida: «Qurilmalar» va «Ulanishlar» bo'limlarida.
+      </p>
+      {rows === null ? (
+        <Spinner />
+      ) : (
+        <ul className="divide-y divide-hair">
+          {rows.map((row) => (
+            <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <span className="min-w-0">
+                <span className="flex flex-wrap items-center gap-2">
+                  {row.browser}
+                  {row.current ? <Pill tone="go">Shu brauzer</Pill> : null}
+                </span>
+                <span className="block text-sm text-ink-3">
+                  {row.ip ?? "IP noma'lum"} · {when(row.created_at)}
+                </span>
+              </span>
+              <Button variant="ghost" size="sm" onClick={() => void revoke(row)}>
+                <LogOut /> Yopish
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {message !== null ? (
+        <div className="mt-4">
+          <Notice ok={message.ok}>{message.text}</Notice>
+        </div>
+      ) : null}
+      {rows !== null && rows.length > 1 ? (
+        <div className="mt-5">
+          <Button variant="secondary" onClick={() => void logoutOthers()}>
+            <LogOut /> Boshqa barchasidan chiqish
+          </Button>
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
 export function SettingsPage() {
   return (
     <>
@@ -454,6 +553,7 @@ export function SettingsPage() {
       <div className="grid grid-cols-1 gap-6">
         <BalanceSettings />
         <TelegramSettings />
+        <SessionsSettings />
         <BrandSettings />
       </div>
     </>

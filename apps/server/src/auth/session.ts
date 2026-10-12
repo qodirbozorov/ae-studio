@@ -16,6 +16,8 @@ export interface SessionUser {
   /** Ko'rinadigan nom: Telegram ismi, bo'lmasa email (eski hisoblar). */
   name: string;
   sessionId: string;
+  /** Sessiya tokeni yaratilgan payt (rotatsiya uchun, P9.06). */
+  sessionCreatedAt: Date;
 }
 
 export function displayName(user: {
@@ -55,8 +57,14 @@ export async function loadSession(ctx: AppContext, request: FastifyRequest): Pro
   if (row === null || row.userId === null) return;
   const [user] = await ctx.db.select().from(users).where(eq(users.id, row.userId)).limit(1);
   // Bloklangan hisob (P9.02): tokenlar bekor qilinadi, bu — qo'shimcha himoya.
-  if (user !== undefined && user.blockedAt === null)
-    request.user = { id: user.id, name: displayName(user), sessionId: row.id };
+  if (user !== undefined && user.blockedAt === null) {
+    request.user = {
+      id: user.id,
+      name: displayName(user),
+      sessionId: row.id,
+      sessionCreatedAt: row.createdAt,
+    };
+  }
 }
 
 /** preHandler: sessiya bo'lmasa 401 AUTH_EXPIRED. */

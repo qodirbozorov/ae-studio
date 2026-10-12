@@ -246,6 +246,14 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.decorate("maintenance", maintenance);
   // Backup va tozalash rejalashtiruvchisi faqat production'da (testlar va dev'da qo'lda chaqiriladi).
   if (deps.env.NODE_ENV === "production") app.addHook("onReady", async () => maintenance.start());
+  // Telegram webhook (P9.06): production'da ishga tushganda ro'yxatdan o'tkaziladi (idempotent).
+  if (deps.env.NODE_ENV === "production" && ctx.telegram.webhookSecret !== null) {
+    app.addHook("onReady", async () => {
+      const registered = await ctx.telegram.registerWebhook(deps.env.PUBLIC_URL);
+      if (registered.ok) app.log.info("telegram webhook o'rnatildi");
+      else app.log.error({ err: registered.error }, "telegram webhook o'rnatilmadi");
+    });
+  }
   registerLive(ctx, engine, app.log);
   registerJobRoutes(app, ctx, engine);
   registerTemplateRoutes(app, ctx, engine);
