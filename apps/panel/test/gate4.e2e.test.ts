@@ -119,7 +119,8 @@ async function build(mcp: McpSession, projectId: string, spec: unknown) {
   expect((await mcp.call("plan_write", { project_id: projectId, spec })).result.ok).toBe(true);
   const pre = await mcp.call("preflight", { project_id: projectId });
   expect(pre.result.data.ready).toBe(true);
-  const started = await mcp.call("build_start", { project_id: projectId });
+  // Fon musiqa generatsiyasi — Pro audio (P8.08): foydalanuvchi narxga rozi bo'lgan.
+  const started = await mcp.call("build_start", { project_id: projectId, pro_confirmed: true });
   expect(started.result.ok, JSON.stringify(started.result.error)).toBe(true);
   const jobId = started.result.data.id as string;
   const verify = await eventually(

@@ -1,7 +1,8 @@
 # AE Studio — foydalanuvchi qo'llanmasi
 
 AE Studio After Effects'da video yig'adi. Siz Claude'ga oddiy tilda yozasiz, Claude reja tuzadi va
-panel uni AE'da quradi. ElevenLabs ovoz, musiqa va subtitr beradi. Natija — `out/` papkasida MP4.
+panel uni AE'da quradi. Ovoz, musiqa va subtitrni server tayyorlaydi. Natija — AE loyihasi (`.aep`),
+so'rasangiz `out/` papkasida MP4.
 
 ## 1. O'rnatish (bir marta, ~10 daqiqa)
 
@@ -11,8 +12,9 @@ panel uni AE'da quradi. ElevenLabs ovoz, musiqa va subtitr beradi. Natija — `o
    manzili `/mcp`). Birinchi marta brauzerda kabinetga kirib ruxsat berasiz.
 3. **Web kabinet** (server manzili): «Telegram orqali kirish» → botda **Start**. Ro'yxatdan o'tish ham
    shu, email va parol kerak emas. Shu chat xabarnomalar uchun avtomatik ulanadi. Keyin Sozlamalar:
-   - **ElevenLabs** — API kalitingiz. U tekshirilib, shifrlangan holda serverda saqlanadi. Usiz video
-     ovozsiz quriladi.
+   - **Balans va Pro** — balans dollarda. Boshlash uchun bir martalik 20 $ to'lov (administrator kiritadi),
+     keyin ishlatilgan sari yechiladi. Bu yerda (yoki panel → Sozlama) **Pro musiqa** va **Pro ovoz
+     tozalash** tugmalari: yoqilsa Claude har safar so'ramaydi, o'chiq bo'lsa narxni aytib ruxsat so'raydi.
    - **Telegram** — kirishda avtomatik ulanadi (boshqa chatga: «Ulash kodini olish» → botga `/start <kod>`). Video tayyor bo'lganda yoki
      to'xtaganda xabar keladi.
    - **Brand kit** (ixtiyoriy) — ranglar, shriftlar, logo, subtitr stili, default ovoz. `default` slug'li
@@ -25,15 +27,17 @@ panel uni AE'da quradi. ElevenLabs ovoz, musiqa va subtitr beradi. Natija — `o
    soniyalik reel qil: mavzu — yangi menyu, ovoz o'zbekcha, subtitr bilan»*.
 3. Claude:
    1. muhitni tekshiradi, fayllarni ko'radi (kadrlarni rasm sifatida), reja tuzadi va sizdan tasdiq so'raydi;
-   2. ElevenLabs narxini aytadi (kvota kam bo'lsa, ruxsat so'raydi);
+   2. audio narxini dollarda aytadi (Pro musiqa yoki Pro tozalash kerak bo'lsa, ruxsat so'raydi);
    3. qurishni boshlaydi — panelning **Live** bo'limida har qadam ko'rinadi;
-   4. tayyor kadrlarni ko'rib tekshiradi, kerak bo'lsa tuzatadi (3 martagacha) va render qiladi.
-4. Natija: `out/<nom>_v001.mp4`. Hisobot Claude'da, panel **Tarix** bo'limida va kabinetda bor.
+   4. natijani AE timeline'da ko'rishingizni so'raydi, izohlaringiz bo'yicha tuzatadi (3 martagacha).
+4. Yoqqan bo'lsa Claude'ga ayting yoki panel/kabinetda **Tasdiqlash** tugmasini bosing — Claude buni
+   darhol ko'radi. Tasdiqlangandan keyin ham tuzatish so'rash mumkin. Render faqat siz so'rasangiz:
+   `out/<nom>_v001.mp4`. Hisobot Claude'da, panel **Tarix** bo'limida va kabinetda bor.
 
 Hech narsa o'chirilmaydi:
 
 - har o'zgarish yangi versiya (`plan v2`, `<nom>_v002.aep`);
-- ElevenLabs fayllari serverda saqlanadi va keshdan qayta ishlatiladi — takroriy so'rovga kredit sarflanmaydi.
+- audio fayllar serverda saqlanadi va keshdan qayta ishlatiladi — takroriy so'rov yarim narx.
 
 ## 3. Tayyor buyruqlar (Claude)
 
@@ -67,10 +71,23 @@ Har qator alohida video bo'ladi. Holat Tarix bo'limida ko'rinadi, yakunda Telegr
   uslubi. Shrift AE'da bo'lmasa, fallback shriftlar sinaladi. Hech biri bo'lmasa, Claude
   `AE_FONT_MISSING` haqida aytadi.
 
-## 6. Muammo bo'lsa
+## 6. Narxlar
+
+| Nima | Narx |
+|---|---|
+| Montaj (timeline) | 0.01 $ / video daqiqasi, job uchun bir marta (tuzatish va qayta build bepul) |
+| Ovoz (TTS) | tannarxda |
+| Musiqa — kutubxonadan | 10× arzon (qisqa trek silliq loop qilinadi) |
+| Ovoz tozalash — standart (serverda) | 10× arzon |
+| Pro musiqa, Pro tozalash va boshqa audio | tannarx × 2.4 |
+| Keshdan qayta ishlatish | yarim narx |
+
+Aniq narxlar kabinet → Sozlamalar → Balans va Pro'da.
+
+## 7. Muammo bo'lsa
 
 - Panel **Live** bo'limida xato kodi va maslahat ko'rinadi. To'liq ro'yxat: [errors.md](errors.md).
 - **AE yopilsa yoki panel uzilsa:** job kutadi va ulanish qaytgach saqlangan joydan davom etadi —
   dublikat yaratilmaydi.
-- **ElevenLabs kvotasi tugasa:** Claude sizdan so'raydi. Kvotani kabinetda ko'rasiz.
+- **Balans yetmasa:** Claude aytadi (`BILLING_BALANCE_LOW`). Balans va sarf tarixi — kabinet → Sozlamalar.
 - **Undo:** panel → Live → «Undo last».

@@ -60,7 +60,12 @@ Testlar Vitest bilan yoziladi. Turlari:
    (`audio-out/<sha256>`) yoziladi, `eleven_cache` (params_hash) to'ldiriladi, so'ng panelga yetkaziladi
    (`file.download`).
 4. **MCP tool:** `apps/server/src/mcp/tools/eleven-*.ts`. `runTask` (kesh, kutish, yetkazish) bilan.
-5. Soxta API: `apps/server/test/helpers/fake-eleven.ts` — rasmiy yo'l va javob shakli bilan.
+   Tool nomi neytral (`voice_*`, `audio_*`, `music_*`) — provayder nomi foydalanuvchiga va Claude'ga
+   ko'rinmaydi. Eski `el_*` nomlar `aliases` orqali bir reliz davomida ishlaydi.
+5. **Narx:** `packages/shared/src/pricing.ts` (`quoteAudio`) — tannarx × 2.4, basic (DFN3, kutubxona) × 0.1,
+   kesh × 0.5; sarf `usage_ledger` ga (`BillingService.charge`, vazifa bo'yicha idempotent). Qimmat
+   imkoniyat bo'lsa `isProAudio` ga qo'shing — u Pro tasdig'idan o'tadi (`BILLING_CONFIRM_REQUIRED`).
+6. Soxta API: `apps/server/test/helpers/fake-eleven.ts` — rasmiy yo'l va javob shakli bilan.
 
 ## Yangi shablon
 

@@ -266,7 +266,7 @@ poydevor   yadro      Claude MVP  audio      shablon + qadoqlash
 - [x] **P8.07 — Spec va kompilyator.** `audio.music: { kind: "library", track }`; uzunlikka moslash (trim, loop, fade — panel ffmpeg yoki AE qatlam trim); `source_audio.isolate: true | "pro"`.
 - [x] **P8.08 — MCP.** `music_search`, `music_generate` (title/category/description majburiy → nomzod), pro amallarda `user_confirmed` + narx bahosi, `CONFIRM_REQUIRED`/`BILLING_BALANCE_LOW` xato kodlari; `el_*` tool nomlari neytral nomlarga (`voice_*`, `music_*`, `audio_*`); javob/hint matnlarida "ElevenLabs" yo'q; instructions yangilanadi. ❓ M3 (eski nomlar uchun alias).
 - [x] **P8.09 — Pro toggle'lar va balans (panel + web).** `/api/me/preferences` (pro_music, pro_isolation); panel: toggle'lar + narx eslatmasi, ElevenLabs pill'i o'rniga balans; web: Sozlamalar'dagi ElevenLabs kaliti bo'limi olib tashlanadi (kalit faqat server env'da), balans va sarf tarixi.
-- [ ] **P8.10 — Yakun.** e2e: oddiy yo'l (DFN3 + kutubxona) va pro yo'l (tasdiq bilan) ledger'ga to'g'ri yozilishi; docs; deploy; panel relizi.
+- [x] **P8.10 — Yakun.** e2e: oddiy yo'l (DFN3 + kutubxona) va pro yo'l (tasdiq bilan) ledger'ga to'g'ri yozilishi; docs; deploy; panel relizi.
 
 ## 7e. Faza 9 — Admin panel, tariflar, auth xavfsizligi, masshtab · reja 2026-10-12
 

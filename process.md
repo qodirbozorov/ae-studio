@@ -10,17 +10,17 @@
 
 <!-- Har todo'dan keyin shu blok USTIGA YOZILADI. Tarix pastdagi hisobotlarda saqlanadi. -->
 
-- **Faza:** 7 — Professional qatlamlar · yakunlandi (6/6)
-- **Oxirgi bajarilgan:** Render siyosati + log tuzatishlari, panel 0.2.1 (2026-10-10)
-- **Keyingi todo:** P8.02 — stavkalarni yangilash (estimate.ts → USD). P8.01 tayyor: `usage_ledger`, balans, `BILLING_ENFORCE` (prod'da o'chiq), `pnpm --filter @aes/server topup`
-- **Faza 8 davomi (keyingi sessiyada to'liq tugatiladi, P8.02 → P8.10):**
-  - Reja va narx jadvali: ae-studio-phases.md §7d; savollar M1–M5 yopilgan (kesh — yarim narx, 20 $ boshlang'ich to'lov, kutubxona daqiqasiga, qisqa trek loop + crossfade).
-  - Narx moduli `packages/shared/src/pricing.ts`; hisob `apps/server/src/billing/service.ts`; audio narxi `quoteTask()` (`audio/service.ts`) — oddiy variant uchun `params.tier = "basic"` (P8.05 DFN3, P8.06 kutubxona shu orqali ulanadi).
-  - `BILLING_ENFORCE` prod'da o'chiq (faqat yoziladi) — Faza 9 admin tayyor bo'lgach yoqiladi. Balans: `pnpm --filter @aes/server topup <telegram_id> <usd>`.
-  - TTS: faqat tashqi xizmat, tannarxda, toggle yo'q. Pro toggle'lar faqat musiqa va isolation. Foydalanuvchiga "ElevenLabs" so'zi ko'rinmasin (tool nomlari neytral, eski `el_*` bir reliz alias).
-  - Storage: Cloudflare R2 (Telegram storage rad etildi). 👤 R2 bucket va kalitlari kerak bo'ladi (P8.04).
-  - Panel hozir 0.5.0 (o'rnatilgan); UI'ni brauzerda ko'rish uchun vaqtinchalik soxta agent + `vite.preview.config.ts` (commit qilinmaydi). `apps/server/src/icons/lucide.ts` dagi lint xatosi oldindan bor (dbd83df).
-- **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 ElevenLabs kaliti (kabinet → Sozlamalar) + P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
+- **Faza:** 8 — Ovoz dvigateli, narx va admin · yakunlandi (10/10)
+- **Oxirgi bajarilgan:** P8.10 — e2e (ledger), docs, deploy, panel 0.6.0 (o'rnatilgan) (2026-10-12)
+- **Keyingi todo:** Faza 9 — P9.02 foydalanuvchilar boshqaruvi (admin), P9.03 balans/to'ldirish UI, P9.06 Telegram auth mustahkamlash, P9.07 multi-replica
+- **Faza 8 natijasi (qisqa):**
+  - Narx: `packages/shared/src/pricing.ts` (tannarx × 2.4; basic — DFN3/kutubxona × 0.1; kesh × 0.5; timeline 0.01 $/daq job uchun bir marta); sarf `usage_ledger`; `BILLING_ENFORCE` prod'da o'chiq.
+  - Pro tasdiq: `users.prefs` (pro_music, pro_isolation) — panel/kabinet tugmalari; o'chiq bo'lsa `BILLING_CONFIRM_REQUIRED` → Claude narxni aytib so'raydi → `pro_confirmed`.
+  - Audio: DFN3 serverda (`deep-filter` 0.5.6), musiqa kutubxonasi (admin → Musiqa, `seed:music`, `music_search`, loop + crossfade), markaziy `ELEVENLABS_API_KEY`, tool nomlari neytral (`el_*` alias).
+  - Admin `/admin` (`ADMIN_LOGIN`/`ADMIN_PASSWORD`): Storage (volume ↔ R2 toggle, fayl ko'ruvchi, nusxalash), Musiqa. Worker: `AES_ROLE=api|worker` faqat R2 faol bo'lganda.
+  - Ops hujjati: docs/production.md → "Env (Faza 8)", "Storage", "Masshtab", "Balans va musiqa".
+- 👤 **Railway env:** `ADMIN_LOGIN`, `ADMIN_PASSWORD` (≥12), `ELEVENLABS_API_KEY`; R2 — admin → Storage orqali.
+- **Blokerlar:** 👤 Claude'da custom connector (docs/claude-connector.md) · 👤 P4.14 real o'lchov · 👤 Telegram token chatda ochiq: keyin /revoke + yangisi · 👤 AE kompyuterida: ZXP o'rnatish (apps/panel/release), Live/Undo, saveFrameToPng, aerender, .aep shablon, app.fonts · 👤 Mac: macOS ZXP · 👤 toza kompyuterda 10 daqiqalik o'rnatish (M8)
 - **Ochiq qarorlar:** Q3 (provayder tanlovi), Q4, Q5, Q7 (real o'lchov 👤), Q10. Yopilgan: Q1, Q2, Q6, Q8 (self-signed), Q9 (LGPL)
 - **Muhit (2026-10-05):** Windows 10 Pro 19045 · Node v24.21.0 · npm 11.19 · pnpm 12.9.1 (corepack 0.36) · ffmpeg/ffprobe n8.1.3 LGPL · git 2.56 · Railway CLI 5.63.1 (login bor) · Python 3.9 · After Effects bu kompyuterda YO'Q (👤 boshqa kompyuterda sinaladi)
 - **Bash tool eslatmasi:** shu sessiyada PATH yangilanmagan, har buyruq oldidan: `export PATH="/c/Users/991106847/AppData/Local/Programs/nodejs:/c/Users/991106847/AppData/Local/Programs/ffmpeg/bin:$PATH"`
@@ -1715,3 +1715,7 @@ Claude endi o'zi render qilmaydi: verify_approve render'siz (foydalanuvchi AE ti
 ### Web kabinet va panel dizayni (2026-10-12)
 
 Kabinet: reference uslubi (Inter light, Google Fonts), mobil moslashuv, PWA (manifest, SW, oflayn), og:image, yangi logo. Panel 0.4.0: lokal Inter/Ubuntu Mono (woff2, unicode-range), dark tekis dizayn, profil (`/api/agent/me`), ingichka ikonlar, AE menyu ikonlari. 👤 AE'da panel 0.4.0 ni sinash.
+
+### Faza 8 yakuni (2026-10-12)
+
+Ovoz dvigateli va narx: sarf jurnali (USD), DFN3 serverda, musiqa kutubxonasi (loop/crossfade), Pro tasdiq (panel/kabinet tugmalari + MCP `pro_confirmed`), neytral tool nomlari, admin (Storage: volume ↔ R2 + fayl ko'ruvchi; Musiqa), audio worker (Postgres navbati, lease). Approve panel/kabinetdan. Panel 0.6.0: balans pill'i, Sozlama → Balans va Pro. To'liq to'plam: 576 o'tdi, 2 skip.

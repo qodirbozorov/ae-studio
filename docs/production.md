@@ -12,9 +12,42 @@
   - audio vazifalari;
   - batch'lar.
 - **Migratsiyalar** pre-deploy bosqichida (`node apps/server/dist/migrate.js`). Ular idempotent:
-  0000–0010.
-- Bitta instans tavsiya etiladi: audio navbati, job engine va Telegram polling jarayon ichida ishlaydi.
-  Holat Postgres'da, shuning uchun qayta ishga tushish xavfsiz.
+  0000–0015.
+- **Build** `deep-filter` 0.5.6 binarini yuklaydi (`apps/server/scripts/fetch-deep-filter.mjs`, sha256
+  tekshiriladi) — standart ovoz tozalash serverda bajariladi.
+
+### Env (Faza 8)
+
+| O'zgaruvchi | Ma'nosi |
+|---|---|
+| `ADMIN_LOGIN`, `ADMIN_PASSWORD` | `/admin` kirish (parol ≥ 12 belgi). Bo'sh bo'lsa admin o'chiq |
+| `ELEVENLABS_API_KEY` | Markaziy audio kaliti (foydalanuvchilar kalit kiritmaydi) |
+| `BILLING_ENFORCE` | `1` — balans/faollashtirish tekshiriladi; bo'sh — faqat sarf yoziladi |
+| `AES_ROLE` | `all` (default) · `api` · `worker` |
+| `AUDIO_CONCURRENCY` | Worker'da parallel audio vazifalar (default 2) |
+| `DEEP_FILTER_BIN` | `deep-filter` yo'li (bo'sh — `apps/server/bin/` dan topiladi) |
+
+### Storage
+
+Admin → **Storage**: Railway volume yoki R2 (S3) tanlanadi, R2 kalitlari shu yerda kiritiladi (`MASTER_KEY`
+bilan shifrlanadi). Yozish faol storage'ga; o'qish avval faoldan, so'ng ikkinchisidan. Fayl ko'ruvchi
+ikkalasini ko'rsatadi: yuklab olish, o'chirish, bir storage'dan boshqasiga nusxalash.
+
+### Masshtab
+
+- Bitta instans (`AES_ROLE=all`) — default. Audio navbati, job engine va Telegram polling jarayon ichida.
+- Og'ir audio uchun alohida worker servisi: serverda `AES_ROLE=api`, worker'da `AES_ROLE=worker` (xuddi shu
+  image, `DATABASE_URL` va `MASTER_KEY` bir xil). **Faqat R2 faol bo'lganda** — volume bitta servisga
+  ulanadi. Worker navbatdan vazifani atomar oladi, 40 daqiqalik lease bilan; o'lgan worker'ning vazifasi
+  qaytadi. R2 faol bo'lmasa worker kutadi va `/health` 503 qaytaradi.
+
+### Balans va musiqa
+
+- To'ldirish: `pnpm --filter @aes/server topup <telegram_id|email|user_id> <usd> [izoh]`
+  (`DATABASE_PUBLIC_URL` bilan). Jami 20 $ ga yetganda hisob faollashadi.
+- Musiqa kutubxonasi: admin → **Musiqa** (yuklash, nom/kategoriya/tavsif, nomzodlarni tasdiqlash) yoki
+  `pnpm --filter @aes/server seed:music <papka> [meta.json|csv]`. Pro generatsiya natijalari nomzod
+  sifatida avtomatik yig'iladi.
 
 ## DB backup
 

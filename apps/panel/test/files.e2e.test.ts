@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TestApp } from "../../server/test/helpers/app";
-import type { LocalStorage } from "../../server/src/storage";
+import type { SwitchStorage } from "../../server/src/storage";
 import { downloadVerified, sha256File, uploadFile } from "../src/agent/files";
 import type { Agent } from "../src/agent/index";
 import { pairedAgent, start } from "./e2e-helpers";
@@ -48,7 +48,7 @@ describe("upload / download (pre-signed)", () => {
     expect(readFileSync(join(dir, "audio", "vo.mp3"), "utf8")).toBe("VOICEOVER");
 
     // Har GET so'rovida server imzoni tekshiradi — urinishlar sonini shu orqali sanaymiz.
-    const verify = vi.spyOn(s.app.app.storage as LocalStorage, "verify");
+    const verify = vi.spyOn((s.app.app.storage as SwitchStorage).local, "verify");
     await expect(downloadVerified(url, join(dir, "bad.mp3"), sha("OTHER"))).rejects.toMatchObject({
       error: { code: "ASSET_CORRUPT", retryable: true },
     });

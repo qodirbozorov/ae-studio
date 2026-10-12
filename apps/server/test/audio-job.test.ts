@@ -5,7 +5,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { THREE_SCENES } from "../../../packages/compiler/test/fixtures";
-import { audioTasks, devices, ops, projects, users } from "../src/db/schema";
+import { audioTasks, devices, ops, projects, usageLedger, users } from "../src/db/schema";
 import { createTestApp, login } from "./helpers/app";
 import type { TestApp } from "./helpers/app";
 import { FakeAgent } from "./helpers/fake-agent";
@@ -127,6 +127,25 @@ describe("AUDIO holati", () => {
     await t.app.audio.idle();
     const after = (await s.call("job_status", { job_id: id })).result.data;
     expect(after.state, JSON.stringify(after.error)).toBe("VERIFY");
+
+    // P8.10 e2e: sarf jurnali — pro musiqa tannarx × 2.4, TTS tannarxda, timeline job uchun bir marta.
+    const rows = await t.db.db.select().from(usageLedger);
+    const music = rows.find((row) => row.item === "music.pro")!;
+    expect(music.amountMicros).toBe(-Math.round(music.costMicros * 2.4));
+    const vo = rows.find((row) => row.item === "tts")!;
+    expect(vo.amountMicros).toBe(-vo.costMicros);
+    expect(rows.filter((row) => row.item === "timeline")).toHaveLength(1);
+    // Patch (qayta build) timeline uchun qayta yechmaydi.
+    const patched = await s.call("verify_patch", {
+      job_id: id,
+      patch: [{ op: "replace", path: "/audio/music/duck_db", value: -10 }],
+      reason: "musiqa balandroq",
+    });
+    expect(patched.isError, JSON.stringify(patched.result)).toBe(false);
+    await t.app.jobs.idle();
+    await t.app.audio.idle();
+    const again = await t.db.db.select().from(usageLedger);
+    expect(again.filter((row) => row.item === "timeline")).toHaveLength(1);
   });
 
   it("voiceover → timing → musiqa video uzunligida → ducking, SFX, subtitr; fayllar panelda", async () => {
