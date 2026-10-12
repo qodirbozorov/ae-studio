@@ -28,7 +28,10 @@ import { registerBillingRoutes } from "./billing/routes";
 import { BillingService } from "./billing/service";
 import { registerJobRoutes } from "./jobs/routes";
 import type { RedisLike } from "./redis";
-import { LocalStorage, createStorage } from "./storage";
+import { LocalStorage, SwitchStorage, createStorage } from "./storage";
+import { StorageSettings } from "./storage/settings";
+import { registerAdminAuth } from "./admin/auth";
+import { registerAdminStorageRoutes } from "./admin/storage-routes";
 import type { Storage } from "./storage";
 import { RateLimiter } from "./lib/rate-limit";
 import { findWebDist, isSpaRequest, registerWeb } from "./web";
@@ -174,6 +177,22 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   if (webRoot !== null) await registerWeb(app, webRoot);
   if (storage instanceof LocalStorage) await storage.register(app);
+  registerAdminAuth(app, ctx);
+  if (storage instanceof SwitchStorage) {
+    await storage.local.register(app);
+    const storageSettings = new StorageSettings(ctx, storage, app.log);
+    try {
+      await storageSettings.load();
+    } catch (error) {
+      app.log.error(
+        { err: error },
+        "storage sozlamasini o'qib bo'lmadi: env/lokal disk ishlatiladi",
+      );
+    }
+    storageSettings.start();
+    app.addHook("onClose", async () => storageSettings.stop());
+    registerAdminStorageRoutes(app, ctx, storage, storageSettings);
+  }
   registerHealth(app, deps);
   registerAuthRoutes(app, ctx);
   registerOAuthRoutes(

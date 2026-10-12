@@ -9,13 +9,13 @@ import { dirname, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fail } from "@aes/shared";
 import type { FastifyInstance } from "fastify";
-import { PRESIGN_TTL_S, isValidKey } from "./storage";
-import type { Storage, StoredObject } from "./storage";
+import { PRESIGN_TTL_S, isValidKey, isValidPrefix, mimeOf } from "./storage";
+import type { Browsable, BrowseResult, Storage, StoredObject } from "./storage";
 
 /** Bitta faylning eng katta hajmi (lokal drayver). */
 export const LOCAL_MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
-export class LocalStorage implements Storage {
+export class LocalStorage implements Storage, Browsable {
   readonly driver = "local" as const;
   private readonly secret: Buffer;
 
@@ -105,6 +105,43 @@ export class LocalStorage implements Storage {
     return out.sort();
   }
 
+  async browse(
+    prefix: string,
+    options: { cursor?: string; limit?: number } = {},
+  ): Promise<BrowseResult> {
+    if (!isValidPrefix(prefix)) throw new Error(`Noto'g'ri prefiks: ${prefix}`);
+    const dir = prefix === "" ? this.root : join(this.root, ...prefix.slice(0, -1).split("/"));
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return { prefix, folders: [], files: [], cursor: null };
+    }
+    const folders = entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => `${prefix}${entry.name}/`)
+      .sort();
+    const names = entries
+      .filter((entry) => entry.isFile() && !entry.name.endsWith(".part"))
+      .map((entry) => entry.name)
+      .sort();
+    const start = Number(options.cursor ?? 0) || 0;
+    const limit = options.limit ?? 200;
+    const page = names.slice(start, start + limit);
+    const files = await Promise.all(
+      page.map(async (name) => {
+        const info = await stat(join(dir, name));
+        return { key: `${prefix}${name}`, size: info.size, modified: info.mtime.toISOString() };
+      }),
+    );
+    return {
+      prefix,
+      folders: start === 0 ? folders : [],
+      files,
+      cursor: start + limit < names.length ? String(start + limit) : null,
+    };
+  }
+
   async register(app: FastifyInstance): Promise<void> {
     // Xom oqim faqat shu scope ichida (boshqa route'larda JSON parser o'zgarmaydi).
     await app.register(async (scope) => this.routes(scope));
@@ -144,7 +181,7 @@ export class LocalStorage implements Storage {
       }
       const info = await this.head(key);
       if (info === null) return reply.code(404).send(fail("SYS_NOT_FOUND", "Fayl yo'q"));
-      reply.header("content-length", info.size).type("application/octet-stream");
+      reply.header("content-length", info.size).type(mimeOf(key));
       return reply.send(createReadStream(this.path(key)));
     });
   }

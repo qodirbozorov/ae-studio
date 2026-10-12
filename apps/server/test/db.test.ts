@@ -56,6 +56,7 @@ describe("migratsiyalar", () => {
       "batches",
       "pronunciation_dicts",
       "telegram_links",
+      "system_settings",
       "telegram_logins",
       "usage_ledger",
     ];

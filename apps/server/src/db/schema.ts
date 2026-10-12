@@ -567,3 +567,15 @@ export const usageLedger = pgTable(
       .where(sql`item = 'timeline'`),
   ],
 );
+
+/**
+ * Tizim sozlamalari (admin): masalan `storage` — faol drayver va R2 parametrlari.
+ * Maxfiy qism (`secret`) AES-256-GCM bilan (`MASTER_KEY`), ochiq qism `value` da.
+ */
+export const systemSettings = pgTable("system_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  secret: jsonb("secret").$type<{ ciphertext: string; iv: string; tag: string } | null>(),
+  updatedBy: text("updated_by"),
+  updatedAt: updatedAt(),
+});

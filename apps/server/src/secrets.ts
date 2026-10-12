@@ -84,6 +84,21 @@ export async function deleteSecret(
     .where(and(eq(secrets.userId, userId), eq(secrets.provider, provider)));
 }
 
+/** Foydalanuvchiga bog'lanmagan sir (tizim sozlamalari, masalan R2 kaliti). */
+export function sealSecret(
+  env: AppContext["env"],
+  plaintext: string,
+): { ciphertext: string; iv: string; tag: string } {
+  return encrypt(masterKey(env), plaintext);
+}
+
+export function openSecret(
+  env: AppContext["env"],
+  sealed: { ciphertext: string; iv: string; tag: string },
+): string {
+  return decrypt(masterKey(env), sealed);
+}
+
 /** Kalitning ko'rinadigan qismi: `…abcd`. */
 export function maskSecret(value: string): string {
   return `…${value.slice(-4)}`;

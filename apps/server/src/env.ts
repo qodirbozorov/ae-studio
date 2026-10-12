@@ -56,6 +56,10 @@ export const envSchema = z
     /** Lokal storage drayveri papkasi (S3 berilmaganda). */
     STORAGE_DIR: optionalString,
 
+    /** `/admin` kirishi (login va parol). Berilmasa admin panel o'chiq. */
+    ADMIN_LOGIN: optionalString,
+    ADMIN_PASSWORD: z.string().min(12).optional(),
+
     /**
      * Balans cheklovi (Faza 8): `1` — faollashtirilmagan yoki balansi yetmagan foydalanuvchi pullik amal
      * boshlay olmaydi. Berilmasa sarf faqat yoziladi (admin panel tayyor bo'lguncha).

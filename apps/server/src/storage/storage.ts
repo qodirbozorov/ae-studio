@@ -30,6 +30,57 @@ export interface Storage {
   list(prefix: string): Promise<string[]>;
 }
 
+export interface BrowseEntry {
+  key: string;
+  size: number;
+  modified: string | null;
+}
+
+export interface BrowseResult {
+  prefix: string;
+  /** Ichki papkalar (to'liq prefiks, `/` bilan tugaydi). */
+  folders: string[];
+  files: BrowseEntry[];
+  /** Keyingi sahifa uchun; null — oxiri. */
+  cursor: string | null;
+}
+
+/** Admin fayl explorer'i uchun: bitta daraja (papka) bo'yicha ko'rish. */
+export interface Browsable {
+  browse(prefix: string, options?: { cursor?: string; limit?: number }): Promise<BrowseResult>;
+}
+
+/** "" yoki `a/b/` ko'rinishidagi xavfsiz prefiks. */
+export function isValidPrefix(prefix: string): boolean {
+  if (prefix === "") return true;
+  return prefix.endsWith("/") && isValidKey(prefix.slice(0, -1));
+}
+
+const MIME: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+  svg: "image/svg+xml",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  m4a: "audio/mp4",
+  ogg: "audio/ogg",
+  opus: "audio/ogg",
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  json: "application/json",
+  md: "text/markdown; charset=utf-8",
+  txt: "text/plain; charset=utf-8",
+  pdf: "application/pdf",
+};
+
+export function mimeOf(key: string): string {
+  const ext = key.slice(key.lastIndexOf(".") + 1).toLowerCase();
+  return MIME[ext] ?? "application/octet-stream";
+}
+
 const SEGMENT_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/;
 
 /** `u/<user>/p/<project>/<kind>/<hash>.<ext>` (§5 "Storage kalitlari"). */

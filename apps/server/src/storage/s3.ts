@@ -8,8 +8,8 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { PRESIGN_TTL_S, isValidKey } from "./storage";
-import type { Storage, StoredObject } from "./storage";
+import { PRESIGN_TTL_S, isValidKey, isValidPrefix } from "./storage";
+import type { Browsable, BrowseResult, Storage, StoredObject } from "./storage";
 
 export interface S3Config {
   endpoint: string;
@@ -19,7 +19,7 @@ export interface S3Config {
   region?: string;
 }
 
-export class S3Storage implements Storage {
+export class S3Storage implements Storage, Browsable {
   readonly driver = "s3" as const;
   private readonly client: S3Client;
 
@@ -95,6 +95,41 @@ export class S3Storage implements Storage {
   async delete(key: string): Promise<void> {
     this.check(key);
     await this.client.send(new DeleteObjectCommand({ Bucket: this.config.bucket, Key: key }));
+  }
+
+  async browse(
+    prefix: string,
+    options: { cursor?: string; limit?: number } = {},
+  ): Promise<BrowseResult> {
+    if (!isValidPrefix(prefix)) throw new Error(`Noto'g'ri prefiks: ${prefix}`);
+    const res = await this.client.send(
+      new ListObjectsV2Command({
+        Bucket: this.config.bucket,
+        Prefix: prefix,
+        Delimiter: "/",
+        MaxKeys: options.limit ?? 200,
+        ...(options.cursor === undefined ? {} : { ContinuationToken: options.cursor }),
+      }),
+    );
+    return {
+      prefix,
+      folders: (res.CommonPrefixes ?? [])
+        .map((item) => item.Prefix)
+        .filter((value): value is string => value !== undefined),
+      files: (res.Contents ?? [])
+        .filter((item) => item.Key !== undefined && item.Key !== prefix)
+        .map((item) => ({
+          key: item.Key!,
+          size: item.Size ?? 0,
+          modified: item.LastModified?.toISOString() ?? null,
+        })),
+      cursor: res.IsTruncated === true ? (res.NextContinuationToken ?? null) : null,
+    };
+  }
+
+  /** Ulanishni tekshirish (admin R2 sozlamasini saqlashdan oldin). */
+  async probe(): Promise<void> {
+    await this.client.send(new ListObjectsV2Command({ Bucket: this.config.bucket, MaxKeys: 1 }));
   }
 
   async list(prefix: string): Promise<string[]> {

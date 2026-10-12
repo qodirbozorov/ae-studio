@@ -8,7 +8,7 @@ import { requireUser } from "./auth/session";
 import type { AppContext } from "./context";
 import { auditLog } from "./db/schema";
 
-export type AuditActor = "user" | "claude" | "device" | "system";
+export type AuditActor = "user" | "claude" | "device" | "system" | "admin";
 
 export interface AuditEntry {
   userId: string | null;
