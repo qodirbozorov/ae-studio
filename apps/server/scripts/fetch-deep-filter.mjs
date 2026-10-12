@@ -21,7 +21,9 @@ const ASSETS = {
 
 const asset = ASSETS[`${process.platform}-${process.arch}`];
 if (asset === undefined) {
-  console.warn(`deep-filter: ${process.platform}-${process.arch} uchun binar yo'q — server isolation o'chiq`);
+  console.warn(
+    `deep-filter: ${process.platform}-${process.arch} uchun binar yo'q — server isolation o'chiq`,
+  );
   process.exit(0);
 }
 

@@ -233,3 +233,74 @@ describe("audio oplar (compile)", () => {
     });
   });
 });
+
+describe("kutubxona musiqasi (P8.07): loop + crossfade + fade-out", () => {
+  const byId = (ops: OpEnvelope[], id: string) => ops.find((op) => op.op_id === id);
+  const TRACK = "0b6f1d2e-4c3a-4b5d-9e8f-1a2b3c4d5e6f";
+  const base = {
+    ...THREE_SCENES,
+    audio: {
+      music: { kind: "library", track: TRACK, crossfade_s: 1, fade_out_s: 1.5, volume_db: -6 },
+    },
+  };
+
+  it("trek videodan qisqa → MUSIC LOOP comp'ida ustma-ust nusxalar, asosiy comp'da bitta qatlam", () => {
+    const out = compile(spec(base), {
+      ...CONTEXT,
+      audio: { music: { file: "audio/music_lib.wav", duration: 4 } },
+    });
+    if (!out.ok) throw new Error(out.error.message);
+    const ops = out.data.ops;
+    const duration = out.data.duration;
+    expect(byId(ops, "aes.music.loop")).toMatchObject({
+      op: "comp.create",
+      params: { name: "MUSIC LOOP", dur: duration, folder: "Audio" },
+    });
+    const segments = ops.filter((op) => /^aes\.music\.loop\.\d+$/.test(op.op_id));
+    // qadam = 4 − 1 = 3 s (crossfade ≤ trek/3); oxirgi nusxa video oxirini qoplaydi.
+    expect(segments).toHaveLength(Math.ceil((duration - 4) / 3) + 1);
+    const last = segments.at(-1)!.params as { start: number; dur: number };
+    expect(last.start + 4).toBeGreaterThanOrEqual(duration);
+    expect(last.start + last.dur).toBeCloseTo(duration);
+    expect(segments.map((op) => op.params.start)).toEqual(segments.map((_, k) => k * 3));
+    expect(segments[0]!.params).toMatchObject({
+      comp: "aes.music.loop",
+      item: "audio.music",
+      dur: 4,
+    });
+    // 1-nusxa: faqat oxirida pasayadi; 2-nusxa: ko'tariladi va pasayadi.
+    expect(byId(ops, "aes.music.loop.0.xf")!.params).toMatchObject({
+      prop: "ADBE Audio Group/ADBE Audio Levels",
+      relative: true,
+      keys: [
+        { t: 3, v: [0, 0] },
+        { t: 4, v: [-60, -60] },
+      ],
+    });
+    expect((byId(ops, "aes.music.loop.1.xf")!.params as { keys: unknown[] }).keys).toHaveLength(4);
+    expect(byId(ops, "aes.music")!.params).toMatchObject({
+      comp: "aes.main",
+      item: "aes.music.loop",
+      dur: duration,
+      volume: -6,
+    });
+    expect(byId(ops, "aes.music.fade")!.params).toMatchObject({
+      layer: "aes.music",
+      keys: [
+        { t: duration - 1.5, v: [-6, -6] },
+        { t: duration, v: [-60, -60] },
+      ],
+    });
+  });
+
+  it("trek yetarli uzun → loop yo'q, faqat fade-out", () => {
+    const out = compile(spec(base), {
+      ...CONTEXT,
+      audio: { music: { file: "audio/music_lib.wav", duration: 120 } },
+    });
+    if (!out.ok) throw new Error(out.error.message);
+    expect(byId(out.data.ops, "aes.music.loop")).toBeUndefined();
+    expect(byId(out.data.ops, "aes.music")!.params).toMatchObject({ item: "audio.music" });
+    expect(byId(out.data.ops, "aes.music.fade")).toBeDefined();
+  });
+});

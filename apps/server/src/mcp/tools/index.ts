@@ -17,6 +17,7 @@ import { templateTools } from "./templates";
 import { brandTools } from "./brands";
 import { batchTools } from "./batch";
 import { verifyTools } from "./verify";
+import { musicTools } from "./music";
 
 export const TOOLS: readonly ToolDef[] = [
   ...envTools,
@@ -31,6 +32,7 @@ export const TOOLS: readonly ToolDef[] = [
   ...elevenGenerateTools,
   ...elevenAnalyzeTools,
   ...elevenTransformTools,
+  ...musicTools,
   ...templateTools,
   ...brandTools,
   ...batchTools,

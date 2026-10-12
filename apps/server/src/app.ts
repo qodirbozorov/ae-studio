@@ -26,12 +26,14 @@ import { registerAudioRoutes } from "./audio/routes";
 import { AudioService, presentTask } from "./audio/service";
 import { registerBillingRoutes } from "./billing/routes";
 import { BillingService } from "./billing/service";
+import { MusicLibrary } from "./music/library";
 import { registerJobRoutes } from "./jobs/routes";
 import type { RedisLike } from "./redis";
 import { LocalStorage, SwitchStorage, createStorage } from "./storage";
 import { StorageSettings } from "./storage/settings";
 import { registerAdminAuth } from "./admin/auth";
 import { registerAdminStorageRoutes } from "./admin/storage-routes";
+import { registerAdminMusicRoutes } from "./admin/music-routes";
 import type { Storage } from "./storage";
 import { RateLimiter } from "./lib/rate-limit";
 import { findWebDist, isSpaRequest, registerWeb } from "./web";
@@ -59,6 +61,7 @@ declare module "fastify" {
     audio: AudioService;
     billing: BillingService;
     eleven: ElevenService;
+    music: MusicLibrary;
     templates: TemplateService;
     brands: BrandService;
     batches: BatchService;
@@ -128,6 +131,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   } as AppContext;
   ctx.billing = new BillingService(ctx);
   app.decorate("billing", ctx.billing);
+  ctx.music = new MusicLibrary(ctx);
+  app.decorate("music", ctx.music);
   ctx.eleven = new ElevenService(ctx, app.log, deps.elevenOptions ?? {});
   ctx.eleven.attach();
   app.decorate("eleven", ctx.eleven);
@@ -192,6 +197,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   if (webRoot !== null) await registerWeb(app, webRoot);
   if (storage instanceof LocalStorage) await storage.register(app);
   registerAdminAuth(app, ctx);
+  registerAdminMusicRoutes(app, ctx);
   if (storage instanceof SwitchStorage) {
     await storage.local.register(app);
     const storageSettings = new StorageSettings(ctx, storage, app.log);
@@ -271,6 +277,13 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
           ctx.hub.send(row.deviceId, { type: "audio.update", task: presentTask(task) });
       })
       .catch((error: unknown) => app.log.warn({ err: error }, "audio.update yuborilmadi"));
+  });
+  // Tashqi xizmatda generatsiya qilingan musiqa → kutubxona nomzodi (P8.06).
+  ctx.audio.listen((task) => {
+    if (task.kind !== "music" || task.status !== "done" || task.cached) return;
+    void ctx.music
+      .collectGenerated(task)
+      .catch((error: unknown) => app.log.warn({ err: error }, "musiqa kutubxonaga qo'shilmadi"));
   });
   app.addHook("onReady", async () => {
     try {

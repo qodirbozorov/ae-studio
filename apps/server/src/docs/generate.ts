@@ -29,7 +29,7 @@ const GROUPS: [RegExp, string][] = [
   [/^(env_check|devices_list|ae_info)$/, "Muhit"],
   [/^(project_|plan_|spec_)/, "Loyiha va plan"],
   [/^assets?_/, "Fayllar"],
-  [/^(el_|audio_|transcript_)/, "Audio (ElevenLabs)"],
+  [/^(el_|audio_|transcript_|music_)/, "Audio"],
   [/^(preflight|build_start|job_)/, "Qurish"],
   [/^(frames_|verify_|contact_sheet)/, "Tekshirish"],
   [

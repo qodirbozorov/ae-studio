@@ -5,7 +5,7 @@
 Javob formati: `{ ok: true, data } | { ok: false, error: { code, retryable, hint, message?, details? } }`.
 Xato kodlari: [errors.md](errors.md).
 
-Jami: **63** tool, **4** prompt.
+Jami: **64** tool, **4** prompt.
 
 ## Muhit
 
@@ -125,7 +125,7 @@ Shows you an image or video from the project as small JPEGs: mode=image → one 
 | `count` | integer |  | ≥ 1, ≤ 8 |
 | `max_px` | integer |  | default `768`, ≥ 128, ≤ 1280 |
 
-## Audio (ElevenLabs)
+## Audio
 
 ### `audio_tasks_status` — Audio tasks status · faqat o'qish
 
@@ -350,6 +350,17 @@ Instant voice clone from project recordings. ONLY with the voice owner's explici
 | `name` | string | ha | ≤ 100 belgi |
 | `description` | string |  | ≤ 500 belgi |
 | `consent` | `true` | ha |  |
+
+### `music_search` — Search music library · faqat o'qish
+
+Searches the background music library (cheap: ~$0.036 per minute of video; generating new music costs ~10× more and needs the user's confirmation). Query with mood/genre/instruments/tempo words (e.g. "calm piano corporate", "energetic electronic"); optional category and min_seconds. Use the chosen id in the spec: audio.music = {kind: "library", track: id, duck_under: "voiceover"}. A track shorter than the video is looped automatically with a crossfade (crossfade_s, default 2) and fades out at the end (fade_out_s, default 1.5). For a smooth result prefer: a track at least as long as the video, or one marked loopable; steady instrumental beds over tracks with a strong intro/outro; crossfade 2–4 s for ambient/pads, 1–2 s for rhythmic music. Call with no query to see categories.
+
+| Parametr | Turi | Majburiy | Izoh |
+|---|---|---|---|
+| `query` | string |  | ≤ 200 belgi |
+| `category` | string |  | ≤ 80 belgi |
+| `min_seconds` | number |  | ≥ 0, ≤ 3600 |
+| `limit` | integer |  | default `10`, ≥ 1, ≤ 30 |
 
 ## Qurish
 

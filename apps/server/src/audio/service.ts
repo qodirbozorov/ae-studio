@@ -12,7 +12,7 @@ import type { AesError, AudioKind, AudioTier, PriceQuote, Result } from "@aes/sh
 import { and, desc, eq, gt, inArray, isNotNull, isNull, lt } from "drizzle-orm";
 import type { FastifyBaseLogger } from "fastify";
 import type { AppContext } from "../context";
-import { audioTasks, elevenCache, projects } from "../db/schema";
+import { audioTasks, elevenCache, musicTracks, projects } from "../db/schema";
 import { forcedAlignment, isolate, speechToText } from "../eleven/analyze";
 import { audioResult } from "../eleven/audio";
 import type { AudioResult, InputFile } from "../eleven/audio";
@@ -66,6 +66,14 @@ function tierOf(params: Record<string, unknown>): AudioTier {
   return params.tier === "basic" ? "basic" : "pro";
 }
 
+/** Kutubxona treki (P8.06): tashqi xizmatsiz, storage'dan. */
+function isLibraryMusic(task: Pick<AudioTaskRow, "kind" | "params">): boolean {
+  return (
+    task.kind === "music" &&
+    typeof (task.params as Record<string, unknown>).library_track === "string"
+  );
+}
+
 /** Oddiy (server) isolation: DeepFilterNet3, tashqi xizmat kerak emas. */
 function isBasicIsolate(task: Pick<AudioTaskRow, "kind" | "params">): boolean {
   return task.kind === "isolate" && (task.params as Record<string, unknown>).tier === "basic";
@@ -79,7 +87,11 @@ export function quoteTask(
   outputSeconds: number | null,
   cached = false,
 ): PriceQuote {
-  const seconds = inputSecondsOf(kind, inputs) ?? outputSeconds;
+  // Kutubxona treki: narx videoda ishlatilgan uzunlik bo'yicha (M5), trek uzunligi emas.
+  const seconds =
+    typeof params.library_track === "string"
+      ? null
+      : (inputSecondsOf(kind, inputs) ?? outputSeconds);
   return quoteAudio(kind, params, seconds, { tier: tierOf(params), cached });
 }
 
@@ -457,6 +469,10 @@ export class AudioService {
         await this.complete(task, await this.isolateBasic(inputs));
         return;
       }
+      if (isLibraryMusic(task)) {
+        await this.complete(task, await this.libraryTrack(task));
+        return;
+      }
       const client = await this.ctx.eleven.client(task.userId);
       if (!client.ok) throw new ElevenError(client.error);
       const out = await this.execute(task, client.data, inputs);
@@ -495,6 +511,31 @@ export class AudioService {
       });
     }
     return files;
+  }
+
+  /** Kutubxona treki: fayl storage'dan, natija uzunligi — trek uzunligi (kompilyator loop qiladi). */
+  private async libraryTrack(task: AudioTaskRow): Promise<{
+    audio: AudioResult;
+    result: Record<string, unknown>;
+    durationS: number;
+  }> {
+    const id = (task.params as Record<string, unknown>).library_track as string;
+    const [track] = await this.ctx.db.select().from(musicTracks).where(eq(musicTracks.id, id));
+    if (track === undefined) {
+      throw new ElevenError(makeError("SPEC_UNKNOWN_ASSET", `Kutubxonada trek yo'q: ${id}`));
+    }
+    const bytes = await this.ctx.storage.getBytes(track.storageKey);
+    if (bytes === null) {
+      throw new ElevenError(
+        makeError("ASSET_MISSING", `Trek fayli storage'da yo'q: ${track.title}`),
+      );
+    }
+    const ext = (["mp3", "wav", "ogg", "m4a"] as const).find((e) => e === track.ext) ?? "bin";
+    return {
+      audio: { audio: bytes, contentType: track.contentType, ext },
+      result: { library_track: track.id, title: track.title, loopable: track.loopable },
+      durationS: track.durationS,
+    };
   }
 
   /** Oddiy isolation: serverdagi DeepFilterNet3 (48 kHz mono WAV → WAV). */

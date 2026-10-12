@@ -54,6 +54,7 @@ describe("migratsiyalar", () => {
     const extra = [
       "audit_log",
       "batches",
+      "music_tracks",
       "pronunciation_dicts",
       "telegram_links",
       "system_settings",

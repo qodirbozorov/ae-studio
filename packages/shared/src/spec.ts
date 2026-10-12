@@ -437,8 +437,19 @@ export const musicSchema = z.discriminatedUnion(
       asset: assetRefSchema,
       ...duckFields,
     }),
+    /** Kutubxonadan (P8.06, `music_search`): arzon; trek videodan qisqa bo'lsa crossfade bilan takrorlanadi. */
+    z.strictObject({
+      kind: z.literal("library"),
+      track: z.uuid(),
+      loop: z.boolean().default(true),
+      /** Takrorlashda ikki nusxa ustma-ust o'tadigan vaqt (silliq ulanish). */
+      crossfade_s: z.number().min(0).max(8).default(2),
+      /** Video oxirida musiqa pasayib tugaydi. */
+      fade_out_s: z.number().min(0).max(10).default(1.5),
+      ...duckFields,
+    }),
   ],
-  { error: "music 'kind' quyidagilardan biri bo'lishi kerak: music, asset" },
+  { error: "music 'kind' quyidagilardan biri bo'lishi kerak: music, asset, library" },
 );
 
 export const sfxSchema = z

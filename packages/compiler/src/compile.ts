@@ -69,7 +69,8 @@ type LayerContext = CompileContext & { look: Look };
 /** AUDIO natijalari (fayllar ish papkasiga nisbiy; so'z vaqtlari audio boshiga nisbatan). */
 export interface CompileAudio {
   voiceover?: { file: string; words: CaptionWord[]; duration: number | null };
-  music?: { file: string };
+  /** `duration` — trek uzunligi (kutubxona loop/fade uchun). */
+  music?: { file: string; duration?: number | null };
   /** SFX id → generatsiya qilingan fayl (asset SFX lar `assets` dan). */
   sfx?: Record<string, { file: string }>;
   source?: { isolatedFile?: string; words?: CaptionWord[] };
@@ -108,6 +109,71 @@ export interface CompileOutput {
 }
 
 export const MAIN_COMP = "aes.main";
+const MUSIC_LEVELS = "ADBE Audio Group/ADBE Audio Levels";
+const SILENT_DB = -60;
+/** Bitta loop comp'dagi eng ko'p segment (juda qisqa trek uchun himoya). */
+const MAX_LOOP_SEGMENTS = 120;
+
+/**
+ * Trek videodan qisqa (kutubxona, P8.07): "MUSIC LOOP" comp ichida trek takrorlanadi, qo'shni nusxalar
+ * `crossfade` soniya ustma-ust o'tadi (biri pasayadi, ikkinchisi ko'tariladi). Asosiy comp'ga bitta qatlam —
+ * ducking va fade-out unga qo'llanadi.
+ */
+function musicLoop(
+  list: OpList,
+  target: { main: string; prefix: string; frame: { w: number; h: number } },
+  item: string,
+  track: number,
+  duration: number,
+  crossfade: number,
+  fps: number,
+  warnings: string[],
+): string {
+  const x = Math.min(crossfade, track / 3);
+  const step = track - x;
+  const comp = list.add("comp.create", `${target.prefix}aes.music.loop`, {
+    name: `MUSIC LOOP${target.prefix === "" ? "" : ` ${target.prefix.replace(/\.$/, "")}`}`,
+    w: target.frame.w,
+    h: target.frame.h,
+    fps,
+    dur: duration,
+    folder: "Audio",
+  });
+  // Nusxalar oldingisi video oxirigacha yetguncha: n = ceil((D − T) / qadam) + 1.
+  let k = 0;
+  for (let start = 0; ; start = round(k * step)) {
+    if (k >= MAX_LOOP_SEGMENTS) {
+      warnings.push(`Musiqa juda qisqa: ${MAX_LOOP_SEGMENTS} ta takrordan keyin to'xtatildi`);
+      break;
+    }
+    const dur = Math.min(track, duration - start);
+    const seg = list.add("layer.add_audio", `${target.prefix}aes.music.loop.${k}`, {
+      comp,
+      item,
+      start,
+      dur,
+      volume: 0,
+      name: `MUSIC ${k + 1}`,
+    });
+    const keys: { t: number; v: number[] }[] = [];
+    if (k > 0 && x > 0) keys.push({ t: 0, v: [SILENT_DB, SILENT_DB] }, { t: x, v: [0, 0] });
+    if (start + track < duration - 0.01 && x > 0) {
+      keys.push({ t: track - x, v: [0, 0] }, { t: track, v: [SILENT_DB, SILENT_DB] });
+    }
+    if (keys.length > 0) {
+      list.add("prop.keyframes", `${target.prefix}aes.music.loop.${k}.xf`, {
+        layer: seg,
+        prop: MUSIC_LEVELS,
+        keys,
+        ease: "linear",
+        relative: true,
+      });
+    }
+    k += 1;
+    if (start + track >= duration - 0.01) break;
+  }
+  return comp;
+}
 const SOURCE_FOLDER = "Source";
 const SCENES_FOLDER = "Scenes";
 
@@ -897,14 +963,46 @@ function compileAudio(
           : null;
     if (item === null) warnings.push("Musiqa fayli yo'q (AUDIO bajarilmagan)");
     else {
+      const trackDuration = files.music?.duration ?? null;
+      const loopNeeded =
+        music.kind === "library" &&
+        music.loop &&
+        trackDuration !== null &&
+        trackDuration > 1 &&
+        duration > trackDuration + 0.05;
+      const source = loopNeeded
+        ? musicLoop(
+            list,
+            { ...target, frame },
+            item,
+            trackDuration!,
+            duration,
+            music.crossfade_s,
+            spec.format.fps,
+            warnings,
+          )
+        : item;
       const layer = list.add("layer.add_audio", `${target.prefix}aes.music`, {
         comp: target.main,
-        item,
+        item: source,
         start: 0,
         dur: duration,
         volume: music.volume_db,
         name: "MUSIC",
       });
+      // Kutubxona: video oxirida silliq pasayish (kesilib qolmasin).
+      if (music.kind === "library" && music.fade_out_s > 0 && duration > music.fade_out_s) {
+        list.add("prop.keyframes", `${target.prefix}aes.music.fade`, {
+          layer,
+          prop: MUSIC_LEVELS,
+          keys: [
+            { t: duration - music.fade_out_s, v: [music.volume_db, music.volume_db] },
+            { t: duration, v: [SILENT_DB, SILENT_DB] },
+          ],
+          ease: "linear",
+          relative: true,
+        });
+      }
       if (music.duck_under === "voiceover" && voiceLayer !== null && voiceWords.length > 0) {
         list.add("audio.duck", `${target.prefix}aes.duck`, {
           music_layer: layer,

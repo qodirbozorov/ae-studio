@@ -109,6 +109,23 @@ export function planAudioTasks(
       afterTiming: musicSpec.length === "match_video",
     });
   }
+  if (musicSpec?.kind === "library") {
+    const seconds =
+      options.videoDuration ??
+      spec.scenes.reduce((sum, scene) => sum + (typeof scene.dur === "number" ? scene.dur : 0), 0);
+    items.push({
+      role: "music",
+      kind: "music",
+      label: "Fon musiqa (kutubxona)",
+      // Narx videodagi uzunlik bo'yicha (M5); fayl — trekning o'zi (kompilyator loop qiladi).
+      params: {
+        tier: "basic",
+        library_track: musicSpec.track,
+        music_length_ms: clampMusicMs(seconds),
+      },
+      afterTiming: true,
+    });
+  }
 
   for (const sfx of audio.sfx) {
     if (sfx.prompt === undefined) continue;

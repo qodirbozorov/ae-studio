@@ -579,3 +579,40 @@ export const systemSettings = pgTable("system_settings", {
   updatedBy: text("updated_by"),
   updatedAt: updatedAt(),
 });
+
+/**
+ * Musiqa kutubxonasi (P8.06): seed / admin / foydalanuvchi generatsiyasi. Generatsiya qilingan trek
+ * "candidate" — admin tahrirlab "public" qiladi; egasi o'z nomzodlarini ham qayta ishlata oladi.
+ */
+export const musicTracks = pgTable(
+  "music_tracks",
+  {
+    id: id(),
+    title: text("title").notNull(),
+    category: text("category").notNull(),
+    /** Qisqa izoh (AI qidiruvi uchun): kayfiyat, janr, cholg'ular, temp. */
+    description: text("description").notNull().default(""),
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    durationS: doublePrecision("duration_s").notNull(),
+    bpm: integer("bpm"),
+    /** Silliq takrorlansa bo'ladi (loop). */
+    loopable: boolean("loopable").notNull().default(false),
+    /** seed | admin | generated */
+    source: text("source").notNull(),
+    /** candidate | public | hidden */
+    status: text("status").notNull().default("public"),
+    ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+    audioTaskId: uuid("audio_task_id").references(() => audioTasks.id, { onDelete: "set null" }),
+    prompt: text("prompt"),
+    storageKey: text("storage_key").notNull(),
+    contentType: text("content_type").notNull(),
+    ext: text("ext").notNull(),
+    sha256: text("sha256").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("music_tracks_sha_uq").on(t.sha256),
+    index("music_tracks_status_idx").on(t.status, t.category),
+  ],
+);

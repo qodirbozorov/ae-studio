@@ -1,12 +1,16 @@
 /** Admin panel (`/admin`): kirish va bo'limlar. Hozircha Storage; foydalanuvchilar, tariflar, musiqa — Faza 9. */
-import { HardDrive, LogIn, LogOut, ShieldCheck } from "lucide-react";
+import { HardDrive, LogIn, LogOut, Music, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, post } from "../api";
 import { Button, Field, Logo, Notice, Spinner, cx, inputClass } from "../ui";
+import { MusicPage } from "./MusicPage";
 import { StoragePage } from "./StoragePage";
 
-const NAV = [{ href: "/admin/storage", label: "Storage", icon: HardDrive }] as const;
+const NAV = [
+  { href: "/admin/storage", label: "Storage", icon: HardDrive },
+  { href: "/admin/music", label: "Musiqa", icon: Music },
+] as const;
 
 function AdminLogin({ onDone }: { onDone: () => void }) {
   const [login, setLogin] = useState("");
@@ -112,7 +116,9 @@ export function AdminApp() {
           </div>
           <nav aria-label="Admin" className="flex gap-1 lg:flex-col">
             {NAV.map(({ href, label, icon: Icon }) => {
-              const active = path === href || path === "/admin" || path === "/admin/";
+              const active =
+                path === href ||
+                (href === "/admin/storage" && (path === "/admin" || path === "/admin/"));
               return (
                 <a
                   key={href}
@@ -139,7 +145,7 @@ export function AdminApp() {
         </aside>
         <main className="min-w-0 flex-1 px-5 pt-4 pb-12 sm:px-8 lg:pt-14 lg:pr-12 lg:pb-16 lg:pl-4">
           <div className="mx-auto max-w-[72rem]">
-            <StoragePage />
+            {path.startsWith("/admin/music") ? <MusicPage /> : <StoragePage />}
           </div>
         </main>
       </div>

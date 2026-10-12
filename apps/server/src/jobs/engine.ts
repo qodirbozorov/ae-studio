@@ -117,7 +117,16 @@ const BATCH_SLACK_MS = 15_000;
 
 export type EngineContext = Pick<
   AppContext,
-  "db" | "hub" | "now" | "storage" | "eleven" | "audio" | "billing" | "templates" | "brands"
+  | "db"
+  | "hub"
+  | "now"
+  | "storage"
+  | "eleven"
+  | "audio"
+  | "billing"
+  | "music"
+  | "templates"
+  | "brands"
 >;
 
 /** Ish papkasidagi lokal nusxalar (§2.10): versiyali, hech biri ustiga yozilmaydi. */
@@ -1519,6 +1528,21 @@ export class JobEngine {
             })),
       0,
     );
+    // Kutubxona treki foydalanuvchiga ko'rinadimi (ommaviy yoki o'z nomzodi).
+    for (const item of items) {
+      const trackId = item.params.library_track;
+      if (typeof trackId !== "string") continue;
+      const track = await this.ctx.music.get(trackId);
+      if (track === null || !this.ctx.music.visibleTo(track, project.userId)) {
+        return {
+          kind: "block",
+          error: makeError(
+            "SPEC_UNKNOWN_ASSET",
+            `/audio/music/track: kutubxonada ${trackId} yo'q — music_search bilan toping`,
+          ),
+        };
+      }
+    }
     const priceUsd = items.reduce(
       (sum, item, i) =>
         sum +
@@ -1691,7 +1715,12 @@ export class JobEngine {
       }
     }
     const musicTask = all.get("music");
-    if (musicTask?.localPath != null) compileAudio.music = { file: musicTask.localPath };
+    if (musicTask?.localPath != null) {
+      compileAudio.music = {
+        file: musicTask.localPath,
+        duration: musicTask.durationMs === null ? null : musicTask.durationMs / 1000,
+      };
+    }
     const sfx: Record<string, { file: string }> = {};
     for (const [role, task] of all) {
       if (role.startsWith("sfx:") && task.localPath !== null)

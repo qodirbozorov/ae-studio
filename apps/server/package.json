@@ -13,7 +13,8 @@
     "db:migrate": "tsx src/db/migrate-cli.ts",
     "dev:db": "tsx scripts/dev-db.ts",
     "topup": "tsx scripts/topup.mts",
-    "fetch:deep-filter": "node scripts/fetch-deep-filter.mjs"
+    "fetch:deep-filter": "node scripts/fetch-deep-filter.mjs",
+    "seed:music": "tsx scripts/seed-music.mts"
   },
   "dependencies": {
     "@aes/compiler": "workspace:*",
