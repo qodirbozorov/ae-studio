@@ -114,9 +114,9 @@ export function AdminApp() {
   };
 
   return (
-    <div className="min-h-dvh p-2 sm:p-4 lg:p-5">
+    <div className="min-h-dvh p-2 sm:p-3 lg:p-4">
       <div className="flex min-h-[calc(100dvh-1rem)] flex-col rounded-[1.75rem] bg-shell sm:min-h-[calc(100dvh-2rem)] sm:rounded-shell lg:min-h-[calc(100dvh-2.5rem)] lg:flex-row">
-        <aside className="flex shrink-0 flex-col gap-8 px-6 pt-8 pb-4 lg:w-[17rem] lg:px-7 lg:pt-11 lg:pb-7">
+        <aside className="flex shrink-0 flex-col gap-7 px-6 pt-8 pb-4 lg:w-[16rem] lg:px-6 lg:pt-9 lg:pb-6">
           <div className="flex items-center justify-between gap-3">
             <a href="/admin" aria-label="Admin — bosh sahifa" className="ml-1">
               <Logo className="h-11" />
@@ -136,7 +136,7 @@ export function AdminApp() {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   className={cx(
-                    "flex h-11 items-center gap-3 rounded-[1rem] px-3.5 text-[1rem] no-underline transition-[background-color,box-shadow,color] duration-200",
+                    "flex h-10 items-center gap-3 rounded-[1rem] px-3.5 text-[1rem] no-underline transition-[background-color,box-shadow,color] duration-200",
                     active
                       ? "bg-white font-medium text-ink shadow-raise"
                       : "font-normal text-ink-2 hover:text-ink",
@@ -154,7 +154,7 @@ export function AdminApp() {
             </Button>
           </div>
         </aside>
-        <main className="min-w-0 flex-1 px-5 pt-4 pb-12 sm:px-8 lg:pt-14 lg:pr-12 lg:pb-16 lg:pl-4">
+        <main className="min-w-0 flex-1 px-5 pt-4 pb-12 sm:px-8 lg:pt-10 lg:pr-10 lg:pb-12 lg:pl-4">
           <div className="mx-auto max-w-[72rem]">
             <Section path={path} />
           </div>

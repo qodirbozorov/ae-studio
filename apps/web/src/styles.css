@@ -54,6 +54,15 @@
     color-scheme: light;
     -webkit-text-size-adjust: 100%;
   }
+  /*
+   * Masshtab: butun UI rem'da (shrift, ikon, spacing) — ildiz o'lchami bilan mutanosib kichrayadi.
+   * Mobilda 16px qoladi (iOS 16px dan kichik input'da zoom qiladi).
+   */
+  @media (min-width: 640px) {
+    html {
+      font-size: 87.5%;
+    }
+  }
   body {
     @apply bg-ground font-sans text-ink antialiased;
     font-weight: 300;

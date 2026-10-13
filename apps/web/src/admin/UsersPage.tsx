@@ -145,8 +145,8 @@ function OverviewCard() {
     { label: "Marja, 30 kun", value: data.last_30d.margin_usd.toFixed(2), suffix: "$" },
   ];
   return (
-    <Card className="mb-6">
-      <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-4">
+    <Card className="mb-5">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         {cells.map((cell) => (
           <div key={cell.label} className="min-w-0">
             <Label>{cell.label}</Label>
@@ -156,7 +156,7 @@ function OverviewCard() {
           </div>
         ))}
       </div>
-      <p className="mt-6 text-sm text-ink-3">
+      <p className="mt-4 text-sm text-ink-3">
         Foydalanuvchilar balansi jami: {usd(data.users.balance_usd)} · bloklangan:{" "}
         {data.users.blocked}
       </p>
@@ -223,7 +223,7 @@ function UserList() {
             <li key={row.id}>
               <a
                 href={`/admin/users/${row.id}`}
-                className="grid gap-2 py-4 text-ink no-underline transition-colors hover:bg-[#fafafa] sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] sm:items-center sm:px-2"
+                className="grid gap-1.5 py-3 text-ink no-underline transition-colors hover:bg-[#fafafa] sm:grid-cols-[minmax(0,1fr)_7rem_17rem] sm:items-center sm:px-2"
               >
                 <span className="min-w-0">
                   <span className="block truncate text-[1.05rem] font-normal">{row.name}</span>
@@ -233,7 +233,7 @@ function UserList() {
                     {day(row.created_at)}
                   </span>
                 </span>
-                <span className="num text-[1.05rem]">{usd(row.balance_usd)}</span>
+                <span className="num text-[1.05rem] sm:text-right">{usd(row.balance_usd)}</span>
                 <span className="flex flex-wrap items-center gap-2 sm:justify-end">
                   {row.blocked ? (
                     <Pill tone="stop" icon={Ban}>
@@ -476,11 +476,11 @@ function UserProfile({ id }: { id: string }) {
           <Notice ok={message.ok}>{message.text}</Notice>
         </div>
       ) : null}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <Card>
           <CardTitle aside={<IconWell icon={Wallet} />}>Balans</CardTitle>
           <Figure value={profile.account.balance_usd.toFixed(2)} suffix="$" />
-          <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
+          <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
             {[
               ["To'ldirilgan", profile.totals.topup_usd],
               ["Sarf", profile.totals.spent_usd],
@@ -493,7 +493,7 @@ function UserProfile({ id }: { id: string }) {
               </div>
             ))}
           </dl>
-          <div className="mt-8">
+          <div className="mt-5">
             <Topup profile={profile} onDone={() => void load()} />
           </div>
         </Card>
@@ -521,7 +521,7 @@ function UserProfile({ id }: { id: string }) {
               <span className="font-mono text-[0.8rem]">{profile.id}</span>
             </Row>
           </dl>
-          <div className="mt-8 flex flex-wrap gap-2">
+          <div className="mt-6 flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" onClick={() => void logout(false)}>
               <LogOut /> Sessiyalarni bekor qilish
             </Button>
@@ -597,7 +597,7 @@ function UserProfile({ id }: { id: string }) {
         </Card>
       </div>
 
-      <Card className="mt-6">
+      <Card className="mt-5">
         <CardTitle>Sarf va to'ldirish tarixi</CardTitle>
         {profile.history.length === 0 ? (
           <p className="text-sm text-ink-3">Hali yozuv yo'q.</p>

@@ -67,7 +67,7 @@ export function Card({
   id?: string;
 }) {
   return (
-    <section id={id} className={cx("surface min-w-0 p-6 sm:p-10", className)}>
+    <section id={id} className={cx("surface min-w-0 p-5 sm:p-7", className)}>
       {children}
     </section>
   );
@@ -84,8 +84,8 @@ export function PageTitle({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4 sm:mb-10">
-      <h1 className="text-[2.25rem] leading-[1.05] font-light tracking-[-0.035em] text-balance sm:text-[3.25rem]">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-4 sm:mb-6">
+      <h1 className="text-[2.1rem] leading-[1.05] font-light tracking-[-0.035em] text-balance sm:text-[2.4rem]">
         {title}
         {muted ? <span className="text-[#858585]"> {muted}</span> : null}
       </h1>
@@ -96,8 +96,8 @@ export function PageTitle({
 
 export function CardTitle({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-[1.6rem] leading-tight font-normal tracking-[-0.025em]">{children}</h2>
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <h2 className="text-[1.4rem] leading-tight font-normal tracking-[-0.025em]">{children}</h2>
       {aside}
     </div>
   );
@@ -126,7 +126,7 @@ export function Figure({
   suffix?: string;
 }) {
   return (
-    <div className="num flex items-baseline text-[4rem] leading-none font-extralight tracking-[-0.03em] sm:text-[4.75rem]">
+    <div className="num flex items-baseline text-[3rem] leading-none font-extralight tracking-[-0.03em] sm:text-[3.25rem]">
       {prefix ? <span className="text-ink-4">{prefix}</span> : null}
       <span>{value}</span>
       {suffix ? (
@@ -144,8 +144,8 @@ export function IconWell({
   icon: LucideIcon;
   size?: "sm" | "md" | "lg";
 }) {
-  const box = { sm: "h-11 w-11", md: "h-16 w-16", lg: "h-24 w-24" }[size];
-  const glyph = { sm: "h-5 w-5", md: "h-6 w-6", lg: "h-8 w-8" }[size];
+  const box = { sm: "h-10 w-10", md: "h-12 w-12", lg: "h-20 w-20" }[size];
+  const glyph = { sm: "h-[1.1rem] w-[1.1rem]", md: "h-5 w-5", lg: "h-7 w-7" }[size];
   return (
     <span
       className={cx(
@@ -169,7 +169,7 @@ const VARIANT: Record<Variant, string> = {
 };
 const SIZE: Record<Size, string> = {
   sm: "h-9 gap-1.5 rounded-[0.85rem] px-3.5 text-sm",
-  md: "h-11 gap-2 rounded-pill px-5 text-[0.95rem]",
+  md: "h-10 gap-2 rounded-pill px-5 text-[0.95rem]",
 };
 
 function buttonClass(variant: Variant, size: Size, className?: string): string {
@@ -325,7 +325,7 @@ export function Segmented<K extends string>({
 }
 
 export const inputClass =
-  "w-full rounded-[1rem] border border-hair bg-white px-4 py-3 text-base sm:text-[0.95rem] font-normal text-ink outline-none transition-[border-color,box-shadow] duration-200 placeholder:font-light focus:border-ink-4 focus:shadow-[0_0_0_4px_rgb(0_0_0/0.05)]";
+  "w-full rounded-[1rem] border border-hair bg-white px-4 py-2.5 text-base sm:text-[0.95rem] font-normal text-ink outline-none transition-[border-color,box-shadow] duration-200 placeholder:font-light focus:border-ink-4 focus:shadow-[0_0_0_4px_rgb(0_0_0/0.05)]";
 
 export function Field({
   label,

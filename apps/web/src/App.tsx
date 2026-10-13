@@ -407,9 +407,9 @@ export function App() {
   const items = nav(devices);
 
   return (
-    <div className="min-h-dvh p-2 sm:p-4 lg:p-5">
+    <div className="min-h-dvh p-2 sm:p-3 lg:p-4">
       <div className="flex min-h-[calc(100dvh-1rem)] flex-col rounded-[1.75rem] bg-shell sm:min-h-[calc(100dvh-2rem)] sm:rounded-shell lg:min-h-[calc(100dvh-2.5rem)] lg:flex-row">
-        <aside className="hidden w-[19.5rem] shrink-0 flex-col gap-10 self-start px-7 pt-11 pb-7 lg:sticky lg:top-5 lg:flex lg:h-[calc(100dvh-2.5rem)] lg:overflow-y-auto">
+        <aside className="hidden w-[17.5rem] shrink-0 flex-col gap-8 self-start px-6 pt-9 pb-6 lg:sticky lg:top-5 lg:flex lg:h-[calc(100dvh-2.5rem)] lg:overflow-y-auto">
           <a href="/" aria-label="AE Studio — bosh sahifa" className="ml-3 w-fit">
             <Logo className="h-14" />
           </a>
@@ -437,7 +437,7 @@ export function App() {
           onInstall={install}
         />
 
-        <main className="min-w-0 flex-1 px-5 pt-8 pb-12 sm:px-8 lg:pt-14 lg:pr-12 lg:pb-16 lg:pl-6">
+        <main className="min-w-0 flex-1 px-5 pt-8 pb-12 sm:px-8 lg:pt-10 lg:pr-10 lg:pb-12 lg:pl-6">
           <div className="mx-auto max-w-[72rem]">{page(path, me)}</div>
         </main>
         {online ? null : (

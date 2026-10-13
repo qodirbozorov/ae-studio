@@ -132,7 +132,7 @@ function BalanceSettings() {
                 <Figure value={data.balance_usd.toFixed(2)} suffix="$" />
               </div>
             </div>
-            <div className="grid gap-2 pb-2">
+            <div className="grid justify-items-start gap-2 pb-2">
               <Pill tone={data.activated ? "go" : "wait"} dot={data.activated}>
                 {data.activated
                   ? "Faol"
