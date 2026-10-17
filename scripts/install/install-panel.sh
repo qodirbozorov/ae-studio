@@ -45,5 +45,7 @@ unzip -q -o "$ZXP" -d "$TARGET"
 [ -f "$TARGET/CSXS/manifest.xml" ] || { echo "manifest.xml topilmadi: ZXP buzilgan" >&2; exit 1; }
 # ZXP ichidagi ffmpeg bajariladigan bo'lsin.
 chmod +x "$TARGET"/bin/*/ffmpeg "$TARGET"/bin/*/ffprobe 2>/dev/null || true
+# Brauzer/AirDrop orqali kelgan fayllardagi karantin belgisi: Gatekeeper ffmpeg'ni bloklamasin.
+xattr -dr com.apple.quarantine "$TARGET" 2>/dev/null || true
 echo "O'rnatildi: $TARGET"
 echo "After Effects'ni qayta oching: Window > Extensions > AE Studio"

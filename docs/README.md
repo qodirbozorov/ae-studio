@@ -13,6 +13,7 @@
 - [Dasturchi qo'llanmasi](developer.md) — tuzilma, yangi op, ElevenLabs imkoniyati, shablon, tool, deploy.
 - [MCP toollar ma'lumotnomasi](mcp-tools.md) — zod sxemalaridan generatsiya qilingan.
 - [Panel relizi](release-panel.md) — ZXP, ffmpeg, versiyalash.
+- [macOS relizi](mac-release.md) — Mac'da LGPL ffmpeg yig'ish, `-mac` ZXP, o'rnatish va sinov ro'yxati.
 - [Production tayyorgarligi](production.md) — healthcheck, backup, loglar, xavfsizlik.
 - [O'zbek tili sifati](uz-quality.md) — TTS/STT modellari, WER o'lchovi.
 - [Shablonlar](../templates/README.md) va [Brand kit](../brands/README.md).

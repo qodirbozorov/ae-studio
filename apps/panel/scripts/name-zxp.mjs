@@ -14,7 +14,9 @@ if (!existsSync(source)) {
 }
 const outDir = path.join(panelDir, "release");
 mkdirSync(outDir, { recursive: true });
-const target = path.join(outDir, `ae-studio-${pkg.version}.zxp`);
+// Platformaga xos reliz (masalan Mac'da yig'ilgan, faqat darwin ffmpeg bilan): AES_ZXP_SUFFIX=-mac.
+const suffix = (process.env.AES_ZXP_SUFFIX ?? "").replace(/[^A-Za-z0-9_-]/g, "");
+const target = path.join(outDir, `ae-studio-${pkg.version}${suffix}.zxp`);
 copyFileSync(source, target);
 const sha = createHash("sha256").update(readFileSync(target)).digest("hex");
 writeFileSync(`${target}.sha256`, `${sha}  ${path.basename(target)}\n`);
