@@ -1,8 +1,10 @@
 /**
  * Qurilma tokeni lokal saqlanadi (§4.2.5): `<dataDir>/.aestudio/credentials`, AES-256-GCM.
  * Kalit mashinaga bog'liq (hostname + OS foydalanuvchisi + home), scrypt bilan; native modul yo'q (D9).
+ * macOS'da hostname tarmoqqa qarab o'zgaradi (`Mac.local` ↔ `mac.lan`) — o'rniga o'zgarmas IOPlatformUUID.
  * Fayl boshqa kompyuterga ko'chirilsa ochilmaydi.
  */
+import { execFileSync } from "node:child_process";
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -22,6 +24,31 @@ interface StoredFile {
   data: string;
 }
 
+let macHardwareId: string | null | undefined;
+
+/** macOS apparat UUID'i (`ioreg`); o'qilmasa null. */
+function macPlatformUuid(): string | null {
+  if (macHardwareId !== undefined) return macHardwareId;
+  try {
+    const out = execFileSync("/usr/sbin/ioreg", ["-rd1", "-c", "IOPlatformExpertDevice"], {
+      encoding: "utf8",
+      timeout: 5_000,
+    });
+    macHardwareId = /"IOPlatformUUID"\s*=\s*"([0-9A-Fa-f-]{36})"/.exec(out)?.[1] ?? null;
+  } catch {
+    macHardwareId = null;
+  }
+  return macHardwareId;
+}
+
+function machineName(): string {
+  if (process.platform === "darwin") {
+    const uuid = macPlatformUuid();
+    if (uuid !== null) return `mac:${uuid}`;
+  }
+  return os.hostname();
+}
+
 export function machineSecret(): string {
   let user: string;
   try {
@@ -29,7 +56,7 @@ export function machineSecret(): string {
   } catch {
     user = process.env.USERNAME ?? process.env.USER ?? "";
   }
-  return [os.hostname(), user, os.homedir(), process.platform].join("|");
+  return [machineName(), user, os.homedir(), process.platform].join("|");
 }
 
 export function credentialsPath(dataDir: string): string {

@@ -16,7 +16,9 @@ for arg in "$@"; do
   esac
 done
 if [ -z "$ZXP" ]; then
-  ZXP="$(ls -t "$(dirname "$0")"/ae-studio-*.zxp 2>/dev/null | head -n 1 || true)"
+  # Mac relizi (`-mac.zxp`, darwin ffmpeg bilan) ustun; bo'lmasa eng yangi ZXP.
+  ZXP="$(ls -t "$(dirname "$0")"/ae-studio-*-mac.zxp 2>/dev/null | head -n 1 || true)"
+  [ -n "$ZXP" ] || ZXP="$(ls -t "$(dirname "$0")"/ae-studio-*.zxp 2>/dev/null | head -n 1 || true)"
 fi
 [ -n "$ZXP" ] && [ -f "$ZXP" ] || { echo "ZXP topilmadi: fayl yo'lini bering" >&2; exit 1; }
 echo "AE Studio: $ZXP"
@@ -25,6 +27,13 @@ UPIA="/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/U
 if [ "$MANUAL" = 0 ] && [ -x "$UPIA" ]; then
   echo "UnifiedPluginInstallerAgent bilan o'rnatilmoqda..."
   if "$UPIA" --install "$ZXP"; then
+    # UPIA zip'dan ochganda bajarish bitini saqlamasligi mumkin. Ruxsat bo'lmasa (root papka) panel agenti
+    # binarlarni o'zi foydalanuvchi keshiga nusxalab ishlatadi.
+    for dir in "/Library/Application Support/Adobe/CEP/extensions/$ID" "$EXT_DIR/$ID"; do
+      [ -d "$dir/bin" ] || continue
+      chmod +x "$dir"/bin/*/ffmpeg "$dir"/bin/*/ffprobe 2>/dev/null || true
+      xattr -dr com.apple.quarantine "$dir" 2>/dev/null || true
+    done
     echo "Tayyor. After Effects'ni qayta oching: Window > Extensions > AE Studio"
     exit 0
   fi

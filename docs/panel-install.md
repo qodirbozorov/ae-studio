@@ -59,7 +59,7 @@ Reliz papkasida quyidagi fayllar bor:
   ichida `CSXS/manifest.xml` bo'lishi kerak.
 - **«ffmpeg topilmadi»:** ZXP'ni qayta o'rnating yoki panel Sozlamalarida ffmpeg papkasini bering.
 - **«aerender topilmadi»:** render AE Render Queue orqali ishlaydi (sekinroq). Sozlamalarda `aerender.exe`
-  yo'lini bering.
+  (macOS: `aerender`) yo'lini bering.
 - Xato kodlari va yechimlari: [errors.md](errors.md).
 
 ## Smoke-test (AE ichida)

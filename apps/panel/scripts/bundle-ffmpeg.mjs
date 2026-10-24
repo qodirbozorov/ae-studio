@@ -6,15 +6,26 @@
  * Manba: `AES_FFMPEG_DIR` (ffmpeg va ffprobe bor papka) yoki PATH'dagi ffmpeg.
  * Litsenziya: faqat LGPL build (`--enable-gpl` / `--enable-nonfree` bo'lsa to'xtaydi; `AES_ALLOW_GPL=1` — ataylab).
  * macOS uchun shu skript Mac'da ishga tushiriladi (👤): har platforma o'z papkasiga.
+ * `AES_FFMPEG_ARCH=x64|arm64` — boshqa arxitektura binari (macOS: Apple Silicon'da Intel uchun kross-build).
+ * Manba papkada `THIRD_PARTY_LICENSES.txt` bo'lsa (scripts/build-ffmpeg-mac.sh yozadi) u ham ko'chiriladi.
  */
 import { execFileSync } from "node:child_process";
-import { copyFileSync, chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const panelDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const exe = process.platform === "win32" ? ".exe" : "";
-const tag = `${process.platform}-${process.arch}`;
+const arch = process.env.AES_FFMPEG_ARCH || process.arch;
+const tag = `${process.platform}-${arch}`;
+const THIRD_PARTY = "THIRD_PARTY_LICENSES.txt";
 
 function findSourceDir() {
   if (process.env.AES_FFMPEG_DIR) return process.env.AES_FFMPEG_DIR;
@@ -25,6 +36,15 @@ function findSourceDir() {
   } catch {
     return null;
   }
+}
+
+/** Bu mashinada ishga tushmaydigan (boshqa arxitektura) binar: build konfiguratsiyasi binar ichidan o'qiladi. */
+function embeddedVersion(file) {
+  const text = readFileSync(file).toString("latin1");
+  const start = text.indexOf("--prefix=");
+  if (start === -1) return null;
+  const end = text.indexOf("\0", start);
+  return `configuration: ${text.slice(start, end === -1 ? undefined : end)}\n`;
 }
 
 export function licenseOf(versionText) {
@@ -47,7 +67,13 @@ function main() {
       process.exit(1);
     }
   }
-  const version = execFileSync(ffmpeg, ["-version"], { encoding: "utf8" });
+  let version;
+  try {
+    version = execFileSync(ffmpeg, ["-version"], { encoding: "utf8" });
+  } catch (error) {
+    version = arch === process.arch ? null : embeddedVersion(ffmpeg);
+    if (version === null) throw error;
+  }
   const license = licenseOf(version);
   if (!license.lgpl && process.env.AES_ALLOW_GPL !== "1") {
     console.error(
@@ -64,12 +90,18 @@ function main() {
     if (process.platform !== "win32") chmodSync(target, 0o755);
   }
   writeFileSync(path.join(dest, "VERSION.txt"), version);
+  if (existsSync(path.join(source, THIRD_PARTY))) {
+    copyFileSync(path.join(source, THIRD_PARTY), path.join(dest, THIRD_PARTY));
+  }
   writeFileSync(
     path.join(dest, "LICENSE.txt"),
     [
       "FFmpeg (https://ffmpeg.org) — LGPL v2.1+ build, o'zgartirilmagan holda tarqatiladi.",
       "Manba kodi: https://ffmpeg.org/download.html (versiya — VERSION.txt).",
       "FFmpeg is licensed under the GNU Lesser General Public License (LGPL) version 2.1 or later.",
+      ...(existsSync(path.join(dest, THIRD_PARTY))
+        ? [`Ichidagi kutubxonalar litsenziyalari: ${THIRD_PARTY}.`]
+        : []),
       license.lgpl ? "" : "DIQQAT: bu build LGPL emas (AES_ALLOW_GPL=1 bilan qo'shilgan).",
     ].join("\n"),
   );

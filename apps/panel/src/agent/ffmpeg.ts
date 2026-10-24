@@ -3,7 +3,8 @@
  * Binarlar: sozlamadagi papka yoki PATH (P5.10 da ZXP ichiga qo'shiladi).
  */
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { accessSync, chmodSync, constants, copyFileSync, existsSync, mkdirSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { makeError } from "@aes/shared";
 import type { AesError } from "@aes/shared";
@@ -29,13 +30,79 @@ export function platformTag(): string {
   return `${process.platform}-${process.arch}`;
 }
 
+/** Qidiriladigan teglar. macOS: AE Rosetta ostida (x64) bo'lsa ham arm64 binar ishlaydi, aksincha — Rosetta bilan. */
+function platformTags(): string[] {
+  const tags = [platformTag()];
+  if (process.platform === "darwin")
+    tags.push(process.arch === "arm64" ? "darwin-x64" : "darwin-arm64");
+  return tags;
+}
+
+const executableDirs = new Map<string, string | null>();
+
+function isExecutable(dir: string): boolean {
+  try {
+    for (const name of ["ffmpeg", "ffprobe"]) accessSync(path.join(dir, name), constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * macOS: ZXP o'rnatuvchisi (UPIA) bajarish bitini saqlamasligi mumkin — joyida `chmod`, papka root'niki bo'lsa
+ * foydalanuvchi keshiga (`~/Library/Caches/com.aestudio.panel/bin/<tag>`) nusxa. Windows'da o'zgarishsiz.
+ */
+function executableDir(dir: string): string | null {
+  if (process.platform === "win32") return dir;
+  const known = executableDirs.get(dir);
+  if (known !== undefined) return known;
+  let result: string | null = dir;
+  if (!isExecutable(dir)) {
+    try {
+      for (const name of ["ffmpeg", "ffprobe"]) chmodSync(path.join(dir, name), 0o755);
+    } catch {
+      // Papka egasi boshqa (UPIA → /Library/...): nusxa olinadi.
+    }
+    if (!isExecutable(dir)) {
+      result = null;
+      if (process.platform === "darwin") {
+        const cache = path.join(
+          os.homedir(),
+          "Library",
+          "Caches",
+          "com.aestudio.panel",
+          "bin",
+          path.basename(dir),
+        );
+        try {
+          mkdirSync(cache, { recursive: true });
+          for (const name of ["ffmpeg", "ffprobe"]) {
+            copyFileSync(path.join(dir, name), path.join(cache, name));
+            chmodSync(path.join(cache, name), 0o755);
+          }
+          if (isExecutable(cache)) result = cache;
+        } catch {
+          // Kesh yozilmadi: PATH'dagi ffmpeg ishlatiladi.
+        }
+      }
+    }
+  }
+  executableDirs.set(dir, result);
+  return result;
+}
+
 /** ZXP bilan kelgan ffmpeg papkasi (agent `agent/agent.cjs` dan `../bin/<tag>`); bo'lmasa null. */
 export function bundledFfmpegDir(base: string = __dirname): string | null {
   const exe = process.platform === "win32" ? ".exe" : "";
-  const dir = path.resolve(base, "..", "bin", platformTag());
-  return existsSync(path.join(dir, `ffmpeg${exe}`)) && existsSync(path.join(dir, `ffprobe${exe}`))
-    ? dir
-    : null;
+  for (const tag of platformTags()) {
+    const dir = path.resolve(base, "..", "bin", tag);
+    if (existsSync(path.join(dir, `ffmpeg${exe}`)) && existsSync(path.join(dir, `ffprobe${exe}`))) {
+      const usable = executableDir(dir);
+      if (usable !== null) return usable;
+    }
+  }
+  return null;
 }
 
 /** Sozlamadagi papka → ZXP ichidagi binarlar → PATH. */

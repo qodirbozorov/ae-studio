@@ -141,6 +141,27 @@ describe("ffmpeg manbasi (P5.10)", () => {
     expect(resolveBinaries("", null)).toEqual({ ffmpeg: "ffmpeg", ffprobe: "ffprobe" });
   });
 
+  it.runIf(process.platform === "darwin")(
+    "macOS: boshqa arxitektura papkasi zaxira, bajarish biti tiklanadi",
+    async () => {
+      const { mkdtempSync, mkdirSync, statSync, writeFileSync } = await import("node:fs");
+      const os = await import("node:os");
+      const nodePath = await import("node:path");
+      const { bundledFfmpegDir } = await import("../src/agent/ffmpeg");
+      const ext = mkdtempSync(nodePath.join(os.tmpdir(), "aes-ext-"));
+      const agentDir = nodePath.join(ext, "agent");
+      mkdirSync(agentDir);
+      const other = process.arch === "arm64" ? "darwin-x64" : "darwin-arm64";
+      const bin = nodePath.join(ext, "bin", other);
+      mkdirSync(bin, { recursive: true });
+      for (const name of ["ffmpeg", "ffprobe"]) {
+        writeFileSync(nodePath.join(bin, name), "", { mode: 0o644 });
+      }
+      expect(bundledFfmpegDir(agentDir)).toBe(bin);
+      expect(statSync(nodePath.join(bin, "ffmpeg")).mode & 0o111).not.toBe(0);
+    },
+  );
+
   it("bundle-ffmpeg: faqat LGPL build qabul qilinadi (Q9)", async () => {
     // @ts-expect-error — .mjs skript, tiplar yo'q
     const { licenseOf } = (await import("../scripts/bundle-ffmpeg.mjs")) as {

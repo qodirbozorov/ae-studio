@@ -3,104 +3,100 @@
 > Mac'da VS Code'da ochib, qadamlarni ketma-ket bajaring (Claude Code'ga ham shu faylni berish mumkin:
 > «docs/mac-release.md bo'yicha Mac relizini tayyorla»).
 
-## Qisqa hisobot (2026-10-17)
+## Holat (2026-10-17)
 
 | Qism | Holat |
 |---|---|
-| Panel (React UI, Node agent, ExtendScript) | Kross-platforma. macOS yo'llari kodda bor (aerender `.app` yonida, `~/Library/...`), lekin **Mac'da hali sinalmagan** |
-| O'rnatish skripti | `scripts/install/install-panel.sh` — tayyor (UPIA yoki qo'lda; karantin belgisi olib tashlanadi) |
-| ffmpeg / ffprobe | ZXP'da hozir faqat **Windows** binarlari. Mac uchun **LGPL static** build kerak — shu yerda yig'iladi |
-| Imzo | `vite-cep-plugin` ichidagi `ZXPSignCmd` (macOS binari bor), self-signed sertifikat |
-| Server | Build vaqtidagi `VITE_AES_SERVER_URL` (sukut — prod), panelda faqat «Kirish» tugmasi |
+| Panel (React UI, Node agent, ExtendScript) | Kross-platforma. Mac'ga xos joylar tuzatildi (pastda) |
+| ffmpeg / ffprobe | `scripts/build-ffmpeg-mac.sh` — LGPL static, Apple Silicon + Intel, macOS 12+ |
+| ZXP | `release/ae-studio-<versiya>-mac.zxp` (~51 MB): `bin/darwin-arm64` + `bin/darwin-x64` |
+| Imzo | `vite-cep-plugin` ichidagi `ZXPSignCmd` (faqat x86_64 → Apple Silicon'da **Rosetta** kerak) |
+| O'rnatish | `install-panel.sh` (UPIA bo'lsa u bilan, bo'lmasa `~/Library/.../CEP/extensions`) |
+| Server | Build vaqtidagi `VITE_AES_SERVER_URL` (sukut — prod), Windows bilan bir xil |
 
-Nima uchun Homebrew'dagi ffmpeg emas: u GPL va Homebrew kutubxonalariga dinamik bog'langan — boshqa Mac'da
-ishlamaydi va tarqatib bo'lmaydi (Q9: faqat LGPL). Shuning uchun manbadan, tashqi kutubxonalarsiz yig'amiz.
-Panelga kerak bo'lgan hamma narsa ichki kodeklarda bor: PCM/WAV, AAC, MJPEG/PNG, H.264 (`h264_videotoolbox`).
+**ffmpeg Windows'dagi (BtbN LGPL) bilan bir xil imkoniyatlarda:** panel ishlatadigan hamma narsa bor —
+`libopus` (audio ajratish, sukut formati), `libmp3lame` (mp3), `drawtext` (freetype + harfbuzz, contact sheet
+yorliqlari), `libdav1d` (AV1 manbalar), `h264_videotoolbox` (render), `aac`, `pcm_s16le`, `mjpeg`/`png`.
+Homebrew'dagi ffmpeg ishlatilmaydi: u GPL va Homebrew dylib'lariga bog'langan — boshqa Mac'da ishlamaydi.
 
-Natija: alohida **`ae-studio-<versiya>-mac.zxp`** (Windows ZXP'ga Mac binarlarini qo'shmaymiz — Windows ffmpeg
-256 MB, universal fayl juda og'ir bo'ladi).
+**Mac'ga xos tuzatishlar (Windows xatti-harakati o'zgarmagan):**
+
+- `agent/ffmpeg.ts` — AE Rosetta ostida (x64) ochilsa ham ffmpeg topiladi (boshqa arxitektura papkasi zaxira);
+  o'rnatuvchi bajarish bitini yo'qotsa — `chmod`, papka root'niki bo'lsa `~/Library/Caches/com.aestudio.panel/bin/`
+  ga nusxa.
+- `agent/credentials.ts` — kalit macOS'da hostname o'rniga IOPlatformUUID'dan (hostname tarmoqqa qarab
+  o'zgaradi va sessiya yo'qolardi).
+- `jsx/lib/hybrid.ts` — AE presetlari: Mac'da `Presets` `.app` ichida emas, uning yonida.
+- `install-panel.sh` — UPIA bilan o'rnatilgandan keyin ham `chmod +x` va karantin belgisini olib tashlash;
+  papkada bir nechta ZXP bo'lsa `-mac.zxp` tanlanadi.
 
 ---
 
 ## 0. Talablar
 
-- macOS 12+; Apple Silicon (M1–M4) yoki Intel — qaysi Mac'da yig'sangiz, shu arxitektura chiqadi.
+- macOS 12+; Apple Silicon yoki Intel (ikkala arxitektura bitta Mac'da yig'iladi).
 - Xcode Command Line Tools: `xcode-select --install`
-- Homebrew (faqat yig'ish asboblari uchun): `brew install nasm pkg-config`
-- Node 24 LTS (`brew install node@24` yoki nvm) va pnpm: `corepack enable`
+- Yig'ish asboblari: `brew install node@24 nasm pkg-config meson ninja`
+  (`node@24` keg-only: `export PATH="/opt/homebrew/opt/node@24/bin:$PATH"`), so'ng `corepack enable`.
+- Apple Silicon'da Rosetta (ZXPSignCmd uchun): `softwareupdate --install-rosetta --agree-to-license`
 - After Effects 2022 (22.0) yoki yangi.
 
 ## 1. Repo
 
 ```bash
-git clone <repo-url> video-ae-ai-plugin
-cd video-ae-ai-plugin
+git clone https://github.com/qodirbozorov/ae-studio.git
+cd ae-studio
 pnpm install
 pnpm --filter @aes/panel typecheck
 ```
 
-## 2. LGPL static ffmpeg (≈10–15 daqiqa)
-
-Windows'dagi bilan bir xil versiya oilasini oling (hozir **8.1.x**; aniq nom — <https://ffmpeg.org/releases/>).
+## 2. LGPL static ffmpeg (har arxitektura ≈5–10 daqiqa)
 
 ```bash
-mkdir -p ~/build && cd ~/build
-curl -LO https://ffmpeg.org/releases/ffmpeg-8.1.tar.xz      # oxirgi 8.1.x
-tar xf ffmpeg-8.1.tar.xz && cd ffmpeg-8.1
-
-./configure \
-  --prefix="$HOME/ffmpeg-lgpl" \
-  --disable-gpl --disable-nonfree \
-  --enable-static --disable-shared \
-  --disable-autodetect \
-  --enable-zlib --enable-videotoolbox --enable-audiotoolbox \
-  --disable-doc --disable-debug --disable-ffplay
-
-make -j"$(sysctl -n hw.ncpu)" && make install
+bash apps/panel/scripts/build-ffmpeg-mac.sh arm64
+bash apps/panel/scripts/build-ffmpeg-mac.sh x86_64
 ```
 
-`--disable-autodetect` — Homebrew kutubxonalari (SDL, xz, ...) jimgina ulanib qolmasin.
+Skript manbalarni yuklaydi (`~/build/ffmpeg-mac/`): ffmpeg 8.1.3 (Windows bilan bir xil), opus, lame, freetype,
+harfbuzz, dav1d — hammasi static. Natija: `~/ffmpeg-lgpl/<arch>/bin/{ffmpeg,ffprobe,THIRD_PARTY_LICENSES.txt}`.
+Homebrew `.pc` fayllari ko'rinmaydi (`PKG_CONFIG_LIBDIR`), `MACOSX_DEPLOYMENT_TARGET=12.0`.
 
-**Tekshiruv (hammasi shart):**
+**Tekshiruv:**
 
 ```bash
-B=~/ffmpeg-lgpl/bin
-$B/ffmpeg -version | grep -c -- '--enable-gpl'          # 0 bo'lishi kerak
-otool -L $B/ffmpeg | grep -v -E '/usr/lib/|/System/Library/' | tail -n +2   # bo'sh bo'lishi kerak
-$B/ffmpeg -hide_banner -encoders | grep -E 'h264_videotoolbox|aac|mjpeg|png|pcm_s16le'
-$B/ffprobe -version | head -1
+B=~/ffmpeg-lgpl/arm64/bin
+$B/ffmpeg -version | grep -c -- '--enable-gpl'                                  # 0
+otool -L $B/ffmpeg | grep -v -E '/usr/lib/|/System/Library/' | tail -n +2       # bo'sh
+$B/ffmpeg -hide_banner -encoders | grep -E 'h264_videotoolbox|libopus|libmp3lame|aac|pcm_s16le'
+$B/ffmpeg -hide_banner -filters | grep drawtext
+otool -l $B/ffmpeg | grep -A4 LC_BUILD_VERSION | grep minos                     # 12.0
 ```
 
-`otool` chiqishida `/opt/homebrew/...` yoki `/usr/local/...` bo'lsa — build boshqa Mac'da ishlamaydi:
-`configure`'ni `--disable-autodetect` bilan qayta bajaring.
+Intel binarini Apple Silicon'da `arch -x86_64 ~/ffmpeg-lgpl/x86_64/bin/ffmpeg -version` bilan tekshiring.
 
-## 3. ZXP'ga qo'shish va reliz
+## 3. ZXP
 
 ```bash
-cd ~/…/video-ae-ai-plugin
-AES_FFMPEG_DIR=~/ffmpeg-lgpl/bin AES_ZXP_SUFFIX=-mac pnpm --filter @aes/panel release
+pnpm --filter @aes/panel release:mac
 ```
 
-Bu:
-1. `bundle-ffmpeg.mjs` — litsenziyani tekshiradi (GPL bo'lsa to'xtaydi) va binarlarni
-   `apps/panel/src/bin/darwin-arm64/` (Intel'da `darwin-x64/`) ga, `VERSION.txt` + `LICENSE.txt` bilan qo'yadi;
-2. `pnpm zxp` — build va imzo (`ZXPSignCmd`);
-3. `name-zxp.mjs` — `apps/panel/release/ae-studio-<versiya>-mac.zxp` (+ `.sha256`) va `install-panel.sh`.
+`scripts/release-mac.sh`:
+1. `bundle-ffmpeg.mjs` ikki marta — LGPL tekshiruvi, `src/bin/darwin-arm64/` va `src/bin/darwin-x64/`
+   (`VERSION.txt`, `LICENSE.txt`, `THIRD_PARTY_LICENSES.txt` bilan);
+2. `pnpm zxp` — build va imzo;
+3. `name-zxp.mjs` (`AES_ZXP_SUFFIX=-mac`) — `apps/panel/release/ae-studio-<versiya>-mac.zxp` (+ `.sha256`) va
+   o'rnatish skriptlari.
 
-`ZXPSignCmd` "permission denied" yoki "cannot be opened" desa:
+Imzo tekshiruvi:
 
 ```bash
 S=$(ls -d node_modules/.pnpm/vite-cep-plugin*/node_modules/vite-cep-plugin/lib/bin)
-chmod +x "$S/ZXPSignCmd" && xattr -d com.apple.quarantine "$S/ZXPSignCmd" 2>/dev/null; true
+(cd "$S" && ./ZXPSignCmd -verify "$OLDPWD/apps/panel/release/ae-studio-<versiya>-mac.zxp" -certinfo)
+# Signing Certificate: Valid
 ```
 
-Windows'da yig'ilgan binarlar `src/bin/win32-x64/` Mac'dagi klonda yo'q (`.gitignore`) — Mac ZXP'da faqat
-darwin papkasi bo'ladi, shu to'g'ri.
-
-**Ikkala arxitektura kerak bo'lsa** (Apple Silicon + Intel): Intel Mac'da 2-bosqichni takrorlab,
-`~/ffmpeg-lgpl/bin/{ffmpeg,ffprobe}` ni shu repodagi `apps/panel/src/bin/darwin-x64/` ga nusxalang, so'ng
-`AES_ZXP_SUFFIX=-mac pnpm --filter @aes/panel zxp && node apps/panel/scripts/name-zxp.mjs`
-(bundle bosqichisiz — ikkala papka ZXP'ga kiradi).
+Windows ZXP o'zgarmaydi: u Windows'da `pnpm zxp` bilan quriladi (`src/bin/` git'ga kirmaydi, har platforma
+o'z binarlarini qo'shadi).
 
 ## 4. O'rnatish
 
@@ -108,31 +104,29 @@ After Effects'ni yoping:
 
 ```bash
 cd apps/panel/release
-bash install-panel.sh ae-studio-<versiya>-mac.zxp
+bash install-panel.sh            # yoki: bash install-panel.sh ae-studio-<versiya>-mac.zxp
 ```
 
-Skript UPIA (Creative Cloud) bilan o'rnatadi, bo'lmasa `~/Library/Application Support/Adobe/CEP/extensions/`
-ga ochadi, ffmpeg'ga `chmod +x` va karantin belgisini olib tashlaydi. AE → **Window → Extensions → AE Studio**.
+UPIA (Creative Cloud) bo'lsa u bilan, bo'lmasa `~/Library/Application Support/Adobe/CEP/extensions/` ga
+ochiladi; ffmpeg'ga `chmod +x`, karantin belgisi olib tashlanadi. AE → **Window → Extensions → AE Studio**.
 
 ## 5. Mac'da sinov ro'yxati
 
 - [ ] Panel ochiladi, «Kirish» → brauzerda Telegram tasdig'i → profil va «● Server» yashil.
 - [ ] Ish papkasi tanlanadi (`~/…` yo'l, bo'sh joy va kirill harfli nom bilan ham).
-- [ ] Muhit tekshiruvi: **ffmpeg ✓** (Sozlama → ffmpeg yo'li bo'sh — ZXP ichidagisi ishlatiladi).
-- [ ] Claude: `env_check` → `assets_scan` (video davomiyligi va o'lchami to'g'ri — ffprobe) → `asset_preview`.
-- [ ] Kichik job (3 sahna) → VERIFY → panelda «Tasdiqlash».
-- [ ] Audio: videodan ovoz ajratish (transkripsiya yoki standart tozalash) — `audio.extract` xatosiz.
-- [ ] Render (faqat sinov uchun, qisqa): aerender topiladi (`/Applications/Adobe After Effects 20xx/aerender`),
-      MP4 `out/` da; encoder `h264_videotoolbox`.
-- [ ] Panelni yopib-ochish va AE'ni qayta ishga tushirish — sessiya saqlanadi, qayta ulanadi.
+- [ ] Muhit tekshiruvi: **ffmpeg ✓** (manba «bundled»), aerender ✓
+      (`/Applications/Adobe After Effects 20xx/aerender`).
+- [ ] Claude: `env_check` → `assets_scan` (video davomiyligi va o'lchami — ffprobe) → `asset_preview`.
+- [ ] Kichik job (3 sahna) → VERIFY → `contact_sheet` (yorliqlar — drawtext) → panelda «Tasdiqlash».
+- [ ] Preset ishlatilgan sahna (`presets_list` AE'ning standart presetlarini ham ko'rsatadi).
+- [ ] Audio: videodan ovoz ajratish (transkripsiya yoki tozalash) — `audio.extract` (opus) xatosiz.
+- [ ] Render (faqat sinov uchun, qisqa): MP4 `out/` da; encoder `h264_videotoolbox`.
+- [ ] Panelni yopib-ochish, AE'ni qayta ishga tushirish, Wi-Fi'ni almashtirish — sessiya saqlanadi.
 
 Xato bo'lsa — loglar:
 - CEP: `~/Library/Logs/CSXS/` (`CEP*-AEFT.log`), panel ichidagi DevTools uchun
-  `defaults write com.adobe.CSXS.11 PlayerDebugMode 1` (AE 2024+ uchun `.12` ham).
+  `defaults write com.adobe.CSXS.11 PlayerDebugMode 1` (AE 2024+ uchun `.12` ham) va imzosiz dev build.
 - Panel → Live log va Tarix; serverda job log (kabinet → Tarix).
-
-Topilgan xatolarni (log parchasi bilan) Windows'dagi sessiyaga yuboring yoki shu repoda tuzating
-(`apps/panel/src/agent/*` — Node agent, `apps/panel/src/jsx/*` — ExtendScript).
 
 ## 6. Yakun
 

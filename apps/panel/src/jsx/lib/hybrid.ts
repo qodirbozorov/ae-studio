@@ -51,7 +51,13 @@ function presetDirs(): Folder[] {
     // Hujjatlar papkasi yo'q yoki o'qilmadi.
   }
   try {
-    if (Folder.appPackage) dirs.push(new Folder(Folder.appPackage.fsName + "/Presets"));
+    const pkg = Folder.appPackage;
+    if (pkg) {
+      // Windows: `Support Files/Presets`. macOS: appPackage — `.app` bundle, Presets uning yonida.
+      if (/\.app$/i.test(pkg.fsName) && pkg.parent !== null) {
+        dirs.push(new Folder(pkg.parent.fsName + "/Presets"));
+      } else dirs.push(new Folder(pkg.fsName + "/Presets"));
+    }
   } catch (_e) {
     // AE papkasi aniqlanmadi.
   }

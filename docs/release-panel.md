@@ -58,16 +58,10 @@ Panel → Muhit bo'limida qaysi biri ishlatilayotgani ko'rinadi.
 - **Q9 — ffmpeg litsenziyasi:** faqat LGPL build tarqatiladi, o'zgartirilmagan holda va manba havolasi bilan
   (`LICENSE.txt`). Hozirgi Windows build: `n8.1.3 LGPL`, ~130 MB (ZXP ~110 MB).
 
-## 👤 macOS
+## macOS
 
-macOS ZXP'si Mac'da quriladi (har platforma o'z binarlarini qo'shadi):
+macOS ZXP'si Mac'da alohida quriladi (`ae-studio-<versiya>-mac.zxp`, Apple Silicon + Intel ffmpeg ichida):
+LGPL static ffmpeg'ni `apps/panel/scripts/build-ffmpeg-mac.sh` yig'adi, ZXP'ni
+`pnpm --filter @aes/panel release:mac`. To'liq qadamlar va sinov ro'yxati: [mac-release.md](mac-release.md).
 
-```bash
-AES_FFMPEG_DIR=/path/to/ffmpeg-lgpl pnpm zxp
-```
-
-Universal (Windows + macOS) ZXP kerak bo'lsa:
-
-1. Windows'dagi `src/bin/win32-x64` ni Mac'dagi `src/bin` ga ko'chiring.
-2. Mac'da `pnpm zxp` ni ishga tushiring.
-3. Ikkala papka ham bitta ZXP'ga kiradi. Agent o'z platformasinikini tanlaydi.
+Windows ZXP'ga Mac binarlari qo'shilmaydi (va aksincha): har platforma o'z relizi bilan.
