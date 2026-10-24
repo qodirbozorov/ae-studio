@@ -214,12 +214,22 @@ const iconLayerSchema = z.strictObject({
   ...layerTiming,
   name: z
     .string()
-    .regex(/^(lucide:)?[a-z0-9-]{1,64}$/, { error: "Lucide ikonka nomi (icons_search)" })
-    .describe("Lucide icon name from icons_search, e.g. lucide:bell"),
+    .regex(/^(?:[a-z0-9]+(?:-[a-z0-9]+)*:)?[a-z0-9]+(?:[-_][a-z0-9]+)*$/, {
+      error: "Ikonka nomi icons_search'dan: lucide:bell, mdi:bell, simple-icons:youtube",
+    })
+    .max(100)
+    .describe(
+      "Icon name from icons_search: lucide:bell (default set) or any Iconify set prefix:name, e.g. mdi:bell, simple-icons:youtube",
+    ),
   /** Piksel (ikonka kvadrati). */
   size: z.number().positive().max(1024).default(96),
   color: hexColorSchema.default("#FFFFFF"),
-  stroke_width: z.number().min(0.25).max(6).default(2),
+  stroke_width: z
+    .number()
+    .min(0.25)
+    .max(6)
+    .default(2)
+    .describe("Line icons (Lucide, Tabler …): stroke width in icon units; filled icons ignore it"),
   pos: positionSchema.default("center"),
   anim: z.enum(ANIMS).default("none"),
   opacity: z.number().min(0).max(100).default(100),
@@ -227,7 +237,7 @@ const iconLayerSchema = z.strictObject({
     .boolean()
     .default(false)
     .describe(
-      "Convert to an AE shape layer (Create Shapes from Vector Layer) — only when its paths must be animated (trim draw-on, per-path color)",
+      "Build a native AE shape layer from the icon geometry (exact size, centered on pos; one group per path p1, p2 …) — when paths must be animated (trim draw-on via keyframes contents.p1.trim.end, per-path color)",
     ),
   ...proLayerFields,
 });

@@ -1,13 +1,13 @@
 /**
  * Compiler kontekstining server ma'lumotlariga bog'liq qismi (engine PREFLIGHT va MCP preflight/dry_run uchun
- * bir xil): Spec'dagi shablonlar (§11.2), brand kit (§11.3) va AE'dagi shriftlar.
+ * bir xil): Spec'dagi shablonlar (§11.2), brand kit (§11.3), ikonkalar geometriyasi va AE'dagi shriftlar.
  */
 import type { CompileContext } from "@aes/compiler";
-import { makeOp, ok } from "@aes/shared";
+import { iconKey, makeOp, ok } from "@aes/shared";
 import type { Result, VideoSpec } from "@aes/shared";
 import type { AppContext } from "../context";
 
-export type CompileExtras = Pick<CompileContext, "templates" | "brand" | "fonts">;
+export type CompileExtras = Pick<CompileContext, "templates" | "brand" | "fonts" | "icons">;
 
 /** Spec yoki brand shrift ishlatadimi (PREFLIGHT'da AE'dan shriftlar ro'yxati so'raladi). */
 export function usesFonts(spec: VideoSpec, extras: CompileExtras): boolean {
@@ -45,15 +45,21 @@ export async function aeFonts(
 }
 
 export async function compileExtras(
-  ctx: Pick<AppContext, "templates" | "brands">,
+  ctx: Pick<AppContext, "templates" | "brands" | "icons">,
   userId: string,
   spec: VideoSpec,
 ): Promise<Result<CompileExtras>> {
   const brand = await ctx.brands.resolve(userId, spec.brand);
   if (!brand.ok) return brand;
   const templates = await ctx.templates.forSpec(userId, spec);
+  const names = spec.scenes.flatMap((scene) =>
+    (scene.layers ?? []).flatMap((layer) => (layer.type === "icon" ? [iconKey(layer.name)] : [])),
+  );
+  const icons = names.length === 0 ? null : await ctx.icons.resolve(names);
+  if (icons !== null && !icons.ok) return icons;
   return ok({
     ...(Object.keys(templates).length === 0 ? {} : { templates }),
     ...(brand.data === undefined ? {} : { brand: brand.data }),
+    ...(icons === null ? {} : { icons: icons.data }),
   });
 }

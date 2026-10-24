@@ -8,7 +8,6 @@ import type { AeOpName, OpEnvelope, OpParamsMap, Result } from "@aes/shared";
 import { z } from "zod";
 import { defineTool } from "../registry";
 import type { ToolContext } from "../registry";
-import { searchLucide } from "../../icons/lucide";
 import { pickDevice, uuidArg } from "./common";
 
 const deviceFields = {
@@ -124,14 +123,31 @@ export const aeTools = [
     name: "icons_search",
     title: "Search icons",
     description:
-      'Searches Lucide icons (ISC, ~1,600 outline UI icons) by name words, e.g. "bell", "arrow right", "chart". Use the returned name in a spec layer {type: "icon", name, size, color, stroke_width}: it arrives in AE as crisp vector footage (no path drawing needed). Set as_shapes: true only when the icon\'s paths must be animated (trim draw-on).',
+      'Searches icons by name words, e.g. "bell", "arrow right", "youtube". Lucide (ISC, ~1,600 consistent outline UI icons, offline) comes first, then Iconify (200,000+ icons in 150+ sets): brand logos (prefix simple-icons — mono, logos — multicolor), filled/other styles (mdi, ph, tabler, solar, material-symbols), flags (flag), emoji (fluent-emoji-flat), weather etc. Prefer one set per video for a consistent look; use prefix to search one set. Brand logo missing there, or the official full-color/wordmark logo needed: source "worldvectorlogo" (WorldVectorLogo, 60,000+ brand logos as wvl:<slug>; each search spends limited monthly admin credits — search once, precise brand name). Results: icons[] (prefix:name), collections{prefix: {name, license, multicolor}} (mention non-permissive licenses, e.g. CC BY, and that brand logos are trademarks), logos[] (WorldVectorLogo: title, downloads — prefer the most downloaded/current version). Use the name in a spec layer {type: "icon", name, size, color, stroke_width}: crisp vector footage in AE; as_shapes: true builds a native shape layer (exact size, centered) for path animation. color has no effect on multicolor icons.',
     input: z.object({
       query: z.string().min(1).max(64),
       limit: z.number().int().min(1).max(50).default(20),
+      source: z
+        .enum(["all", "lucide", "iconify", "worldvectorlogo"])
+        .default("all")
+        .describe(
+          "all: Lucide first, then Iconify; lucide: offline only; iconify: Iconify only; worldvectorlogo: brand logos (uses credits, never included in all)",
+        ),
+      prefix: z
+        .string()
+        .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+        .max(40)
+        .optional()
+        .describe("One Iconify set, e.g. simple-icons, logos, mdi, ph, tabler, flag"),
     }),
-    annotations: { readOnlyHint: true, openWorldHint: false },
-    async handler(_ctx, input) {
-      return ok({ icons: searchLucide(input.query, input.limit) });
+    annotations: { readOnlyHint: true, openWorldHint: true },
+    async handler(ctx, input) {
+      return ok(
+        await ctx.app.icons.search(input.query, input.limit, {
+          source: input.source,
+          ...(input.prefix === undefined ? {} : { prefix: input.prefix }),
+        }),
+      );
     },
   }),
 

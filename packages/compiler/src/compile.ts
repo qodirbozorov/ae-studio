@@ -5,15 +5,17 @@
  * (+ o'tish) → saqlash. op_id'lar Spec'dagi barqaror nomlardan (sahna id, layer id/indeks) yasaladi:
  * resume'da AE'dagi iz bo'yicha bajarilganlar qayta yaratilmaydi, patch'da faqat o'zgargan qism yangilanadi.
  */
-import { ICON_BASE_PT, fail, iconFile, iconName, makeOp, ok } from "@aes/shared";
+import { ICON_BASE_PT, fail, iconFile, iconKey, iconRef, makeOp, ok } from "@aes/shared";
 import type {
   AeOpName,
   Aspect,
   Brand,
+  IconData,
   Layer,
   OpEnvelope,
   OpParamsMap,
   Result,
+  ShapeContentOp,
   TextStyle,
   TextStyleOp,
   VideoSpec,
@@ -28,6 +30,7 @@ import { aspectOf, brandTokens, expandTemplate } from "./template";
 import type { CompileTemplate, ExpandedTemplate, TokenValue } from "./template";
 import { planTiming, resolveAt, shiftWords, voiceSegments } from "./timing";
 import { compileContents, emitPro, hasPixelFields, scalePro } from "./pro";
+import { iconShapeContents } from "./icon-shapes";
 import { scriptParams } from "./scripts";
 import type { AddOp } from "./pro";
 import type { CaptionWord } from "@aes/shared";
@@ -62,6 +65,8 @@ export interface CompileContext {
   brand?: Brand;
   /** AE'dagi shriftlar (PostScript nomlari; `info` op). null — noma'lum (AE < 24): tekshirilmaydi. */
   fonts?: string[] | null;
+  /** Spec'dagi ikonkalar geometriyasi (`lucide:bell` → Iconify ma'lumoti): `as_shapes` uchun. */
+  icons?: Record<string, IconData>;
 }
 
 type LayerContext = CompileContext & { look: Look };
@@ -798,15 +803,61 @@ function compileLayer(
       return emitPro(add, layer, opId, pro.refOf, pro.links, extraKeys);
     }
     case "icon": {
-      // Lucide → PDF (server PREFLIGHT'da `icons/` ga yetkazadi) → vektor footage.
-      const item = `icon.${iconName(layer.name)}.${layer.color.replace("#", "").toLowerCase()}.${Math.round(layer.stroke_width * 100)}`;
+      const pos = toPixels(layer.pos, frame);
+      if (layer.as_shapes) {
+        // Native shape qatlam: geometriya aniq `size` px, markazi `pos` da (AE "Create Shapes" buyrug'isiz).
+        const icon = ctx.icons?.[iconKey(layer.name)];
+        const contents =
+          icon === undefined
+            ? null
+            : iconShapeContents(
+                icon,
+                layer.size,
+                layer.color,
+                icon.logo === true ? null : layer.stroke_width,
+              );
+        if (contents !== null) {
+          // Trim keyframe'lari (draw-on) uchun guruhga Trim Paths: `contents.icon.trim.end` yoki `contents.p1…`.
+          const trimmed = new Set(
+            Object.keys(layer.keyframes ?? {})
+              .map((path) => /^contents\.([a-z0-9_]+)\.trim\./.exec(path)?.[1])
+              .filter((id): id is string => id !== undefined),
+          );
+          const withTrim = (items: ShapeContentOp[]): ShapeContentOp[] =>
+            items.map((c) => ({
+              ...c,
+              ...(trimmed.has(c.id) ? { trim: { start: 0, end: 100 } } : {}),
+              ...(c.contents === undefined ? {} : { contents: withTrim(c.contents) }),
+            }));
+          const params: OpParamsMap["layer.add_shape"] = {
+            comp,
+            pos,
+            contents: withTrim(contents),
+            ...timingParams,
+            ...named,
+          };
+          if (layer.opacity !== 100) params.opacity = layer.opacity;
+          list.add("layer.add_shape", opId, params, sceneId);
+          list.motion(
+            animOps(layer.anim, { layer: opId, kind: "shape", pos, scale: [100, 100], dur }, frame),
+            opId,
+            sceneId,
+          );
+          return emitPro(add, layer, opId, pro.refOf, pro.links);
+        }
+        warnings.push(
+          `${opId}: ${iconKey(layer.name)} — ${icon === undefined ? "geometriya yo'q" : "gradient/maska kabi murakkab ikonka"}: as_shapes o'rniga vektor footage`,
+        );
+      }
+      // PDF (server PREFLIGHT'da `icons/` ga yetkazadi) → vektor footage, "Continuously Rasterize".
+      const ref = iconRef(layer.name);
+      const item = `icon.${ref.prefix}.${ref.name}.${layer.color.replace("#", "").toLowerCase()}.${Math.round(layer.stroke_width * 100)}`;
       if (!list.has(item)) {
         list.add("item.import", item, {
           file: iconFile(layer.name, layer.color, layer.stroke_width),
           folder: "Icons",
         });
       }
-      const pos = toPixels(layer.pos, frame);
       const scale = round(layer.size / ICON_BASE_PT);
       const params: OpParamsMap["layer.add_media"] = {
         comp,
@@ -818,7 +869,6 @@ function compileLayer(
         ...timingParams,
         ...named,
       };
-      if (layer.as_shapes) params.as_shapes = true;
       if (layer.opacity !== 100) params.opacity = layer.opacity;
       list.add("layer.add_media", opId, params, sceneId);
       list.motion(

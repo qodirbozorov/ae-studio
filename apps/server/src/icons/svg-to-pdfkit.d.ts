@@ -4,7 +4,7 @@ declare module "svg-to-pdfkit" {
     svg: string,
     x?: number,
     y?: number,
-    options?: { width?: number; height?: number; preserveAspectRatio?: string },
+    options?: { width?: number; height?: number; preserveAspectRatio?: string; assumePt?: boolean },
   ): void;
   export default SVGtoPDF;
 }

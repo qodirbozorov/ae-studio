@@ -514,12 +514,14 @@ Applies a preset to a temporary layer in AE and reports what it adds: effects, k
 
 ### `icons_search` — Search icons · faqat o'qish
 
-Searches Lucide icons (ISC, ~1,600 outline UI icons) by name words, e.g. "bell", "arrow right", "chart". Use the returned name in a spec layer {type: "icon", name, size, color, stroke_width}: it arrives in AE as crisp vector footage (no path drawing needed). Set as_shapes: true only when the icon's paths must be animated (trim draw-on).
+Searches icons by name words, e.g. "bell", "arrow right", "youtube". Lucide (ISC, ~1,600 consistent outline UI icons, offline) comes first, then Iconify (200,000+ icons in 150+ sets): brand logos (prefix simple-icons — mono, logos — multicolor), filled/other styles (mdi, ph, tabler, solar, material-symbols), flags (flag), emoji (fluent-emoji-flat), weather etc. Prefer one set per video for a consistent look; use prefix to search one set. Brand logo missing there, or the official full-color/wordmark logo needed: source "worldvectorlogo" (WorldVectorLogo, 60,000+ brand logos as wvl:<slug>; each search spends limited monthly admin credits — search once, precise brand name). Results: icons[] (prefix:name), collections{prefix: {name, license, multicolor}} (mention non-permissive licenses, e.g. CC BY, and that brand logos are trademarks), logos[] (WorldVectorLogo: title, downloads — prefer the most downloaded/current version). Use the name in a spec layer {type: "icon", name, size, color, stroke_width}: crisp vector footage in AE; as_shapes: true builds a native shape layer (exact size, centered) for path animation. color has no effect on multicolor icons.
 
 | Parametr | Turi | Majburiy | Izoh |
 |---|---|---|---|
 | `query` | string | ha | ≤ 64 belgi |
 | `limit` | integer |  | default `20`, ≥ 1, ≤ 50 |
+| `source` | `all` \\| `lucide` \\| `iconify` \\| `worldvectorlogo` |  | all: Lucide first, then Iconify; lucide: offline only; iconify: Iconify only; worldvectorlogo: brand logos (uses credits, never included in all) · default `"all"` |
+| `prefix` | string |  | One Iconify set, e.g. simple-icons, logos, mdi, ph, tabler, flag · ≤ 40 belgi |
 
 ### `ae_effects` — Installed effects · faqat o'qish
 

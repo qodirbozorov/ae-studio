@@ -39,6 +39,9 @@ import { StorageSettings } from "./storage/settings";
 import { registerAdminAuth } from "./admin/auth";
 import { registerAdminStorageRoutes } from "./admin/storage-routes";
 import { registerAdminElevenRoutes } from "./admin/eleven-routes";
+import { registerAdminIconRoutes } from "./admin/icons-routes";
+import { IconLibrary } from "./icons/library";
+import type { IconLibraryOptions } from "./icons/library";
 import { registerAdminMusicRoutes } from "./admin/music-routes";
 import type { Storage } from "./storage";
 import { createLimiter } from "./lib/rate-limit";
@@ -72,6 +75,7 @@ declare module "fastify" {
     music: MusicLibrary;
     templates: TemplateService;
     brands: BrandService;
+    icons: IconLibrary;
     batches: BatchService;
     telegram: TelegramService;
     maintenance: MaintenanceService;
@@ -96,6 +100,8 @@ export interface AppDeps {
   audioOptions?: ConstructorParameters<typeof AudioService>[2];
   /** Telegram (testlar: soxta fetch, polling'siz). */
   telegramOptions?: TelegramOptions;
+  /** Iconify API (testlar: soxta fetch). */
+  iconOptions?: IconLibraryOptions;
   /**
    * Replikalararo aloqa (P9.07). Berilmasa — yakka (`MemoryCluster`, taqsimlangan yo'llar o'chiq).
    * Production: `RedisCluster` (`index.ts`).
@@ -201,6 +207,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.decorate("templates", ctx.templates);
   ctx.brands = new BrandService(ctx);
   app.decorate("brands", ctx.brands);
+  ctx.icons = new IconLibrary(ctx, app.log, deps.iconOptions ?? {});
+  app.decorate("icons", ctx.icons);
+  cluster.onMessage((message) => {
+    if (message.t === "settings" && message.key === "worldvectorlogo") ctx.icons.wvl.invalidate();
+  });
 
   await app.register(cookie);
   // OAuth token/revoke va ruxsat formasi (RFC 6749: application/x-www-form-urlencoded).
@@ -248,6 +259,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerAdminUserRoutes(app, ctx, tariffs);
   registerAdminBillingRoutes(app, ctx, tariffs);
   registerAdminElevenRoutes(app, ctx);
+  registerAdminIconRoutes(app, ctx);
   if (storage instanceof SwitchStorage) {
     await storage.local.register(app);
     const storageSettings = new StorageSettings(ctx, storage, app.log);

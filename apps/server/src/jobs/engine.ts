@@ -12,6 +12,7 @@ import type { CompileAsset, CompileAudio, CompiledVariant } from "@aes/compiler"
 import {
   BATCH_PROTOCOL_VERSION,
   iconFile,
+  iconKey,
   MAX_PATCHES,
   audioUsesEleven,
   missingBrandAudio,
@@ -67,7 +68,7 @@ import { wordsOfTask } from "../audio/words";
 import { normalizeRootPath } from "../projects/routes";
 import { storageKey } from "../storage";
 import { buildReport, pad3 } from "./report";
-import { lucidePdf, lucideSvg } from "../icons/lucide";
+import { iconPdf, iconSvg } from "../icons/svg";
 import { aeFonts, compileExtras, usesFonts } from "./compile-extras";
 import { IDLE_STATES, actionAllowed, nextState } from "./machine";
 
@@ -134,6 +135,7 @@ export type EngineContext = Pick<
   | "music"
   | "templates"
   | "brands"
+  | "icons"
 >;
 
 /** Ish papkasidagi lokal nusxalar (§2.10): versiyali, hech biri ustiga yozilmaydi. */
@@ -1096,30 +1098,38 @@ export class JobEngine {
       }
     }
 
-    // Lucide ikonkalari: SVG → PDF → panel `icons/` (kesh: bir xil fayl qayta yuborilmaydi).
-    const icons = new Map<string, { name: string; color: string; stroke: number }>();
+    // Ikonkalar (Lucide/Iconify): SVG → PDF → panel `icons/` — faqat footage sifatida import qilinadiganlari
+    // (`as_shapes` geometriyadan shape bo'ladi). Kesh: bir xil fayl qayta yuborilmaydi.
+    const imported = new Set(
+      compiled.data.ops.flatMap((op) =>
+        op.op === "item.import" ? [(op.params as { file: string }).file] : [],
+      ),
+    );
+    const icons = new Map<string, { key: string; color: string; stroke: number }>();
     for (const scene of spec.data.scenes) {
       for (const layer of scene.layers ?? []) {
         if (layer.type !== "icon") continue;
-        icons.set(iconFile(layer.name, layer.color, layer.stroke_width), {
-          name: layer.name,
+        const dest = iconFile(layer.name, layer.color, layer.stroke_width);
+        if (!imported.has(dest)) continue;
+        icons.set(dest, {
+          key: iconKey(layer.name),
           color: layer.color,
           stroke: layer.stroke_width,
         });
       }
     }
     for (const [dest, icon] of icons) {
-      const svg = lucideSvg(icon.name, icon.color, icon.stroke);
-      if (svg === null) {
+      const data = extras.icons?.[icon.key];
+      if (data === undefined) {
         return {
           kind: "block",
-          error: makeError("SPEC_INVALID", `Lucide ikonka topilmadi: ${icon.name} (icons_search)`),
+          error: makeError("SPEC_INVALID", `Ikonka topilmadi: ${icon.key} (icons_search)`),
         };
       }
       const sent = await this.publishBytes(
         job,
         dest,
-        await lucidePdf(svg),
+        await iconPdf(iconSvg(data, icon.color, icon.stroke)),
         "pdf",
         "application/pdf",
       );

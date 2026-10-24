@@ -1,10 +1,21 @@
-/** Admin panel (`/admin`): kirish va bo'limlar — foydalanuvchilar, narxlar va tariflar, audio, musiqa, storage. */
-import { AudioLines, HardDrive, LogIn, LogOut, Music, ShieldCheck, Tag, Users } from "lucide-react";
+/** Admin panel (`/admin`): kirish va bo'limlar — foydalanuvchilar, narxlar va tariflar, audio, ikonkalar, musiqa, storage. */
+import {
+  AudioLines,
+  HardDrive,
+  LogIn,
+  LogOut,
+  Music,
+  Shapes,
+  ShieldCheck,
+  Tag,
+  Users,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, post } from "../api";
 import { Button, Field, Logo, Notice, Spinner, cx, inputClass } from "../ui";
 import { AudioPage } from "./AudioPage";
+import { IconsPage } from "./IconsPage";
 import { MusicPage } from "./MusicPage";
 import { PricingPage } from "./PricingPage";
 import { StoragePage } from "./StoragePage";
@@ -14,12 +25,14 @@ const NAV = [
   { href: "/admin/users", label: "Foydalanuvchilar", icon: Users },
   { href: "/admin/pricing", label: "Narxlar", icon: Tag },
   { href: "/admin/audio", label: "Audio", icon: AudioLines },
+  { href: "/admin/icons", label: "Ikonkalar", icon: Shapes },
   { href: "/admin/music", label: "Musiqa", icon: Music },
   { href: "/admin/storage", label: "Storage", icon: HardDrive },
 ] as const;
 
 function Section({ path }: { path: string }) {
   if (path.startsWith("/admin/audio")) return <AudioPage />;
+  if (path.startsWith("/admin/icons")) return <IconsPage />;
   if (path.startsWith("/admin/music")) return <MusicPage />;
   if (path.startsWith("/admin/storage")) return <StoragePage />;
   if (path.startsWith("/admin/pricing")) return <PricingPage />;

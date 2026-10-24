@@ -26,7 +26,12 @@ export async function createTestApp(
   db?: TestDb,
   extra: Pick<
     AppDeps,
-    "oauthFetcher" | "elevenOptions" | "audioOptions" | "telegramOptions" | "cluster"
+    | "oauthFetcher"
+    | "elevenOptions"
+    | "audioOptions"
+    | "telegramOptions"
+    | "cluster"
+    | "iconOptions"
   > = {},
 ): Promise<TestApp> {
   const testDb = db ?? (await createTestDb());
