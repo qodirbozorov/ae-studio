@@ -1723,3 +1723,8 @@ Ovoz dvigateli va narx: sarf jurnali (USD), DFN3 serverda, musiqa kutubxonasi (l
 ### Faza 9 yakuni (2026-10-12)
 
 Admin: foydalanuvchilar (qidiruv, profil, to'ldirish tarif/summa, bloklash — barcha tokenlar bekor + har auth'da tekshiruv), tariflar, narx stavkalari DB'da, to'lov kontakti, umumiy ko'rsatkichlar. Telegram kirish: tafsilot + raqam mosligi + «Bu men emas», webhook (secret_token), sessiyalar (ro'yxat, yopish, rotatsiya), device flow IP. Bot: balans va to'xtagan job xabarlari. Ko'p replika: Redis cluster (presence/RPC, job/batch qulfi, lider, umumiy rate limit, sozlamalar tarqatilishi). To'liq to'plam oddiy va `AES_TEST_CLUSTER=shared` rejimlarida o'tdi.
+
+### Admin → Audio: markaziy ElevenLabs kaliti (2026-10-24)
+
+Kalit admin panelda (`/admin/audio`) kiritiladi: obuna so'rovi bilan tekshiriladi, `system_settings.elevenlabs` ga AES-256-GCM (`MASTER_KEY`) bilan yoziladi, faqat `…abcd` ko'rinadi; ustuvorlik DB → env → eski user kaliti. Env'dagi kalit ishga tushishda bir marta DB'ga ko'chadi (yozuv bo'lsa qayta ko'chirilmaydi). Sahifada kvota (tarif, sarflangan/limit, qolgan kredit, yangilanish sanasi, ovoz slotlari) va joriy davr sarfi (`usage_ledger`: xizmat bo'yicha so'rov, hajm, tannarx, olingan), 60 s'da yangilanadi. Replikalar: `settings/elevenlabs` tarqatiladi, worker 30 s kesh. Tuzatish: `account()` (env_check, CHECK, kvota tekshiruvi) endi markaziy kalitni ko'radi — avval faqat shaxsiy kalit o'qilgani uchun markaziy kalit bilan ham "sozlanmagan" chiqardi. Testlar: `admin-eleven.test.ts` (4).
+

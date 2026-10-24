@@ -941,7 +941,7 @@ export class JobEngine {
           kind: "block",
           error: makeError(
             "EL_AUTH",
-            "Audio xizmati sozlanmagan (administrator: ELEVENLABS_API_KEY)",
+            "Audio xizmati sozlanmagan (administrator: admin panel → Audio)",
           ),
         };
       }

@@ -1,9 +1,10 @@
-/** Admin panel (`/admin`): kirish va bo'limlar — foydalanuvchilar, narxlar va tariflar, musiqa, storage. */
-import { HardDrive, LogIn, LogOut, Music, ShieldCheck, Tag, Users } from "lucide-react";
+/** Admin panel (`/admin`): kirish va bo'limlar — foydalanuvchilar, narxlar va tariflar, audio, musiqa, storage. */
+import { AudioLines, HardDrive, LogIn, LogOut, Music, ShieldCheck, Tag, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, post } from "../api";
 import { Button, Field, Logo, Notice, Spinner, cx, inputClass } from "../ui";
+import { AudioPage } from "./AudioPage";
 import { MusicPage } from "./MusicPage";
 import { PricingPage } from "./PricingPage";
 import { StoragePage } from "./StoragePage";
@@ -12,11 +13,13 @@ import { UsersPage } from "./UsersPage";
 const NAV = [
   { href: "/admin/users", label: "Foydalanuvchilar", icon: Users },
   { href: "/admin/pricing", label: "Narxlar", icon: Tag },
+  { href: "/admin/audio", label: "Audio", icon: AudioLines },
   { href: "/admin/music", label: "Musiqa", icon: Music },
   { href: "/admin/storage", label: "Storage", icon: HardDrive },
 ] as const;
 
 function Section({ path }: { path: string }) {
+  if (path.startsWith("/admin/audio")) return <AudioPage />;
   if (path.startsWith("/admin/music")) return <MusicPage />;
   if (path.startsWith("/admin/storage")) return <StoragePage />;
   if (path.startsWith("/admin/pricing")) return <PricingPage />;
@@ -125,7 +128,10 @@ export function AdminApp() {
               <ShieldCheck className="h-3.5 w-3.5" /> Admin
             </span>
           </div>
-          <nav aria-label="Admin" className="flex gap-1 lg:flex-col">
+          <nav
+            aria-label="Admin"
+            className="-mx-1 flex gap-1 overflow-x-auto px-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0"
+          >
             {NAV.map(({ href, label, icon: Icon }) => {
               const active =
                 path.startsWith(href) ||
@@ -136,7 +142,7 @@ export function AdminApp() {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   className={cx(
-                    "flex h-10 items-center gap-3 rounded-[1rem] px-3.5 text-[1rem] no-underline transition-[background-color,box-shadow,color] duration-200",
+                    "flex h-10 shrink-0 items-center gap-3 rounded-[1rem] px-3.5 text-[1rem] whitespace-nowrap no-underline transition-[background-color,box-shadow,color] duration-200",
                     active
                       ? "bg-white font-medium text-ink shadow-raise"
                       : "font-normal text-ink-2 hover:text-ink",

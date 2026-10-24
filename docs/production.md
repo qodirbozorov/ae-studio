@@ -21,7 +21,7 @@
 | O'zgaruvchi | Ma'nosi |
 |---|---|
 | `ADMIN_LOGIN`, `ADMIN_PASSWORD` | `/admin` kirish (parol ≥ 12 belgi). Bo'sh bo'lsa admin o'chiq |
-| `ELEVENLABS_API_KEY` | Markaziy audio kaliti (foydalanuvchilar kalit kiritmaydi) |
+| `ELEVENLABS_API_KEY` | Ixtiyoriy: markaziy audio kaliti. Asosiy joy — **admin → Audio** (tekshirib, AES-256-GCM bilan DB'ga). Env'dagi kalit birinchi ishga tushishda DB'ga avtomatik ko'chiriladi; admin'dagi kalit o'chirilsa env'ga qaytadi |
 | `BILLING_ENFORCE` | `1` — balans/faollashtirish tekshiriladi; bo'sh — faqat sarf yoziladi |
 | `AES_ROLE` | `all` (default) · `api` · `worker` |
 | `AUDIO_CONCURRENCY` | Worker'da parallel audio vazifalar (default 2) |

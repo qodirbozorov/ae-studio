@@ -38,6 +38,7 @@ import { LocalStorage, SwitchStorage, createStorage } from "./storage";
 import { StorageSettings } from "./storage/settings";
 import { registerAdminAuth } from "./admin/auth";
 import { registerAdminStorageRoutes } from "./admin/storage-routes";
+import { registerAdminElevenRoutes } from "./admin/eleven-routes";
 import { registerAdminMusicRoutes } from "./admin/music-routes";
 import type { Storage } from "./storage";
 import { createLimiter } from "./lib/rate-limit";
@@ -171,6 +172,15 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   ctx.eleven = new ElevenService(ctx, app.log, deps.elevenOptions ?? {});
   ctx.eleven.attach();
   app.decorate("eleven", ctx.eleven);
+  // Env'dagi kalit admin panelga (DB, shifrlangan) bir marta ko'chiriladi.
+  try {
+    if (await ctx.eleven.seedFromEnv()) app.log.info("ElevenLabs kaliti env'dan DB'ga ko'chirildi");
+  } catch (error) {
+    app.log.error({ err: error }, "ElevenLabs kalitini DB'ga ko'chirib bo'lmadi: env ishlatiladi");
+  }
+  cluster.onMessage((message) => {
+    if (message.t === "settings" && message.key === "elevenlabs") ctx.eleven.invalidate();
+  });
   // `api` roli faqat umumiy storage (R2) bilan: lokal diskni worker ko'rmaydi — unda server o'zi bajaradi.
   const audioRole = () =>
     deps.env.AES_ROLE === "api" && ctx.storage.driver === "s3"
@@ -237,6 +247,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerAdminMusicRoutes(app, ctx);
   registerAdminUserRoutes(app, ctx, tariffs);
   registerAdminBillingRoutes(app, ctx, tariffs);
+  registerAdminElevenRoutes(app, ctx);
   if (storage instanceof SwitchStorage) {
     await storage.local.register(app);
     const storageSettings = new StorageSettings(ctx, storage, app.log);
