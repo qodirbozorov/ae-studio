@@ -23,7 +23,7 @@ export function registerAdminImageRoutes(
     const [totals] = await ctx.db
       .select({
         total: sql<number>`count(*)::int`,
-        last_30d: sql<number>`count(*) filter (where ${stockPhotos.createdAt} >= ${since})::int`,
+        last_30d: sql<number>`count(*) filter (where ${stockPhotos.createdAt} >= ${since.toISOString()}::timestamptz)::int`,
         untracked: sql<number>`count(*) filter (where ${stockPhotos.downloadTrackedAt} is null)::int`,
       })
       .from(stockPhotos);

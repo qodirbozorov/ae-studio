@@ -51,4 +51,27 @@ describe("postgres.js drayveri bilan", () => {
     const list = await t.app.inject({ url: "/api/devices", headers: { cookie } });
     expect(list.json().data).toHaveLength(1);
   });
+
+  it("admin → Rasmlar statistikasi (xom SQL ichidagi sana parametri)", async () => {
+    const admin = await createTestApp(
+      { ADMIN_LOGIN: "boss", ADMIN_PASSWORD: "juda-uzun-parol-123" },
+      wire,
+    );
+    try {
+      const res = await admin.app.inject({
+        method: "POST",
+        url: "/api/admin/login",
+        payload: { login: "boss", password: "juda-uzun-parol-123" },
+      });
+      const cookie = `aes_admin=${res.cookies.find((c) => c.name === "aes_admin")!.value}`;
+      const view = await admin.app.inject({ url: "/api/admin/unsplash", headers: { cookie } });
+      expect(view.statusCode).toBe(200);
+      expect(view.json().data).toMatchObject({
+        configured: false,
+        stats: { total: 0, last_30d: 0 },
+      });
+    } finally {
+      await admin.app.close();
+    }
+  });
 });
