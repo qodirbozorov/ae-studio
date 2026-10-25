@@ -5,7 +5,7 @@
 Javob formati: `{ ok: true, data } | { ok: false, error: { code, retryable, hint, message?, details? } }`.
 Xato kodlari: [errors.md](errors.md).
 
-Jami: **64** tool, **4** prompt.
+Jami: **67** tool, **4** prompt.
 
 ## Muhit
 
@@ -124,6 +124,39 @@ Shows you an image or video from the project as small JPEGs: mode=image → one 
 | `times` | number[] |  |  |
 | `count` | integer |  | ≥ 1, ≤ 8 |
 | `max_px` | integer |  | default `768`, ≥ 128, ≤ 1280 |
+
+## Rasmlar (Unsplash)
+
+### `images_search` — Search stock photos · faqat o'qish
+
+Searches Unsplash photos (free license) for backgrounds, b-roll and illustrative stills when the project's own source/ files don't cover a scene — check assets_list first. Write the query in English, 1–4 concrete words ("cotton field sunrise", "modern office desk"). orientation defaults to the project's plan format (9:16 → portrait). Returns id, description, size, dominant color, author and a small thumb URL (Unsplash CDN) — show the user 3–6 options with author names and let them choose before images_import; do not import silently. Each search costs from a shared hourly quota: search once per subject, reuse results.
+
+| Parametr | Turi | Majburiy | Izoh |
+|---|---|---|---|
+| `query` | string | ha | ≤ 100 belgi |
+| `project_id` | uuid |  | Orientation from this project's plan format |
+| `orientation` | `landscape` \\| `portrait` \\| `squarish` |  |  |
+| `color` | `black_and_white` \\| `black` \\| `white` \\| `yellow` \\| `orange` \\| `red` \\| `purple` \\| `magenta` \\| `green` \\| `teal` \\| `blue` |  | Dominant color filter, e.g. to match the brand |
+| `count` | integer |  | default `12`, ≥ 1, ≤ 30 |
+| `page` | integer |  | default `1`, ≥ 1, ≤ 20 |
+
+### `images_import` — Import a stock photo
+
+Downloads a chosen Unsplash photo (id from images_search) straight from the Unsplash CDN into the project's source/unsplash/ folder on the user's computer (the panel must be online) and registers it as an asset — use the returned ref (asset:unsplash_…) in the spec like any media file (fit cover/contain, ken_burns…). width defaults to 1.25× the plan's larger side (max 4000 px); importing the same photo again returns the existing asset. Tell the user the attribution line when they publish.
+
+| Parametr | Turi | Majburiy | Izoh |
+|---|---|---|---|
+| `project_id` | uuid | ha |  |
+| `photo_id` | string | ha | ≤ 64 belgi |
+| `width` | integer |  | File width in px (height keeps the aspect) · ≥ 400, ≤ 6000 |
+
+### `images_credits` — Photo credits · faqat o'qish
+
+Lists the Unsplash photos imported into the project with attribution lines ("Photo by X on Unsplash" + links) — give them to the user for the video description or credits when publishing.
+
+| Parametr | Turi | Majburiy | Izoh |
+|---|---|---|---|
+| `project_id` | uuid | ha |  |
 
 ## Audio
 

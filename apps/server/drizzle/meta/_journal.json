@@ -127,6 +127,13 @@
       "when": 1791792921274,
       "tag": "0017_telegram_login_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792941577053,
+      "tag": "0018_stock_photos",
+      "breakpoints": true
     }
   ]
 }

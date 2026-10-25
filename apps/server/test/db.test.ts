@@ -61,6 +61,7 @@ describe("migratsiyalar", () => {
       "telegram_logins",
       "usage_ledger",
       "tariffs",
+      "stock_photos",
     ];
     expect(rows.map((r) => r.table_name).sort()).toEqual([...fromPlan, ...extra].sort());
   });

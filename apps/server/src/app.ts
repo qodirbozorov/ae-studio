@@ -40,8 +40,11 @@ import { registerAdminAuth } from "./admin/auth";
 import { registerAdminStorageRoutes } from "./admin/storage-routes";
 import { registerAdminElevenRoutes } from "./admin/eleven-routes";
 import { registerAdminIconRoutes } from "./admin/icons-routes";
+import { registerAdminImageRoutes } from "./admin/images-routes";
 import { IconLibrary } from "./icons/library";
 import type { IconLibraryOptions } from "./icons/library";
+import { UnsplashService } from "./stock/unsplash";
+import type { UnsplashOptions } from "./stock/unsplash";
 import { registerAdminMusicRoutes } from "./admin/music-routes";
 import type { Storage } from "./storage";
 import { createLimiter } from "./lib/rate-limit";
@@ -76,6 +79,7 @@ declare module "fastify" {
     templates: TemplateService;
     brands: BrandService;
     icons: IconLibrary;
+    unsplash: UnsplashService;
     batches: BatchService;
     telegram: TelegramService;
     maintenance: MaintenanceService;
@@ -102,6 +106,8 @@ export interface AppDeps {
   telegramOptions?: TelegramOptions;
   /** Iconify API (testlar: soxta fetch). */
   iconOptions?: IconLibraryOptions;
+  /** Unsplash API (testlar: soxta fetch). */
+  unsplashOptions?: UnsplashOptions;
   /**
    * Replikalararo aloqa (P9.07). Berilmasa — yakka (`MemoryCluster`, taqsimlangan yo'llar o'chiq).
    * Production: `RedisCluster` (`index.ts`).
@@ -209,6 +215,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.decorate("brands", ctx.brands);
   ctx.icons = new IconLibrary(ctx, app.log, deps.iconOptions ?? {});
   app.decorate("icons", ctx.icons);
+  ctx.unsplash = new UnsplashService(ctx, app.log, deps.unsplashOptions ?? {});
+  app.decorate("unsplash", ctx.unsplash);
+  cluster.onMessage((message) => {
+    if (message.t === "settings" && message.key === "unsplash") ctx.unsplash.invalidate();
+  });
   cluster.onMessage((message) => {
     if (message.t === "settings" && message.key === "worldvectorlogo") ctx.icons.wvl.invalidate();
   });
@@ -260,6 +271,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerAdminBillingRoutes(app, ctx, tariffs);
   registerAdminElevenRoutes(app, ctx);
   registerAdminIconRoutes(app, ctx);
+  registerAdminImageRoutes(app, ctx);
   if (storage instanceof SwitchStorage) {
     await storage.local.register(app);
     const storageSettings = new StorageSettings(ctx, storage, app.log);

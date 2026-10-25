@@ -1,7 +1,8 @@
-/** Admin panel (`/admin`): kirish va bo'limlar — foydalanuvchilar, narxlar va tariflar, audio, ikonkalar, musiqa, storage. */
+/** Admin panel (`/admin`): kirish va bo'limlar — foydalanuvchilar, narxlar va tariflar, audio, ikonkalar, rasmlar, musiqa, storage. */
 import {
   AudioLines,
   HardDrive,
+  Image,
   LogIn,
   LogOut,
   Music,
@@ -16,6 +17,7 @@ import { api, post } from "../api";
 import { Button, Field, Logo, Notice, Spinner, cx, inputClass } from "../ui";
 import { AudioPage } from "./AudioPage";
 import { IconsPage } from "./IconsPage";
+import { ImagesPage } from "./ImagesPage";
 import { MusicPage } from "./MusicPage";
 import { PricingPage } from "./PricingPage";
 import { StoragePage } from "./StoragePage";
@@ -26,6 +28,7 @@ const NAV = [
   { href: "/admin/pricing", label: "Narxlar", icon: Tag },
   { href: "/admin/audio", label: "Audio", icon: AudioLines },
   { href: "/admin/icons", label: "Ikonkalar", icon: Shapes },
+  { href: "/admin/images", label: "Rasmlar", icon: Image },
   { href: "/admin/music", label: "Musiqa", icon: Music },
   { href: "/admin/storage", label: "Storage", icon: HardDrive },
 ] as const;
@@ -33,6 +36,7 @@ const NAV = [
 function Section({ path }: { path: string }) {
   if (path.startsWith("/admin/audio")) return <AudioPage />;
   if (path.startsWith("/admin/icons")) return <IconsPage />;
+  if (path.startsWith("/admin/images")) return <ImagesPage />;
   if (path.startsWith("/admin/music")) return <MusicPage />;
   if (path.startsWith("/admin/storage")) return <StoragePage />;
   if (path.startsWith("/admin/pricing")) return <PricingPage />;

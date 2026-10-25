@@ -224,6 +224,33 @@ export const assets = pgTable(
   (t) => [unique("assets_project_key_uq").on(t.projectId, t.key)],
 );
 
+/**
+ * Loyihaga olingan stok rasmlar (Unsplash): fayl `source/unsplash/` da, atribusiya shu yerda — `assets.meta` skanerda
+ * qayta yoziladi. `download_tracked_at` — Unsplash download tracking yuborilgan vaqt (loyiha × rasm uchun bir marta).
+ */
+export const stockPhotos = pgTable(
+  "stock_photos",
+  {
+    id: id(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    photoId: text("photo_id").notNull(),
+    assetKey: text("asset_key").notNull(),
+    localPath: text("local_path").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    author: text("author").notNull(),
+    authorUrl: text("author_url").notNull(),
+    photoUrl: text("photo_url").notNull(),
+    meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default({}),
+    downloadTrackedAt: timestamp("download_tracked_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [unique("stock_photos_project_photo_uq").on(t.projectId, t.provider, t.photoId)],
+);
+
 // ---------------------------------------------------------------- batch (§11.4.3)
 
 export const batches = pgTable(

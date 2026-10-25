@@ -18,12 +18,14 @@ import { brandTools } from "./brands";
 import { batchTools } from "./batch";
 import { verifyTools } from "./verify";
 import { musicTools } from "./music";
+import { imageTools } from "./images";
 
 export const TOOLS: readonly ToolDef[] = [
   ...envTools,
   ...aeTools,
   ...projectTools,
   ...assetTools,
+  ...imageTools,
   ...buildTools,
   ...verifyTools,
   ...renderTools,

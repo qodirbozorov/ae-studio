@@ -9,6 +9,7 @@ import type { RedisLike } from "./redis";
 import type { TemplateService } from "./templates/service";
 import type { BrandService } from "./brands/service";
 import type { IconLibrary } from "./icons/library";
+import type { UnsplashService } from "./stock/unsplash";
 import type { BatchService } from "./batch/service";
 import type { TelegramService } from "./telegram/service";
 import type { Storage } from "./storage";
@@ -42,6 +43,8 @@ export interface AppContext {
   brands: BrandService;
   /** Ikonkalar: Lucide (lokal) + Iconify (API, kesh). */
   icons: IconLibrary;
+  /** Stok rasmlar (Unsplash): qidiruv, loyihaga olish. */
+  unsplash: UnsplashService;
   /** Batch: shablon + CSV (P5.07). */
   batches: BatchService;
   /** Telegram xabarnoma (P5.08). */

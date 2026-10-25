@@ -32,6 +32,7 @@ export async function createTestApp(
     | "telegramOptions"
     | "cluster"
     | "iconOptions"
+    | "unsplashOptions"
   > = {},
 ): Promise<TestApp> {
   const testDb = db ?? (await createTestDb());
